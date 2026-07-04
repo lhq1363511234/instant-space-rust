@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::server::spaces::list_spaces;
+use crate::{components::private_verify::PrivateVerify, server::spaces::list_spaces};
 
 #[component]
 pub fn MapHome() -> impl IntoView {
@@ -45,10 +45,21 @@ pub fn MapHome() -> impl IntoView {
                                 <For
                                     each=move || items.clone()
                                     key=|space| space.id.clone()
-                                    children=move |space| view! {
-                                        <li>
-                                            <button type="button">{space.name_zh}</button>
-                                        </li>
+                                    children=move |space| {
+                                        let is_public = space.is_public;
+                                        let space_id = space.id.clone();
+                                        let space_name = space.name_zh.clone();
+                                        view! {
+                                            <li>
+                                                <button type="button">{space.name_zh}</button>
+                                                {(!is_public).then(move || view! {
+                                                    <PrivateVerify
+                                                        space_id=space_id.clone()
+                                                        space_name=space_name.clone()
+                                                    />
+                                                })}
+                                            </li>
+                                        }
                                     }
                                 />
                             </ul>

@@ -29,12 +29,13 @@ This repository is an independent Rust rewrite skeleton covering:
 
 - Axum + Leptos workspace structure
 - PostgreSQL schema, seeds, and sqlx repository layer
-- MapLibre-oriented homepage shell and browser smoke tests
+- Leptos SSR shell with hydration script wiring
+- MapLibre-oriented homepage and browser smoke tests
 - Private space password boundary and chat access policy
 - Guide hierarchy, admin statistics, templates, residents, and location boundaries
 - SQLite source coverage check for the existing Next.js database
 
-Current browser routes are smoke-test shells for the Rust service. The Leptos components and server functions are present, but full Leptos SSR/hydration wiring remains a follow-up implementation step.
+Browser routes now render through the Leptos SSR app instead of static smoke-test HTML. Hydration script paths are wired to `/pkg/instant_space_app.js`; producing the browser WASM bundle remains a follow-up build pipeline step.
 
 Final verification run on 2026-07-04:
 
@@ -43,4 +44,9 @@ Final verification run on 2026-07-04:
 - `DATABASE_URL=postgres://postgres:postgres@localhost:5432/instant_space_rust cargo test --workspace`
 - `DATABASE_URL=postgres://postgres:postgres@localhost:5432/instant_space_rust sqlx migrate run --source crates/db/migrations`
 - `cargo run -p instant-importer -- ..\china-interactive-map\prisma\dev.db`
+- `npm run test:browser`
+
+SSR verification added on 2026-07-04:
+
+- `DATABASE_URL=postgres://postgres:postgres@localhost:5432/instant_space_rust cargo test -p instant-space-app`
 - `npm run test:browser`

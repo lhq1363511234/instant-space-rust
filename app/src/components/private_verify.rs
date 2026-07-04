@@ -30,24 +30,28 @@ pub fn PrivateVerify(space_id: String, space_name: String) -> impl IntoView {
 
     view! {
         <form
-            class="form"
+            class="private-entry"
+            aria-label="Private space verification"
             on:submit=move |ev| {
                 ev.prevent_default();
                 verify.dispatch(password.get());
             }
         >
             <h2>{space_name}</h2>
-            <input
-                name="password"
-                type="password"
-                aria-label="Space password"
-                on:input=move |ev| password.set(event_target_value(&ev))
-            />
-            <button type="submit">"验证"</button>
+            <label>
+                "Password"
+                <input
+                    name="password"
+                    type="password"
+                    aria-label="Private space password"
+                    on:input=move |ev| password.set(event_target_value(&ev))
+                />
+            </label>
+            <button type="submit">"Enter chat"</button>
             {move || {
                 verified_version
                     .get()
-                    .map(|version| view! { <p>"已验证，版本 "{version}</p> })
+                    .map(|version| view! { <p>"Verified password version "{version}</p> })
             }}
             {move || error.get().map(|message| view! { <p class="error">{message}</p> })}
         </form>
