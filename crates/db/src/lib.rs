@@ -1,3 +1,12 @@
-pub fn db_placeholder() -> &'static str {
-    "instant-db"
+pub async fn connect(database_url: &str) -> Result<sqlx::PgPool, sqlx::Error> {
+    sqlx::PgPool::connect(database_url).await
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn migration_files_are_embedded() {
+        let migrator = sqlx::migrate!("./migrations");
+        assert!(migrator.iter().count() >= 2);
+    }
 }
