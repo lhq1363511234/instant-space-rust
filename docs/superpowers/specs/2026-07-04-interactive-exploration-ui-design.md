@@ -11,6 +11,12 @@ This is not an Apple-style marketing homepage and not a decorative "fun" page. T
 - Product: Instant Space, a map-based location and space discovery app.
 - Current implementation: Leptos/Axum SSR app with MapLibre, homepage space listing, private password verification, guide/admin shells, and WASM hydration.
 - User feedback: current UI has no visual polish, weak interaction affordance, and no coherent aesthetic system.
+- Follow-up map direction:
+  - Keep MapLibre as the browser WebGL map engine.
+  - Use Rust/WASM for the browser-side map control layer, not a large hand-written JavaScript map implementation.
+  - Do not use MapLibre's official demo/default style as the real product basemap.
+  - Use a free, mature, MapLibre-compatible basemap provider. Approved provider: OpenFreeMap.
+  - Support dynamic projection switching between a flat 2D map and a 3D globe.
 - UI/UX Pro Max guidance used manually:
   - Product query: playful map discovery, social travel, local exploration, vibrant consumer web app.
   - Recommended style: bento grids and modular discovery cards, adapted for an app interface rather than a marketing landing page.
@@ -43,6 +49,10 @@ The design should have visual charm, but the charm must come from rhythm, color 
 - No large UI library migration in this pass.
 - No complete rewrite of unfinished product flows in the visual pass.
 - No attempt to make admin pages playful in a way that reduces operational clarity.
+- No Leaflet migration or reuse of the old Next.js map stack.
+- No production dependency on MapLibre demo tiles or demo style JSON.
+- No raw public OSM tile URL as the product basemap.
+- No expensive/commercial map provider requirement for the first pass.
 
 ## Product Personality
 
@@ -86,15 +96,17 @@ Desktop layout:
 
 - Full-viewport map surface.
 - Floating top navigation above map.
-- Floating exploration panel anchored to the right.
-- Optional compact discovery rail or stats strip inside the panel.
+- Floating search and filter panel over the map.
+- Compact space drawer for browsing available spaces.
+- Right-side detail drawer only after a space is selected.
 - No separate hero section before the map.
 
 Mobile layout:
 
 - Header at top.
-- Map takes the upper viewport.
-- Exploration panel becomes a bottom sheet-like section below or over the lower map area.
+- Map remains the first-screen surface.
+- Search/filter controls sit above the map as a compact panel.
+- Space list becomes a bottom drawer-like surface.
 - Search and filters remain reachable without horizontal scrolling.
 
 ### Guides, Login, Host, Admin
@@ -110,6 +122,76 @@ Visual pass expectations:
 
 ## Homepage Components
 
+### Map Runtime Architecture
+
+Purpose: keep the Rust rewrite honest. The map should not become a mostly JavaScript island with a Rust shell around it.
+
+Architecture:
+
+- `instant-map-ui` is the browser-side Rust/WASM map control crate.
+- MapLibre GL JS v5.x is the rendering engine for WebGL, vector tiles, camera, projection, and marker overlay support.
+- JavaScript is limited to a thin adapter around MapLibre APIs that cannot be called directly from Rust/WASM.
+- Leptos components own UI state and call into the WASM map control layer.
+- Server functions and PostgreSQL remain the source of truth for space data.
+
+WASM-owned responsibilities:
+
+- Normalize map provider configuration.
+- Track active style and projection mode.
+- Serialize and sync space points to the map adapter.
+- Fit map bounds to visible spaces.
+- Focus/fly to the selected space.
+- Preserve selected space, center, zoom, and filters across style/projection changes.
+- Expose a small API such as `mount`, `set_style`, `set_projection`, `sync_spaces`, `focus_space`, and `fit_spaces`.
+
+JavaScript adapter responsibilities:
+
+- Create and destroy the MapLibre map instance.
+- Call MapLibre methods such as `setStyle`, `setProjection`, `fitBounds`, `flyTo`, and marker construction.
+- Report recoverable map initialization errors back to the UI.
+- Avoid application-specific filtering, selection, or data ownership.
+
+### Basemap Provider
+
+Approved default provider: OpenFreeMap.
+
+Provider reasons:
+
+- Free to use for the first implementation pass.
+- Provides MapLibre-compatible style JSON.
+- Does not require a commercial API key for local development.
+- Works with vector styles, which are more reliable for MapLibre than ad hoc raster tile URLs.
+
+Initial styles:
+
+- Road: `https://tiles.openfreemap.org/styles/liberty`
+- Dark: `https://tiles.openfreemap.org/styles/dark`
+- The map container background must follow the active style. Road mode uses the OpenFreeMap road background color so transparent WebGL areas do not read as a dark blank map; dark mode uses the app map background.
+
+Provider rules:
+
+- The product must not silently fall back to `https://demotiles.maplibre.org/style.json`.
+- If a style URL fails, show an explicit map error state with recovery language.
+- Keep provider configuration centralized so a later pass can switch to Protomaps/PMTiles self-hosting or a paid provider without rewriting UI components.
+- OpenFreeMap is accepted as the zero-cost provider, but it is not treated as a commercial SLA service.
+
+### Projection Modes
+
+Purpose: support both practical browsing and the exploration feeling requested for the product.
+
+Modes:
+
+- `2D Map`: Mercator projection for normal browsing, searching, filtering, and selecting spaces.
+- `3D Globe`: Globe projection for a more exploratory world view.
+
+Behavior:
+
+- A visible segmented control or compact toggle switches between 2D and 3D.
+- Switching projection preserves current center, zoom, selected space, active filters, and open detail drawer.
+- Marker data remains synced after projection changes.
+- If direct projection switching is stable in MapLibre GL JS v5.x for the active style, use `setProjection`.
+- If a style/provider combination cannot switch projection safely, the WASM layer may perform a controlled remount while restoring user state.
+
 ### Map Surface
 
 Purpose: make location browsing feel primary.
@@ -117,15 +199,27 @@ Purpose: make location browsing feel primary.
 Design:
 
 - Full-bleed map, not inside a decorative card.
-- Stable height: desktop fills viewport; mobile uses a defined min-height and leaves room for the explorer panel.
+- Stable height: desktop fills viewport; mobile uses a defined min-height and leaves room for controls and drawers.
 - Loading fallback should be subtle and branded, not plain text.
 - Map controls should remain accessible and not be covered by panels.
+- Default view should use a real, readable city-scale basemap. It must not look empty, black, duplicated, or like a demo template.
+- Space markers should be visible on top of the basemap and should not be hidden behind fixed controls.
 
 States:
 
 - Loading: skeleton or calm loading label inside reserved map area.
-- Ready: MapLibre visible.
+- Ready: MapLibre visible with OpenFreeMap basemap and synced space markers.
 - Error or missing MapLibre: show an inline fallback with recovery language.
+- Provider error: show a clear basemap loading error rather than falling back to demo tiles.
+
+Controls:
+
+- Road style.
+- Dark style.
+- 2D map projection.
+- 3D globe projection.
+- Zoom in/out.
+- Optional future satellite mode only if a free provider is selected and verified visually.
 
 ### Explorer Panel
 
@@ -446,6 +540,11 @@ Defer:
 - Keep the current Rust app port and build scripts unchanged.
 - If icons are added in this pass, use inline SVG helpers or a small local set. Do not use emojis.
 - Keep MapLibre full-bleed and unframed.
+- Use MapLibre GL JS v5.x for the browser map engine.
+- Keep map application behavior in Rust/WASM where practical. The JS file should stay a MapLibre adapter, not the application map controller.
+- Use OpenFreeMap as the approved free basemap provider.
+- Remove any dependency on MapLibre's official default/demo style for real rendering.
+- Add provider/projection configuration in one place instead of scattering style URLs through components.
 
 ## Verification Plan
 
@@ -454,6 +553,8 @@ Before claiming implementation complete, run:
 ```powershell
 cargo fmt --all --check
 cargo check -p instant-space-app
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 npm run test:wasm
 npm run test:browser
 ```
@@ -462,6 +563,9 @@ Manual visual checks after implementation:
 
 - Desktop `1440x900`: map visible, panel clear, cards interactive.
 - Mobile `375x812`: no horizontal scroll, text fits, panel usable.
+- Road mode: OpenFreeMap road style is visible and readable, with roads, water, and labels.
+- Dark mode: OpenFreeMap dark style is visible and readable, not a blank black canvas.
+- Projection switch: 2D and 3D modes switch without losing selected space, markers, filter state, or open drawer state.
 - Keyboard: tab order reaches header, search, filters, cards, private form.
 - Reduced motion: no distracting animation remains.
 
@@ -473,3 +577,6 @@ Manual visual checks after implementation:
 - Interactive elements clearly communicate hover, focus, active, selected, loading, and error states.
 - The UI feels lightly playful through cards, badges, labels, and micro-interactions.
 - Existing browser smoke tests continue to pass.
+- The map is rendered from OpenFreeMap or another approved provider, not MapLibre demo tiles.
+- Rust/WASM owns map control behavior beyond the minimal MapLibre JS adapter.
+- Users can switch between flat 2D map and 3D globe projection.

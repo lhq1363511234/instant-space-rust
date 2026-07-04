@@ -3,6 +3,7 @@
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
     "test:wasm": "node tests/build/wasm-build.mjs",
+    "test:map-runtime": "node tests/build/map-runtime-contract.mjs",
     "test:browser": "npm run build:wasm && playwright test"
   },
   "devDependencies": {

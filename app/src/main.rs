@@ -60,6 +60,8 @@ mod tests {
         assert!(html.to_ascii_lowercase().contains("<!doctype html>"));
         assert!(html.contains("Instant Space Rust"));
         assert!(html.contains("data-instant-ssr=\"leptos\""));
+        assert!(html.contains("maplibre-gl@5."));
+        assert!(!html.contains("maplibre-gl@4."));
         assert!(html.contains("/pkg/instant_space_app.js"));
     }
 }
