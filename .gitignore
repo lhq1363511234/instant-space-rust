@@ -1,0 +1,8 @@
+/target/
+/.env
+/.sqlx/
+/app/pkg/
+/app/target/
+node_modules/
+test-results/
+playwright-report/
