@@ -7,6 +7,28 @@ pub struct SpaceFilter {
     pub space_type: Option<SpaceType>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CreateSpaceInput {
+    pub name_zh: String,
+    pub name_en: Option<String>,
+    pub province: String,
+    pub city: String,
+    pub district: Option<String>,
+    pub lat: f64,
+    pub lng: f64,
+    pub space_type: SpaceType,
+    pub is_public: bool,
+    pub password_hash: String,
+    pub host_user_id: uuid::Uuid,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreatedSpace {
+    pub id: uuid::Uuid,
+    pub name_zh: String,
+    pub host_user_id: Option<uuid::Uuid>,
+}
+
 pub async fn list_home_spaces(
     pool: &PgPool,
     filter: SpaceFilter,
@@ -46,6 +68,41 @@ pub async fn space_password_hash(
         ))
     })
     .transpose()
+}
+
+pub async fn create_host_space(
+    pool: &PgPool,
+    input: CreateSpaceInput,
+) -> Result<CreatedSpace, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        INSERT INTO spaces (
+            name_zh, name_en, province, city, district, lat, lng, space_type,
+            is_public, password_hash, host_user_id, creator_id, status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::space_type, $9, $10, $11, $11, 'active')
+        RETURNING id, name_zh, host_user_id
+        "#,
+    )
+    .bind(input.name_zh)
+    .bind(input.name_en)
+    .bind(input.province)
+    .bind(input.city)
+    .bind(input.district)
+    .bind(input.lat)
+    .bind(input.lng)
+    .bind(space_type_to_db(input.space_type))
+    .bind(input.is_public)
+    .bind(input.password_hash)
+    .bind(input.host_user_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(CreatedSpace {
+        id: row.try_get("id")?,
+        name_zh: row.try_get("name_zh")?,
+        host_user_id: row.try_get("host_user_id")?,
+    })
 }
 
 fn row_to_space_summary(row: sqlx::postgres::PgRow) -> Result<SpaceSummary, sqlx::Error> {
@@ -111,5 +168,36 @@ mod tests {
             .expect("rows");
         assert!(rows.iter().any(|space| space.name_zh == "外滩"));
         assert!(rows.iter().any(|space| space.name_zh == "私密茶室"));
+    }
+
+    #[tokio::test]
+    async fn create_user_and_space_are_linked() {
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+        let pool = sqlx::PgPool::connect(&database_url).await.expect("pool");
+        let email = format!("host-{}@example.com", uuid::Uuid::new_v4());
+        let user = crate::users::create_user(&pool, &email, Some("Host"), "hash")
+            .await
+            .expect("user");
+
+        let space = create_host_space(
+            &pool,
+            CreateSpaceInput {
+                name_zh: "测试空间".to_string(),
+                name_en: Some("Test Space".to_string()),
+                province: "上海市".to_string(),
+                city: "上海市".to_string(),
+                district: Some("黄浦区".to_string()),
+                lat: 31.23,
+                lng: 121.47,
+                space_type: SpaceType::Scenic,
+                is_public: true,
+                password_hash: "hash".to_string(),
+                host_user_id: user.id,
+            },
+        )
+        .await
+        .expect("space");
+
+        assert_eq!(space.host_user_id, Some(user.id));
     }
 }
