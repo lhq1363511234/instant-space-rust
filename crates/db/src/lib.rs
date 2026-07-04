@@ -1,3 +1,10 @@
+pub mod admin;
+pub mod chat;
+pub mod guides;
+pub mod locations;
+pub mod spaces;
+pub mod users;
+
 pub async fn connect(database_url: &str) -> Result<sqlx::PgPool, sqlx::Error> {
     sqlx::PgPool::connect(database_url).await
 }
