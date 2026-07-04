@@ -1,3 +1,5 @@
-pub fn app_placeholder() -> &'static str {
-    "instant-space-app"
-}
+pub mod app;
+pub mod components;
+pub mod error;
+pub mod pages;
+pub mod server;

@@ -5,3 +5,21 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+instant-auth = { path = "../crates/auth" }
+instant-db = { path = "../crates/db" }
+instant-domain = { path = "../crates/domain" }
+instant-map-ui = { path = "../crates/map-ui" }
+anyhow.workspace = true
+axum.workspace = true
+console_error_panic_hook.workspace = true
+leptos.workspace = true
+leptos_axum.workspace = true
+leptos_meta.workspace = true
+leptos_router.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
