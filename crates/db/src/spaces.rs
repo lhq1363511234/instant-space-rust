@@ -30,6 +30,24 @@ pub async fn list_home_spaces(
     rows.into_iter().map(row_to_space_summary).collect()
 }
 
+pub async fn space_password_hash(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+) -> Result<Option<(String, i32)>, sqlx::Error> {
+    let row = sqlx::query("SELECT password_hash, password_version FROM spaces WHERE id = $1")
+        .bind(space_id)
+        .fetch_optional(pool)
+        .await?;
+
+    row.map(|record| {
+        Ok((
+            record.try_get("password_hash")?,
+            record.try_get("password_version")?,
+        ))
+    })
+    .transpose()
+}
+
 fn row_to_space_summary(row: sqlx::postgres::PgRow) -> Result<SpaceSummary, sqlx::Error> {
     Ok(SpaceSummary {
         id: row.try_get("id")?,

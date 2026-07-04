@@ -1,0 +1,10 @@
+UPDATE users
+SET password_hash = '$argon2id$v=19$m=19456,t=2,p=1$vOw5wITSGZxqkRSJq0gVbg$At40uDXlWtFynC0rd0YtGTF/zjiZmz1csLUrWjIDg0Y'
+WHERE id = '00000000-0000-0000-0000-000000000001';
+
+UPDATE spaces
+SET password_hash = '$argon2id$v=19$m=19456,t=2,p=1$vOw5wITSGZxqkRSJq0gVbg$At40uDXlWtFynC0rd0YtGTF/zjiZmz1csLUrWjIDg0Y'
+WHERE id IN (
+  '10000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000002'
+);

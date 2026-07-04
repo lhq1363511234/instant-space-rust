@@ -22,3 +22,33 @@ pub async fn list_messages(pool: &PgPool, space_id: Uuid) -> Result<Vec<ChatMess
         })
         .collect()
 }
+
+pub async fn insert_message(
+    pool: &PgPool,
+    space_id: Uuid,
+    sender: String,
+    body: String,
+    password_version: i32,
+) -> Result<ChatMessage, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        INSERT INTO chat_messages (space_id, sender, body, password_version)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, space_id, sender, body, created_at
+        "#,
+    )
+    .bind(space_id)
+    .bind(sender)
+    .bind(body)
+    .bind(password_version)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(ChatMessage {
+        id: row.try_get("id")?,
+        space_id: row.try_get("space_id")?,
+        sender: row.try_get("sender")?,
+        body: row.try_get("body")?,
+        created_at: row.try_get("created_at")?,
+    })
+}
