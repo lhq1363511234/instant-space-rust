@@ -37,21 +37,25 @@ pub fn PrivateVerify(space_id: String, space_name: String) -> impl IntoView {
                 verify.dispatch(password.get());
             }
         >
-            <h2>{space_name}</h2>
-            <label>
-                "Password"
+            <div class="private-entry-header">
+                <span class="space-badge space-badge-private">"Private"</span>
+                <h3>{space_name}</h3>
+            </div>
+            <label class="field-label">
+                <span>"Access code"</span>
                 <input
                     name="password"
                     type="password"
                     aria-label="Private space password"
+                    placeholder="Enter space password"
                     on:input=move |ev| password.set(event_target_value(&ev))
                 />
             </label>
-            <button type="submit">"Enter chat"</button>
+            <button class="button button-primary" type="submit">"Enter chat"</button>
             {move || {
                 verified_version
                     .get()
-                    .map(|version| view! { <p>"Verified password version "{version}</p> })
+                    .map(|_| view! { <p class="form-success">"Access unlocked."</p> })
             }}
             {move || error.get().map(|message| view! { <p class="error">{message}</p> })}
         </form>
