@@ -12,6 +12,9 @@ pub fn MapHome() -> impl IntoView {
             list_spaces(value, None).await.unwrap_or_default()
         },
     );
+    Effect::new(move |_| {
+        instant_map_ui::mount("map", "https://demotiles.maplibre.org/style.json");
+    });
 
     view! {
         <section class="map-layout">

@@ -5,3 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+instant-domain = { path = "../domain" }
+serde.workspace = true
+wasm-bindgen.workspace = true
+web-sys.workspace = true
