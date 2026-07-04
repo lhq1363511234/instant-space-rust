@@ -24,3 +24,19 @@ pub async fn stats(pool: &PgPool) -> Result<AdminStats, sqlx::Error> {
         pending_resident_applications,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn admin_stats_include_seeded_rows() {
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+        let pool = sqlx::PgPool::connect(&database_url).await.expect("pool");
+        let stats = stats(&pool).await.expect("stats");
+
+        assert!(stats.spaces_count >= 2);
+        assert!(stats.guides_count >= 1);
+        assert!(stats.users_count >= 1);
+    }
+}
