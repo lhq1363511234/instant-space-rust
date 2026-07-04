@@ -78,3 +78,13 @@ textarea {
   display: grid;
   gap: 12px;
 }
+
+.space-list,
+.private-entry {
+  display: grid;
+  gap: 10px;
+}
+
+.private-entry {
+  margin-top: 8px;
+}
