@@ -105,6 +105,64 @@ pub async fn create_host_space(
     })
 }
 
+pub async fn archive_template(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+) -> Result<CreatedSpace, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        UPDATE spaces
+        SET status = 'template', updated_at = now()
+        WHERE id = $1
+        RETURNING id, name_zh, host_user_id
+        "#,
+    )
+    .bind(space_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(CreatedSpace {
+        id: row.try_get("id")?,
+        name_zh: row.try_get("name_zh")?,
+        host_user_id: row.try_get("host_user_id")?,
+    })
+}
+
+pub async fn apply_resident(pool: &PgPool, space_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE spaces
+        SET resident_apply_at = now(), updated_at = now()
+        WHERE id = $1
+        "#,
+    )
+    .bind(space_id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn approve_resident_application(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+    resident_days: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE spaces
+        SET resident = true, resident_days = $2, updated_at = now()
+        WHERE id = $1
+        "#,
+    )
+    .bind(space_id)
+    .bind(resident_days)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 fn row_to_space_summary(row: sqlx::postgres::PgRow) -> Result<SpaceSummary, sqlx::Error> {
     Ok(SpaceSummary {
         id: row.try_get("id")?,

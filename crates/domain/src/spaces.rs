@@ -23,6 +23,28 @@ pub enum SpaceStatus {
     Template,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpaceLifecycleAction {
+    RegeneratePassword,
+    Close,
+    Reactivate,
+    ArchiveTemplate,
+    ApplyResident,
+}
+
+impl SpaceLifecycleAction {
+    pub fn next_status(self, current: SpaceStatus) -> SpaceStatus {
+        match self {
+            SpaceLifecycleAction::Close => SpaceStatus::Closed,
+            SpaceLifecycleAction::Reactivate => SpaceStatus::Active,
+            SpaceLifecycleAction::ArchiveTemplate => SpaceStatus::Template,
+            SpaceLifecycleAction::RegeneratePassword | SpaceLifecycleAction::ApplyResident => {
+                current
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpaceSummary {
     pub id: Uuid,
@@ -114,5 +136,17 @@ mod tests {
             online_count: 0,
         };
         assert!(summary.is_visible_on_home_map());
+    }
+
+    #[test]
+    fn resident_application_sets_review_state() {
+        let next = SpaceLifecycleAction::ApplyResident.next_status(SpaceStatus::Active);
+        assert_eq!(next, SpaceStatus::Active);
+    }
+
+    #[test]
+    fn archived_template_status_is_explicit() {
+        let next = SpaceLifecycleAction::ArchiveTemplate.next_status(SpaceStatus::Active);
+        assert_eq!(next, SpaceStatus::Template);
     }
 }
