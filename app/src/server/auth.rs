@@ -1,8 +1,13 @@
-use axum::http::{header::SET_COOKIE, HeaderValue};
-use instant_auth::{generate_token, hash_password, verify_password};
 use instant_domain::auth::CurrentUser;
 use leptos::prelude::*;
+
+#[cfg(feature = "ssr")]
+use axum::http::{header::SET_COOKIE, HeaderValue};
+#[cfg(feature = "ssr")]
+use instant_auth::{generate_token, hash_password, verify_password};
+#[cfg(feature = "ssr")]
 use leptos_axum::ResponseOptions;
+#[cfg(feature = "ssr")]
 use time::{Duration, OffsetDateTime};
 
 #[server(RegisterUser, "/api")]
@@ -60,6 +65,7 @@ pub async fn login_user(email: String, password: String) -> Result<CurrentUser, 
     }))
 }
 
+#[cfg(feature = "ssr")]
 async fn create_session_cookie(
     pool: &sqlx::PgPool,
     user_id: uuid::Uuid,
@@ -73,6 +79,7 @@ async fn create_session_cookie(
     Ok(())
 }
 
+#[cfg(feature = "ssr")]
 fn set_session_cookie(token: &str) -> Result<(), ServerFnError> {
     if let Some(response) = use_context::<ResponseOptions>() {
         let cookie =

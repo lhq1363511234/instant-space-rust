@@ -1,6 +1,9 @@
-use instant_auth::verify_password;
 use instant_domain::chat::ChatMessage;
 use leptos::prelude::*;
+
+#[cfg(feature = "ssr")]
+use instant_auth::verify_password;
+#[cfg(feature = "ssr")]
 use uuid::Uuid;
 
 #[server(VerifySpacePassword, "/api")]

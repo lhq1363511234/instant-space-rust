@@ -9,6 +9,9 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 sqlx migrate run --source crates/db/migrations
+npm run build:wasm
+npm run test:wasm
+npm run test:browser
 ```
 
 ## Importer
@@ -29,13 +32,13 @@ This repository is an independent Rust rewrite skeleton covering:
 
 - Axum + Leptos workspace structure
 - PostgreSQL schema, seeds, and sqlx repository layer
-- Leptos SSR shell with hydration script wiring
+- Leptos SSR shell with WASM hydration build wiring
 - MapLibre-oriented homepage and browser smoke tests
 - Private space password boundary and chat access policy
 - Guide hierarchy, admin statistics, templates, residents, and location boundaries
 - SQLite source coverage check for the existing Next.js database
 
-Browser routes now render through the Leptos SSR app instead of static smoke-test HTML. Hydration script paths are wired to `/pkg/instant_space_app.js`; producing the browser WASM bundle remains a follow-up build pipeline step.
+Browser routes now render through the Leptos SSR app instead of static smoke-test HTML. `npm run build:wasm` builds the hydration bundle into `target/site/pkg`, and Axum serves it from `/pkg`.
 
 Final verification run on 2026-07-04:
 
@@ -49,4 +52,5 @@ Final verification run on 2026-07-04:
 SSR verification added on 2026-07-04:
 
 - `DATABASE_URL=postgres://postgres:postgres@localhost:5432/instant_space_rust cargo test -p instant-space-app`
+- `npm run test:wasm`
 - `npm run test:browser`

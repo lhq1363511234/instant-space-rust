@@ -1,7 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "test:browser": "playwright test"
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "test:wasm": "node tests/build/wasm-build.mjs",
+    "test:browser": "npm run build:wasm && playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.0"

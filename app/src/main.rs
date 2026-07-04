@@ -1,5 +1,5 @@
 use axum::Router;
-use instant_space_app::app::{shell, App};
+use instant_space_web::app::{shell, App};
 use leptos::prelude::LeptosOptions;
 use leptos_axum::{generate_route_list, LeptosRoutes};
 use std::net::SocketAddr;
@@ -24,6 +24,7 @@ fn build_router() -> Router {
     let shell_options = options.clone();
 
     Router::new()
+        .nest_service("/pkg", ServeDir::new("target/site/pkg"))
         .nest_service("/style", ServeDir::new("app/style"))
         .leptos_routes(&options, routes, move || shell(shell_options.clone()))
         .with_state(options)

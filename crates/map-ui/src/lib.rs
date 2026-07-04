@@ -11,7 +11,7 @@ pub struct MapPoint {
 }
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(module = "/app/src/maplibre_shim.js")]
+#[wasm_bindgen(module = "/src/maplibre_shim.js")]
 extern "C" {
     #[wasm_bindgen(js_name = mountMap)]
     fn mount_map(element_id: &str, style_url: &str);

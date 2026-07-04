@@ -1,7 +1,9 @@
-use instant_db::spaces::{list_home_spaces, SpaceFilter};
 use instant_domain::spaces::{SpaceSummary, SpaceType};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "ssr")]
+use instant_db::spaces::{list_home_spaces, SpaceFilter};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpaceMarker {
