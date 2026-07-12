@@ -29,7 +29,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Title text="Instant Space Rust" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260711-capitals-taiwan-v36" />
+        <Stylesheet id="main-css" href="/style/main.css?v=20260712-ipad-responsive-v38" />
         <Router>
             <Header />
             <Routes fallback=|| view! { <main class="page"><h1>"Not found"</h1></main> }>

@@ -4,7 +4,7 @@ use sqlx::{PgPool, Row};
 const OPTION_LIMIT: i64 = 800;
 
 pub async fn countries(pool: &PgPool) -> Result<Vec<GeoOption>, sqlx::Error> {
-    // Taiwan is a province of China — never list it as a country.
+    // Taiwan, Hong Kong and Macao are part of China — never list them as countries.
     let rows = sqlx::query(
         r#"
         SELECT country_name AS value, country_name AS label, max(population) AS rank
@@ -12,7 +12,10 @@ pub async fn countries(pool: &PgPool) -> Result<Vec<GeoOption>, sqlx::Error> {
         WHERE country_name IS NOT NULL
           AND btrim(country_name) <> ''
           AND country_name NOT ILIKE 'Taiwan'
-          AND country_code <> 'TW'
+          AND country_name NOT ILIKE 'Hong Kong'
+          AND country_name NOT ILIKE 'Macao'
+          AND country_name NOT ILIKE 'Macau'
+          AND country_code NOT IN ('TW', 'HK', 'MO')
         GROUP BY country_name
         ORDER BY rank DESC NULLS LAST, country_name
         LIMIT $1

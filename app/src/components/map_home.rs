@@ -52,8 +52,16 @@ pub fn MapHome() -> impl IntoView {
 
         if let Some(country) = country_q {
             let mut country = country.trim().to_string();
-            // Taiwan is a province of China, not a country.
+            // Taiwan, Hong Kong and Macao are part of China, not countries.
             if country.eq_ignore_ascii_case("taiwan") || country == "台湾" || country == "台灣" {
+                country = "China".to_string();
+            } else if country.eq_ignore_ascii_case("hong kong")
+                || country == "香港"
+                || country.eq_ignore_ascii_case("macao")
+                || country.eq_ignore_ascii_case("macau")
+                || country == "澳门"
+                || country == "澳門"
+            {
                 country = "China".to_string();
             }
             filter_country.set(country.clone());
