@@ -2,6 +2,14 @@
 
 Independent full-stack Rust rewrite of Instant Space.
 
+## Product / Architecture
+
+Product baseline: [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md). Current focus is **Global Travel Guide Spaces**: the map shows Spaces, a Space can contain many Guides, and Guides may also exist as standalone content.
+
+Rust-specific architecture and roadmap: [`docs/ARCHITECTURE_RUST.md`](docs/ARCHITECTURE_RUST.md). This document uses the legacy Node/Next.js project only as product context and describes the independent Rust implementation.
+
+Phase plan: [`docs/PHASES.md`](docs/PHASES.md).
+
 ## Commands
 
 ```powershell

@@ -58,11 +58,41 @@ extern "C" {
     #[wasm_bindgen(js_name = focusMapPoint)]
     fn focus_map_point(element_id: &str, lng: f64, lat: f64);
 
+    #[wasm_bindgen(js_name = focusMapView)]
+    fn focus_map_view(element_id: &str, lng: f64, lat: f64, zoom: f64);
+
+    #[wasm_bindgen(js_name = resizeMap)]
+    fn resize_map(element_id: &str);
+
+    #[wasm_bindgen(js_name = revealMap)]
+    fn reveal_map(element_id: &str);
+
     #[wasm_bindgen(js_name = zoomMapIn)]
     fn zoom_map_in(element_id: &str);
 
     #[wasm_bindgen(js_name = zoomMapOut)]
     fn zoom_map_out(element_id: &str);
+
+    #[wasm_bindgen(js_name = destroyMap)]
+    fn destroy_map(element_id: &str);
+
+    #[wasm_bindgen(js_name = enableCoordinatePicker)]
+    fn enable_coordinate_picker(
+        element_id: &str,
+        lat_input_id: &str,
+        lng_input_id: &str,
+        lng: f64,
+        lat: f64,
+    );
+
+    #[wasm_bindgen(js_name = disableCoordinatePicker)]
+    fn disable_coordinate_picker(element_id: &str);
+
+    #[wasm_bindgen(js_name = getPageOrigin)]
+    fn get_page_origin() -> String;
+
+    #[wasm_bindgen(js_name = copyText)]
+    fn copy_text_js(text: &str) -> bool;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -91,6 +121,30 @@ pub fn focus_point(element_id: &str, lng: f64, lat: f64) {
 }
 
 #[cfg(target_arch = "wasm32")]
+pub fn focus_view(element_id: &str, lng: f64, lat: f64, zoom: f64) {
+    focus_map_view(element_id, lng, lat, zoom);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn focus_view(_element_id: &str, _lng: f64, _lat: f64, _zoom: f64) {}
+
+#[cfg(target_arch = "wasm32")]
+pub fn resize(element_id: &str) {
+    resize_map(element_id);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn resize(_element_id: &str) {}
+
+#[cfg(target_arch = "wasm32")]
+pub fn reveal(element_id: &str) {
+    reveal_map(element_id);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn reveal(_element_id: &str) {}
+
+#[cfg(target_arch = "wasm32")]
 pub fn zoom_in(element_id: &str) {
     zoom_map_in(element_id);
 }
@@ -98,6 +152,21 @@ pub fn zoom_in(element_id: &str) {
 #[cfg(target_arch = "wasm32")]
 pub fn zoom_out(element_id: &str) {
     zoom_map_out(element_id);
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn destroy(element_id: &str) {
+    destroy_map(element_id);
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn enable_picker(element_id: &str, lat_input_id: &str, lng_input_id: &str, lng: f64, lat: f64) {
+    enable_coordinate_picker(element_id, lat_input_id, lng_input_id, lng, lat);
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn disable_picker(element_id: &str) {
+    disable_coordinate_picker(element_id);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -133,4 +202,46 @@ pub fn zoom_in(_element_id: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn zoom_out(_element_id: &str) {
     // MapLibre is browser-only; native server builds keep this as a no-op.
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn destroy(_element_id: &str) {
+    // MapLibre is browser-only; native server builds keep this as a no-op.
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn enable_picker(
+    _element_id: &str,
+    _lat_input_id: &str,
+    _lng_input_id: &str,
+    _lng: f64,
+    _lat: f64,
+) {
+    // MapLibre is browser-only; native server builds keep this as a no-op.
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn disable_picker(_element_id: &str) {
+    // MapLibre is browser-only; native server builds keep this as a no-op.
+}
+
+
+#[cfg(target_arch = "wasm32")]
+pub fn page_origin() -> String {
+    get_page_origin()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn copy_text(text: &str) -> bool {
+    copy_text_js(text)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn page_origin() -> String {
+    String::new()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn copy_text(_text: &str) -> bool {
+    false
 }

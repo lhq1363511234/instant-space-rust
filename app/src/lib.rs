@@ -1,6 +1,10 @@
+#![recursion_limit = "512"]
+
 pub mod app;
+pub mod app_state;
 pub mod components;
 pub mod error;
+pub mod i18n;
 pub mod pages;
 pub mod server;
 

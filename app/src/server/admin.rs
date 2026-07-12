@@ -1,13 +1,12 @@
 use instant_domain::admin::AdminStats;
 use leptos::prelude::*;
 
-#[server(GetAdminStats, "/api")]
+#[server(GetAdminStats, "/inspace/api")]
 pub async fn get_admin_stats() -> Result<AdminStats, ServerFnError> {
-    let database_url =
-        std::env::var("DATABASE_URL").map_err(|err| ServerFnError::new(err.to_string()))?;
-    let pool = instant_db::connect(&database_url)
-        .await
-        .map_err(|err| ServerFnError::new(err.to_string()))?;
+    #[cfg(feature = "ssr")]
+    crate::server::auth::require_admin_user().await?;
+
+    let pool = crate::server::db_pool().await?;
 
     instant_db::admin::stats(&pool)
         .await

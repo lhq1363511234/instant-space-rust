@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -101,3 +102,21 @@ run(wasmBindgen, [
   "instant_space_app",
   "--no-typescript",
 ]);
+
+const jsOutput = join(pkgDir, "instant_space_app.js");
+let js = readFileSync(jsOutput, "utf8");
+const shimImport = js.match(
+  /from ['"](\.\/snippets\/instant-map-ui-[^'"]+\/src\/maplibre_shim\.js)['"]/,
+);
+
+if (shimImport) {
+  const shimPath = join(pkgDir, shimImport[1]);
+  const shimHash = createHash("sha256")
+    .update(readFileSync(shimPath))
+    .digest("hex")
+    .slice(0, 12);
+
+  js = js.replaceAll(`${shimImport[1]}'`, `${shimImport[1]}?v=${shimHash}'`);
+  js = js.replaceAll(`${shimImport[1]}"`, `${shimImport[1]}?v=${shimHash}"`);
+  writeFileSync(jsOutput, js);
+}

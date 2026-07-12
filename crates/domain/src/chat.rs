@@ -11,6 +11,21 @@ pub struct ChatMessage {
     pub created_at: OffsetDateTime,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChatAccessState {
+    pub space_id: Uuid,
+    pub space_name: String,
+    pub is_public: bool,
+    pub allowed: bool,
+    pub password_version: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AccessGrant {
+    pub password_version: i32,
+    pub expires_at: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChatAccess {
     Allowed,
@@ -30,7 +45,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn password_version_mismatch_invalidates_chat_access() {
+    fn password_version_mismatch_requires_reverification_before_send() {
         assert_eq!(
             check_password_version(2, 1),
             ChatAccess::PasswordVersionMismatch

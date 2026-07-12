@@ -28,6 +28,13 @@ pub fn generate_token() -> String {
         .collect()
 }
 
+pub fn generate_password_code() -> String {
+    let mut rng = rand::thread_rng();
+    (0..6)
+        .map(|_| char::from(b'0' + rng.gen_range(0..10)))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,5 +50,12 @@ mod tests {
     fn generated_access_token_is_not_empty() {
         let token = generate_token();
         assert!(token.len() >= 32);
+    }
+
+    #[test]
+    fn generated_password_code_is_six_digits() {
+        let code = generate_password_code();
+        assert_eq!(code.len(), 6);
+        assert!(code.chars().all(|value| value.is_ascii_digit()));
     }
 }

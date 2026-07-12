@@ -5,3 +5,4 @@ pub mod map_home;
 pub mod private_verify;
 pub mod space_detail;
 pub mod space_form;
+pub mod space_share;

@@ -1,7 +1,11 @@
-use axum::Router;
+#![recursion_limit = "512"]
+
+use axum::{extract::Query, http::StatusCode, routing::get, Json, Router};
+use instant_domain::locations::GeoMatch;
 use instant_space_web::app::{shell, App};
 use leptos::prelude::LeptosOptions;
 use leptos_axum::{generate_route_list, LeptosRoutes};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 
@@ -24,10 +28,34 @@ fn build_router() -> Router {
     let shell_options = options.clone();
 
     Router::new()
+        .route("/geo/reverse", get(reverse_geo))
         .nest_service("/pkg", ServeDir::new("target/site/pkg"))
         .nest_service("/style", ServeDir::new("app/style"))
+        .nest_service("/vendor", ServeDir::new("app/vendor"))
         .leptos_routes(&options, routes, move || shell(shell_options.clone()))
         .with_state(options)
+}
+
+#[derive(Debug, Deserialize)]
+struct ReverseGeoQuery {
+    lat: f64,
+    lng: f64,
+}
+
+async fn reverse_geo(
+    Query(query): Query<ReverseGeoQuery>,
+) -> Result<Json<Option<GeoMatch>>, (StatusCode, String)> {
+    if !query.lat.is_finite() || !query.lng.is_finite() {
+        return Err((StatusCode::BAD_REQUEST, "invalid coordinates".to_string()));
+    }
+
+    let pool = instant_space_web::server::db_pool()
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    let location = instant_db::geo::nearest_place(&pool, query.lat, query.lng)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    Ok(Json(location))
 }
 
 fn leptos_options() -> LeptosOptions {
@@ -60,8 +88,9 @@ mod tests {
         assert!(html.to_ascii_lowercase().contains("<!doctype html>"));
         assert!(html.contains("Instant Space Rust"));
         assert!(html.contains("data-instant-ssr=\"leptos\""));
-        assert!(html.contains("maplibre-gl@5."));
-        assert!(!html.contains("maplibre-gl@4."));
+        assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.js"));
+        assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.css"));
+        assert!(!html.contains("unpkg.com/maplibre-gl"));
         assert!(html.contains("/pkg/instant_space_app.js"));
     }
 }

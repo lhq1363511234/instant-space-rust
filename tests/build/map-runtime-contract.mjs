@@ -8,12 +8,16 @@ const shim = fs.readFileSync("crates/map-ui/src/maplibre_shim.js", "utf8");
 const home = fs.readFileSync("app/src/components/map_home.rs", "utf8");
 const styles = fs.readFileSync("app/style/main.css", "utf8");
 
+const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+assert.match(pkg.dependencies?.["maplibre-gl"] || "", /^\^?5\./, "MapLibre GL JS must be pinned to the v5 line");
 for (const source of [appShell, staticShell]) {
-  assert.match(source, /maplibre-gl@5\./, "MapLibre GL JS must be loaded from the v5 line");
+  assert.match(source, /\/vendor\/maplibre-gl\/maplibre-gl\.js/, "MapLibre GL JS must be served from local vendor assets");
+  assert.match(source, /\/vendor\/maplibre-gl\/maplibre-gl\.css/, "MapLibre GL CSS must be served from local vendor assets");
 }
 
-assert.match(shim, /https:\/\/tiles\.openfreemap\.org\/styles\/liberty/, "Road style must use OpenFreeMap liberty");
-assert.match(shim, /https:\/\/tiles\.openfreemap\.org\/styles\/dark/, "Dark style must use OpenFreeMap dark");
+assert.match(shim, /stylePath:\s*"\/styles\/liberty"/, "Road style must use OpenFreeMap liberty");
+assert.match(shim, /stylePath:\s*"\/styles\/dark"/, "Dark style must use OpenFreeMap dark");
+assert.match(shim, /\/inspace\/ofm/, "Production map runtime must proxy OpenFreeMap through the app origin under /inspace");
 assert.doesNotMatch(shim, /demotiles\.maplibre\.org/, "Production map runtime must not use MapLibre demo assets");
 assert.doesNotMatch(shim, /satellite|World_Imagery|ArcGIS/i, "Free OpenFreeMap pass must not ship a satellite provider");
 

@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod chat;
+pub mod geo;
 pub mod guides;
 pub mod locations;
 pub mod spaces;

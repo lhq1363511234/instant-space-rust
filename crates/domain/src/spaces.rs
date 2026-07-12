@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,13 +52,17 @@ pub struct SpaceSummary {
     pub name_zh: String,
     pub name_en: Option<String>,
     pub space_type: SpaceType,
+    pub country: Option<String>,
     pub province: Option<String>,
     pub city: Option<String>,
     pub district: Option<String>,
+    pub spot_name: Option<String>,
+    pub address_line: Option<String>,
     pub lat: f64,
     pub lng: f64,
     pub is_public: bool,
     pub status: SpaceStatus,
+    pub expires_at: Option<OffsetDateTime>,
     pub online_count: i32,
 }
 
@@ -126,13 +131,17 @@ mod tests {
             name_zh: "外滩".to_string(),
             name_en: Some("The Bund".to_string()),
             space_type: SpaceType::Scenic,
+            country: Some("中国".to_string()),
             province: Some("上海市".to_string()),
             city: Some("上海市".to_string()),
             district: None,
+            spot_name: Some("外滩".to_string()),
+            address_line: None,
             lat: 31.2397,
             lng: 121.4998,
             is_public: true,
             status: SpaceStatus::Active,
+            expires_at: None,
             online_count: 0,
         };
         assert!(summary.is_visible_on_home_map());
