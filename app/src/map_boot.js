@@ -63,6 +63,12 @@
     var explore = qs('explore');
     return !!(c && String(c).trim()) || map === '1' || map === 'true' || explore === '1' || explore === 'true';
   }
+  function showHero() {
+    document.documentElement.removeAttribute('data-map-open');
+    if (document.body) document.body.removeAttribute('data-map-open');
+    var hero = document.querySelector('.home-hero-card');
+    if (hero) hero.style.display = '';
+  }
   function hideHero() {
     document.documentElement.setAttribute('data-map-open', '1');
     if (document.body) document.body.setAttribute('data-map-open', '1');
@@ -150,6 +156,22 @@
         hideHero();
         ensureMap();
       }
+    }, true);
+    // Auto-close header menus: <details> doesn't close on outside-click or after
+    // activating an item natively, so we do it. Keep the menu's own summary
+    // (native toggle) and in-menu adjusters (zoom/style/projection/language) open.
+    document.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      var menus = document.querySelectorAll('details.nav-menu[open], details.user-menu[open]');
+      if (!menus.length) return;
+      var sum = t.closest('summary');
+      var keep = t.closest('.language-switcher, .map-style-switcher, .map-projection-switcher, .map-zoom-controls');
+      menus.forEach(function (det) {
+        if (sum && det.contains(sum)) return;
+        if (keep && det.contains(t)) return;
+        det.open = false;
+      });
     }, true);
     var n = 0;
     var timer = setInterval(function () {

@@ -401,7 +401,6 @@ fn HomeHero(
             </button>
             <div class="home-hero-content">
                 <div class="home-hero-kicker">
-                    <span class="home-hero-badge">{move || t(locale.get(), "全球旅行攻略空间", "Global Travel Guide Spaces")}</span>
                     <span class="home-hero-live">
                         <i aria-hidden="true"></i>
                         {move || t(locale.get(), "地图上的真实地点攻略", "Real places. Live guides.")}
@@ -411,24 +410,17 @@ fn HomeHero(
                 <h1 id="home-hero-title">
                     {move || t(
                         locale.get(),
-                        "把世界装进地图：发现攻略，进入空间，分享体验。",
-                        "Put the world on a map: discover guides, enter spaces, share the trip.",
+                        "把世界装进地图",
+                        "Put the world on a map.",
                     )}
                 </h1>
                 <p class="home-hero-copy">
                     {move || t(
                         locale.get(),
-                        "搜索全球旅行空间，阅读结构化攻略，把链接或二维码分享给同行的人。",
-                        "Search travel spaces worldwide, read structured guides, and share a link or QR with your crew.",
+                        "发现攻略，进入空间，分享同行。",
+                        "Discover guides, enter spaces, share the trip.",
                     )}
                 </p>
-
-                <div class="home-hero-proof" aria-label=move || t(locale.get(), "产品亮点", "Product highlights")>
-                    <span class="proof-chip proof-a">{move || t(locale.get(), "🗺 地图发现", "🗺 Map discovery")}</span>
-                    <span class="proof-chip proof-b">{move || t(locale.get(), "📘 结构化攻略", "📘 Structured guides")}</span>
-                    <span class="proof-chip proof-c">{move || t(locale.get(), "🔗 一键分享", "🔗 One-tap share")}</span>
-                    <span class="proof-chip proof-d">{move || t(locale.get(), "✨ 3D 即将上线", "✨ 3D coming soon")}</span>
-                </div>
 
                                 <section class="home-destination-guide" aria-label=move || t(locale.get(), "你想去哪", "Where do you want to go")>
                     <div class="home-destination-head">
@@ -436,8 +428,8 @@ fn HomeHero(
                         <p>
                             {move || t(
                                 locale.get(),
-                                "选择国家后确认：关闭首屏、聚焦该国地图并加载对应空间；不选则全局慢慢加载。",
-                                "Pick a country then confirm: close the intro, focus that country map, and load its spaces. None means gradual global load.",
+                                "选个国家聚焦地图，不选则全局加载。",
+                                "Pick a country to focus the map, or load the whole world.",
                             )}
                         </p>
                     </div>
@@ -653,7 +645,6 @@ fn HomeHero(
                                     <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
                                 </div>
                             </div>
-                            <p>{move || t(locale.get(), "搜索城市、景点或街区，直接在地图上看到真实地点空间。", "Search a city, attraction, or neighborhood and see real-place spaces on the map.")}</p>
                         </article>
 
                         <article class="hero-slide hero-slide-step">
@@ -665,7 +656,6 @@ fn HomeHero(
                                     <span>{move || t(locale.get(), "路线 · 亮点 · 避坑", "Routes · highlights · tips")}</span>
                                 </div>
                             </div>
-                            <p>{move || t(locale.get(), "结构化攻略帮你快速知道怎么玩、怎么走、要注意什么。", "Structured guides tell you what to do, how to go, and what to avoid.")}</p>
                         </article>
 
                         <article class="hero-slide hero-slide-step">
@@ -677,17 +667,15 @@ fn HomeHero(
                                     <span>{move || t(locale.get(), "链接 / 二维码发给朋友", "Send link or QR to friends")}</span>
                                 </div>
                             </div>
-                            <p>{move || t(locale.get(), "把空间分享给朋友，一起看攻略；未来还能进入同一 3D 场景。", "Share the space with friends and read together—soon join the same 3D scene.")}</p>
                         </article>
 
                         <article class="hero-slide hero-slide-story">
                             <span class="hero-slide-kicker">{move || t(locale.get(), "攻略空间", "Guide space")}</span>
                             <strong>{move || t(locale.get(), "先到的人写攻略，后来的人直接用", "Early travelers write. Later travelers use.")}</strong>
-                            <p>{move || t(locale.get(), "每一个真实地点都可以是一个可搜索、可分享、可扫码进入的旅行空间。", "Every real place can become a searchable, shareable, scannable travel space.")}</p>
                             <em>{move || t(locale.get(), "链接 · 二维码 · 未来 3D 同行", "Link · QR · 3D together soon")}</em>
                         </article>
 
-                        // duplicate first slides for seamless loop
+                        // duplicate first slide for seamless loop
                         <article class="hero-slide hero-slide-step" aria-hidden="true">
                             <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
                             <div class="hero-slide-step-row">
@@ -697,7 +685,6 @@ fn HomeHero(
                                     <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
                                 </div>
                             </div>
-                            <p>{move || t(locale.get(), "搜索城市、景点或街区，直接在地图上看到真实地点空间。", "Search a city, attraction, or neighborhood and see real-place spaces on the map.")}</p>
                         </article>
                     </div>
                     <div class="hero-carousel-dots" aria-hidden="true">

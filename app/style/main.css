@@ -118,6 +118,35 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+/* Smooth hover/active feedback for interactive controls that previously
+   hard-switched their background/color. */
+.auth-tab,
+.nav-menu-item,
+.language-button,
+.proof-chip {
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+/* Touch devices: raise compact interactive controls to the 44px comfortable
+   tap target. Desktop (fine pointer) keeps its denser sizing. */
+@media (pointer: coarse) {
+  .map-style-button,
+  .map-projection-button,
+  .map-zoom-controls button,
+  .auth-tab,
+  .language-button,
+  .filter-chip,
+  .admin-nav a,
+  .user-menu-panel button,
+  .panel-close,
+  .nav-menu-item {
+    min-height: 44px;
+  }
+}
+
 .app-shell {
   min-height: 100dvh;
 }
@@ -1112,6 +1141,7 @@ textarea:focus-visible {
   border: 0;
   border-radius: var(--button-radius);
   font-weight: 900;
+  text-decoration: none;
   transition:
     background-color var(--duration-fast) var(--ease-standard),
     transform var(--duration-fast) var(--ease-standard),
@@ -1210,9 +1240,7 @@ textarea:focus-visible {
 }
 
 .community-links {
-  position: sticky;
-  bottom: var(--space-3);
-  z-index: 8;
+  position: static;
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
@@ -1297,6 +1325,34 @@ textarea:focus-visible {
 .page p {
   color: var(--color-muted-fg);
   line-height: 1.6;
+}
+
+/* The app background is dark, so page-level headers sitting directly on it
+   (not inside a light card) need light text. Card-nested headings keep the
+   default dark ink because they render on a white surface. */
+.page > h1,
+.page-head h1 {
+  color: var(--map-text);
+}
+
+.page > p,
+.page-head p,
+.page-head .eyebrow {
+  color: rgb(226 232 240 / 0.72);
+}
+
+/* But a page-head nested inside a white card (e.g. the guide editor's
+   .form wrapper) renders on a light surface — keep its text dark. */
+.form .page-head h1,
+.guide-browser .page-head h1 {
+  color: var(--color-ink-950);
+}
+
+.form .page-head p,
+.form .page-head .eyebrow,
+.guide-browser .page-head p,
+.guide-browser .page-head .eyebrow {
+  color: var(--color-muted-fg);
 }
 
 .form,
@@ -1774,14 +1830,18 @@ textarea:focus-visible {
   overscroll-behavior: contain;
 }
 
-/* ===== Home hero (product first screen) ===== */
+/* ===== Home hero (product first screen) =====
+   Single-column card at all sizes: the content column is much taller than the
+   visual showcase, so a 2-col grid left large dead space in the shorter column.
+   A single readable column (content, then visual below) is consistent across
+   desktop, tablet and phone and leaves the map visible alongside. */
 .home-hero-card {
   z-index: 14;
   top: var(--panel-top);
   left: var(--space-5);
-  width: min(1120px, calc(100vw - 40px));
+  width: min(760px, calc(100vw - 2 * var(--space-5)));
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+  grid-template-columns: 1fr;
   align-items: stretch;
   gap: clamp(16px, 2.5vw, 28px);
   padding: clamp(18px, 2.4vw, 30px);
@@ -1820,23 +1880,9 @@ textarea:focus-visible {
    grid at the base breakpoint, which leaves large corner whitespace when the
    content column is shorter than the visual. Force a single adaptive column
    and align to the topbar so the layout never has dead space. */
+/* Touch tablets in landscape: card layout is handled by the single-column
+   base rule; just size the visual and hide the separate map guide card. */
 @media (orientation: landscape) and (pointer: coarse) and (max-width: 1400px) {
-  .home-hero-card {
-    top: var(--panel-top);
-    left: max(var(--space-5), env(safe-area-inset-left, 0px));
-    right: max(var(--space-5), env(safe-area-inset-right, 0px));
-    width: auto;
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    max-height: calc(100dvh - var(--panel-top) - var(--space-5) - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .home-hero-content {
-    min-width: 0;
-  }
-
   .home-hero-visual {
     min-height: min(280px, 32dvh);
   }
@@ -4208,8 +4254,8 @@ textarea:focus-visible {
   .home-hero-card {
     top: var(--panel-top);
     left: max(var(--space-5), env(safe-area-inset-left, 0px));
-    right: max(var(--space-5), env(safe-area-inset-right, 0px));
-    width: auto;
+    right: auto;
+    width: min(760px, calc(100vw - 2 * var(--space-5)));
     max-height: calc(100dvh - var(--panel-top) - var(--space-5) - env(safe-area-inset-top, 0px));
     overflow-x: hidden;
     overflow-y: auto;
@@ -5371,6 +5417,15 @@ a.nav-menu-item.nav-menu-muted {
 }
 
 
+/* On narrow/tablet screens the explore panel and the space-detail drawer both
+   anchor near the left and overlap. When a detail drawer is open, hide the
+   explore panel so only the detail shows (list is one tap away via close). */
+@media (max-width: 1100px) {
+  .map-layout:has(.space-detail-drawer) .map-filter-panel {
+    display: none !important;
+  }
+}
+
 /* ===== Explore sheet mobile v22 =====
    Narrow screens (phones only): bottom sheet tall enough to browse list, map
    still visible. Tablets (>=761px) use the aligned top panel instead.
@@ -5464,8 +5519,8 @@ a.nav-menu-item.nav-menu-muted {
   .home-hero-card {
     top: var(--panel-top) !important;
     left: max(var(--space-5), env(safe-area-inset-left, 0px)) !important;
-    right: max(var(--space-5), env(safe-area-inset-right, 0px)) !important;
-    width: auto !important;
+    right: auto !important;
+    width: min(760px, calc(100vw - 2 * var(--space-5))) !important;
     max-height: calc(100dvh - var(--panel-top) - var(--space-5) - env(safe-area-inset-top, 0px)) !important;
   }
 }
