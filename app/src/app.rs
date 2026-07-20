@@ -13,6 +13,10 @@ use crate::components::{
 };
 use crate::pages::{
     admin::AdminRoutes,
+    admin_guides::AdminGuidesPage,
+    admin_residents::AdminResidentsPage,
+    admin_spaces::AdminSpacesPage,
+    admin_users::AdminUsersPage,
     auth::LoginPage,
     guides::{GuideDetailPage, GuideEditorPage, GuidesPage},
     home::HomePage,
@@ -29,7 +33,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Title text="Instant Space Rust" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260712-home-hero-fix-v46" />
+        <Stylesheet id="main-css" href="/style/main.css?v=20260716-hydration-fix-v48" />
         <Router>
             <Header />
             <Routes fallback=|| view! { <main class="page"><h1>"Not found"</h1></main> }>
@@ -55,6 +59,14 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/inspace/guides/:guide_id") view=GuideDetailPage />
                 <Route path=path!("/admin") view=AdminRoutes />
                 <Route path=path!("/inspace/admin") view=AdminRoutes />
+                <Route path=path!("/admin/spaces") view=AdminSpacesPage />
+                <Route path=path!("/inspace/admin/spaces") view=AdminSpacesPage />
+                <Route path=path!("/admin/guides") view=AdminGuidesPage />
+                <Route path=path!("/inspace/admin/guides") view=AdminGuidesPage />
+                <Route path=path!("/admin/resident-applications") view=AdminResidentsPage />
+                <Route path=path!("/inspace/admin/resident-applications") view=AdminResidentsPage />
+                <Route path=path!("/admin/users") view=AdminUsersPage />
+                <Route path=path!("/inspace/admin/users") view=AdminUsersPage />
             </Routes>
             <CreateSpaceModalHost />
         </Router>

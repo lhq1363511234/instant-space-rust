@@ -78,6 +78,9 @@
   function ensureMap() {
     var el = document.getElementById('map');
     if (!el || !window.maplibregl) return false;
+    // Never mount before Leptos hydration is allowed: inserting MapLibre DOM
+    // into #map before hydration corrupts the cursor and breaks all on:click.
+    if (!window.__instantMapMountAllowed) return false;
 
     // Prefer existing map (WASM or previous boot)
     try {
@@ -173,11 +176,24 @@
         det.open = false;
       });
     }, true);
-    var n = 0;
-    var timer = setInterval(function () {
-      n += 1;
-      if (ensureMap() || n > 100) clearInterval(timer);
-    }, 80);
+    startMapMount();
+  }
+  function startMapMount() {
+    // Wait for hydration (WASM) to finish before mounting MapLibre into #map.
+    // Fallback: if WASM never signals within 4s, allow mount anyway so the map
+    // still works when hydration is unavailable.
+    function allow() {
+      if (window.__instantMapMountAllowed) return;
+      window.__instantMapMountAllowed = true;
+      var n = 0;
+      var timer = setInterval(function () {
+        n += 1;
+        if (ensureMap() || n > 100) clearInterval(timer);
+      }, 80);
+    }
+    if (window.__instantSpaceHydrated) { allow(); return; }
+    window.addEventListener('instant-space-hydrated', allow, { once: true });
+    setTimeout(allow, 4000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

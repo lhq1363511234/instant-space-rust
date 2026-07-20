@@ -329,7 +329,7 @@ pub fn MapHome() -> impl IntoView {
             <Suspense fallback=|| ()>
                 {move || Suspend::new(async move {
                     let items = spaces.await;
-                    view! { <MapMarkerSync spaces=items /> }
+                    view! { <MapMarkerSync spaces=items selected_space=selected_space /> }
                 })}
             </Suspense>
 
@@ -739,14 +739,43 @@ fn SpaceResults(
 }
 
 #[component]
-fn MapMarkerSync(spaces: Vec<SpaceMarker>) -> impl IntoView {
+fn MapMarkerSync(
+    spaces: Vec<SpaceMarker>,
+    selected_space: RwSignal<Option<SpaceMarker>>,
+) -> impl IntoView {
+    let sync_spaces = spaces.clone();
     Effect::new(move |_| {
-        if let Ok(points_json) = serde_json::to_string(&spaces) {
+        if let Ok(points_json) = serde_json::to_string(&sync_spaces) {
             // maplibre_shim keeps pending points if the map is not ready yet,
             // and re-applies after mount / style load.
             instant_map_ui::sync_points("map", &points_json);
         }
     });
+
+    // Hidden proxy buttons: map markers dispatch a click to `[data-space-open="{id}"]`.
+    // These must exist regardless of whether the explorer panel is open, so a marker
+    // tap opens the detail drawer even in the pure-map view.
+    view! {
+        <div class="space-open-proxies" aria-hidden="true" style="display:none">
+            <For
+                each=move || spaces.clone()
+                key=|space| space.id.clone()
+                children=move |space| {
+                    let for_click = space.clone();
+                    view! {
+                        <button
+                            type="button"
+                            data-space-open=space.id.clone()
+                            on:click=move |_| {
+                                instant_map_ui::focus_point("map", for_click.lng, for_click.lat);
+                                selected_space.set(Some(for_click.clone()));
+                            }
+                        />
+                    }
+                }
+            />
+        </div>
+    }
 }
 
 #[component]

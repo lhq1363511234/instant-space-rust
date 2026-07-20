@@ -1571,6 +1571,78 @@ textarea:focus-visible {
   font-weight: 900;
 }
 
+/* ===== Admin Phase 5: spaces / guides / residents / users / audit ===== */
+.admin-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+.admin-filter-bar input,
+.admin-filter-bar select {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(148 163 184 / 0.25);
+  background: rgb(15 23 42 / 0.4);
+  color: inherit;
+  font-size: 0.92rem;
+}
+.admin-filter-bar input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.admin-space-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.admin-space-actions .button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 0.9rem;
+}
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgb(148 163 184 / 0.15);
+  vertical-align: middle;
+}
+.admin-table th {
+  color: var(--ink-2, #cbd5f5);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.admin-table tbody tr:hover {
+  background: rgb(148 163 184 / 0.06);
+}
+.audit-log-table td {
+  font-variant-numeric: tabular-nums;
+}
+.audit-log-table .audit-action {
+  font-weight: 700;
+}
+.admin-role-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(148 163 184 / 0.25);
+  background: rgb(15 23 42 / 0.4);
+  color: inherit;
+  font-size: 0.88rem;
+}
+.admin-section-title {
+  margin-top: 32px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
