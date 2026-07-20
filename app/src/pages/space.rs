@@ -16,6 +16,7 @@ pub fn SpacePage() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
     let message_body = RwSignal::new(String::new());
     let send_error = RwSignal::new(None::<String>);
+    let active_space_tab = RwSignal::new("chat");
 
     let access = Resource::new(
         move || (space_id.get(), refresh.get()),
@@ -85,7 +86,7 @@ pub fn SpacePage() -> impl IntoView {
                             let guide_href = format!("/inspace/guides/new?space_id={id}");
                             view! {
                                 <section class="chat-shell" aria-label="Space chat">
-                                    <div class="page-head">
+                                    <div class="page-head space-app-header">
                                         <div>
                                             <p class="eyebrow">{move || if is_public { t(locale.get(), "公共空间", "Public space") } else { t(locale.get(), "私密空间", "Private space") }}</p>
                                             <h1>{title_space_name}</h1>
@@ -101,12 +102,6 @@ pub fn SpacePage() -> impl IntoView {
                                         </div>
                                     </div>
 
-                                    <SpaceSharePanel
-                                        space_id=id.clone()
-                                        space_name=share_space_name
-                                        compact=false
-                                    />
-
                                     <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载消息", "Loading messages")}</p> }>
                                         {move || {
                                             let realtime_space_id = messages_space_id.clone();
@@ -114,6 +109,7 @@ pub fn SpacePage() -> impl IntoView {
                                             let items = messages.await;
                                             view! {
                                                 <div
+                                                    id="space-chat"
                                                     class="chat-message-list"
                                                     aria-label="Chat messages"
                                                     data-realtime-messages="true"
@@ -139,13 +135,6 @@ pub fn SpacePage() -> impl IntoView {
                                                 </div>
                                             }
                                         })}}
-                                    </Suspense>
-
-                                    <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载空间攻略", "Loading space guides")}</p> }>
-                                        {move || Suspend::new(async move {
-                                            let items = guides.await;
-                                            view! { <SpaceGuideList guides=items /> }
-                                        })}
                                     </Suspense>
 
                                     <form
@@ -176,7 +165,53 @@ pub fn SpacePage() -> impl IntoView {
                                             <PrivateVerify space_id=id.clone() space_name=verify_space_name.clone() />
                                         </div>
                                     })}
-                                    <CommunityLinks space_name=community_space_name />
+
+                                    <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载空间攻略", "Loading space guides")}</p> }>
+                                        {move || Suspend::new(async move {
+                                            let items = guides.await;
+                                            view! { <SpaceGuideList guides=items /> }
+                                        })}
+                                    </Suspense>
+
+                                    <section id="space-share" class="space-app-section space-app-share" aria-label=move || t(locale.get(), "分享空间", "Share space")>
+                                        <SpaceSharePanel
+                                            space_id=id.clone()
+                                            space_name=share_space_name
+                                            compact=false
+                                        />
+                                        <CommunityLinks space_name=community_space_name />
+                                    </section>
+
+                                    <nav class="space-app-bottom-nav" aria-label=move || t(locale.get(), "空间快捷导航", "Space quick navigation")>
+                                        <a
+                                            href="#space-chat"
+                                            class=move || if active_space_tab.get() == "chat" { "is-active" } else { "" }
+                                            on:click=move |_| active_space_tab.set("chat")
+                                        >
+                                            <span aria-hidden="true">"●"</span>
+                                            <b>{move || t(locale.get(), "讨论", "Chat")}</b>
+                                        </a>
+                                        <a
+                                            href="#space-guides"
+                                            class=move || if active_space_tab.get() == "guides" { "is-active" } else { "" }
+                                            on:click=move |_| active_space_tab.set("guides")
+                                        >
+                                            <span aria-hidden="true">"◇"</span>
+                                            <b>{move || t(locale.get(), "攻略", "Guides")}</b>
+                                        </a>
+                                        <a
+                                            href="#space-share"
+                                            class=move || if active_space_tab.get() == "share" { "is-active" } else { "" }
+                                            on:click=move |_| active_space_tab.set("share")
+                                        >
+                                            <span aria-hidden="true">"↗"</span>
+                                            <b>{move || t(locale.get(), "分享", "Share")}</b>
+                                        </a>
+                                        <a href="/inspace">
+                                            <span aria-hidden="true">"⌖"</span>
+                                            <b>{move || t(locale.get(), "地图", "Map")}</b>
+                                        </a>
+                                    </nav>
                                 </section>
                             }.into_any()
                         }
@@ -210,7 +245,7 @@ pub fn SpacePage() -> impl IntoView {
 fn SpaceGuideList(guides: Vec<instant_domain::guides::GuideSummary>) -> impl IntoView {
     let locale = use_i18n().locale;
     view! {
-        <section class="space-guides-card" aria-label="Space guides">
+        <section id="space-guides" class="space-guides-card" aria-label="Space guides">
             <div class="card-head-inline">
                 <div>
                     <h2>{move || t(locale.get(), "空间攻略", "Space guides")}</h2>

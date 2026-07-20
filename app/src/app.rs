@@ -33,8 +33,8 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Title text="Instant Space Rust" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260720-ui-v54" />
-        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260720-ui-v54" />
+        <Stylesheet id="main-css" href="/style/main.css?v=20260720-ui-v57" />
+        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260720-ui-v57" />
         <Router>
             <Header />
             <Routes fallback=|| view! { <main class="page"><h1>"Not found"</h1></main> }>

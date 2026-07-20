@@ -422,6 +422,30 @@ fn HomeHero(
                     )}
                 </p>
 
+                <form
+                    class="home-hero-search"
+                    role="search"
+                    aria-label=move || t(locale.get(), "搜索旅行空间", "Search travel spaces")
+                    on:submit=move |ev| {
+                        ev.prevent_default();
+                        hero_open.set(false);
+                        explorer_open.set(true);
+                    }
+                >
+                    <span class="home-hero-search-icon" aria-hidden="true">"⌕"</span>
+                    <input
+                        type="search"
+                        aria-label=move || t(locale.get(), "搜索旅行空间", "Search travel spaces")
+                        placeholder=move || t(locale.get(), "搜城市、景点或街区，例如：京都、外滩、圣托里尼", "Search cities, spots, neighborhoods… e.g. Kyoto, Bund, Santorini")
+                        prop:value=move || query.get()
+                        on:input=move |ev| query.set(event_target_value(&ev))
+                    />
+                    <button type="submit" class="button button-primary">
+                        {move || t(locale.get(), "开始探索", "Start exploring")}
+                    </button>
+                </form>
+
+
                 <div class="home-hero-visual" aria-label=move || t(locale.get(), "产品动态展示", "Product showcase")>
                     <div class="hero-glow hero-glow-a"></div>
                     <div class="hero-glow hero-glow-b"></div>
@@ -651,28 +675,6 @@ fn HomeHero(
                     {move || guide_status.get().map(|msg| view! { <p class="home-destination-status">{msg}</p> })}
                 </section>
 
-<form
-                    class="home-hero-search"
-                    role="search"
-                    aria-label=move || t(locale.get(), "搜索旅行空间", "Search travel spaces")
-                    on:submit=move |ev| {
-                        ev.prevent_default();
-                        hero_open.set(false);
-                        explorer_open.set(true);
-                    }
-                >
-                    <span class="home-hero-search-icon" aria-hidden="true">"⌕"</span>
-                    <input
-                        type="search"
-                        aria-label=move || t(locale.get(), "搜索旅行空间", "Search travel spaces")
-                        placeholder=move || t(locale.get(), "搜城市、景点或街区，例如：京都、外滩、圣托里尼", "Search cities, spots, neighborhoods… e.g. Kyoto, Bund, Santorini")
-                        prop:value=move || query.get()
-                        on:input=move |ev| query.set(event_target_value(&ev))
-                    />
-                    <button type="submit" class="button button-primary">
-                        {move || t(locale.get(), "开始探索", "Start exploring")}
-                    </button>
-                </form>
 
                 <div class="home-hero-actions" aria-label=move || t(locale.get(), "首屏操作", "Hero actions")>
                     <button type="button" class="button button-secondary" on:click=move |_| {
