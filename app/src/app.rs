@@ -33,7 +33,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Title text="Instant Space Rust" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260716-hydration-fix-v48" />
+        <Stylesheet id="main-css" href="/style/main.css?v=20260720-phase6-v49" />
         <Router>
             <Header />
             <Routes fallback=|| view! { <main class="page"><h1>"Not found"</h1></main> }>
@@ -78,6 +78,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     // Native map bootstrap (no WASM required): mounts #map + opens map for ?country/?map.
     let map_boot = include_str!("map_boot.js");
     let capitals_boot = include_str!("geo_capitals_boot.js");
+    let chat_realtime = include_str!("chat_realtime.js");
 
     view! {
         <!DOCTYPE html>
@@ -91,6 +92,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <script>{map_boot}</script>
                 <AutoReload options=options.clone() />
                 <HydrationScripts options=options.clone() />
+                <script>{chat_realtime}</script>
                 <MetaTags />
             </head>
             <body>

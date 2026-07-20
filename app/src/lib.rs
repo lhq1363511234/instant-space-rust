@@ -6,6 +6,8 @@ pub mod components;
 pub mod error;
 pub mod i18n;
 pub mod pages;
+#[cfg(feature = "ssr")]
+pub mod realtime;
 pub mod server;
 
 #[cfg(feature = "hydrate")]

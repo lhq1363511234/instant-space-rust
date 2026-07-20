@@ -26,6 +26,12 @@ async fn main() -> anyhow::Result<()> {
     instant_db::run_migrations(&pool).await?;
     tracing::info!("migrations applied");
 
+    // Presence is process-local. Clear stale counts left by an unclean restart;
+    // active WebSocket rooms will write their real counts as clients connect.
+    if let Err(err) = instant_db::chat::reset_online_counts(&pool).await {
+        tracing::error!("online count reset failed: {err}");
+    }
+
     // Promote any already-stale active spaces once at boot, then keep sweeping.
     match instant_db::spaces::expire_stale_spaces(&pool).await {
         Ok(count) if count > 0 => tracing::info!("expired {count} stale spaces at startup"),
@@ -68,6 +74,10 @@ fn build_router() -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route(
+            "/ws/spaces/:space_id",
+            get(instant_space_web::realtime::space_socket),
+        )
         .route("/geo/reverse", get(reverse_geo))
         .nest_service("/pkg", ServeDir::new("target/site/pkg"))
         .nest_service("/style", ServeDir::new("app/style"))

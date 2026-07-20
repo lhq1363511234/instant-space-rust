@@ -6,6 +6,7 @@ const staticShell = fs.readFileSync("app/index.html", "utf8");
 const wasmApi = fs.readFileSync("crates/map-ui/src/lib.rs", "utf8");
 const shim = fs.readFileSync("crates/map-ui/src/maplibre_shim.js", "utf8");
 const home = fs.readFileSync("app/src/components/map_home.rs", "utf8");
+const header = fs.readFileSync("app/src/components/header.rs", "utf8");
 const styles = fs.readFileSync("app/style/main.css", "utf8");
 
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
@@ -29,9 +30,10 @@ assert.match(shim, /dataset\.mapProjection/, "DOM state must expose the active p
 assert.match(shim, /mercator/, "2D projection must map to Mercator");
 assert.match(shim, /globe/, "3D projection must map to Globe");
 
-assert.match(home, /map-projection-switcher/, "Homepage must render a projection switcher");
-assert.match(home, /Switch to 2D map/, "Homepage must expose a 2D map control");
-assert.match(home, /Switch to 3D globe/, "Homepage must expose a 3D globe control");
+const navigationSources = `${home}\n${header}`;
+assert.match(navigationSources, /map-projection-switcher/, "Navigation must render a projection switcher");
+assert.match(navigationSources, /Switch to 2D map/, "Navigation must expose a 2D map control");
+assert.match(navigationSources, /Switch to 3D globe/, "Navigation must expose a 3D globe control");
 assert.match(styles, /--map-road-bg:\s*#f8f4f0/, "Road map container must match the OpenFreeMap road background");
 assert.match(styles, /#map\[data-map-style="roadmap"\]/, "Road map style state must control the map container background");
 assert.match(styles, /#map\[data-map-style="dark"\]/, "Dark map style state must control the map container background");

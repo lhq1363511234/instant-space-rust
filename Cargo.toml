@@ -17,8 +17,9 @@ publish = false
 [workspace.dependencies]
 anyhow = "1"
 argon2 = "0.5"
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 console_error_panic_hook = "0.1"
+futures-util = "0.3"
 leptos = { version = "0.7", default-features = false }
 leptos_axum = "0.7"
 leptos_meta = { version = "0.7", default-features = false }
@@ -29,7 +30,7 @@ serde_json = "1"
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "time", "json", "migrate"] }
 thiserror = "1"
 time = { version = "0.3", features = ["serde", "macros"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 tower = { version = "0.5", features = ["util"] }
 tracing = "0.1"

@@ -15,6 +15,7 @@ ssr = [
   "dep:instant-db",
   "dep:anyhow",
   "dep:axum",
+  "dep:futures-util",
   "dep:leptos_axum",
   "dep:sqlx",
   "dep:time",
@@ -41,6 +42,7 @@ instant-map-ui = { path = "../crates/map-ui" }
 anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 console_error_panic_hook = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 leptos = { workspace = true, default-features = false }
 leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true, default-features = false }

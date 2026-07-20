@@ -132,9 +132,17 @@ pub async fn send_chat_message(
             .map(|user| user.name.unwrap_or(user.email))
             .unwrap_or_else(|| "Guest".to_string());
 
-        instant_db::chat::insert_message(&pool, id, sender, clean_body, access.password_version)
-            .await
-            .map_err(|err| ServerFnError::new(err.to_string()))
+        let message = instant_db::chat::insert_message(
+            &pool,
+            id,
+            sender,
+            clean_body,
+            access.password_version,
+        )
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+        crate::realtime::publish_message(id, message.clone()).await;
+        Ok(message)
     }
 
     #[cfg(not(feature = "ssr"))]

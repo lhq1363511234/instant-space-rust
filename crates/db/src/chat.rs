@@ -3,9 +3,41 @@ use sqlx::{PgPool, Row};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+pub async fn reset_online_counts(pool: &PgPool) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query("UPDATE spaces SET online_count = 0 WHERE online_count <> 0")
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected())
+}
+
+pub async fn set_online_count(
+    pool: &PgPool,
+    space_id: Uuid,
+    online_count: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE spaces SET online_count = GREATEST($2, 0), updated_at = now() WHERE id = $1",
+    )
+    .bind(space_id)
+    .bind(online_count)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn list_messages(pool: &PgPool, space_id: Uuid) -> Result<Vec<ChatMessage>, sqlx::Error> {
     let rows = sqlx::query(
-        "SELECT id, space_id, sender, body, created_at FROM chat_messages WHERE space_id = $1 ORDER BY created_at ASC",
+        r#"
+        SELECT id, space_id, sender, body, created_at
+        FROM (
+            SELECT id, space_id, sender, body, created_at
+            FROM chat_messages
+            WHERE space_id = $1
+            ORDER BY created_at DESC
+            LIMIT 100
+        ) recent
+        ORDER BY created_at ASC
+        "#,
     )
     .bind(space_id)
     .fetch_all(pool)

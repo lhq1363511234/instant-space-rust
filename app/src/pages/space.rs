@@ -81,6 +81,7 @@ pub fn SpacePage() -> impl IntoView {
                             let title_space_name = space_name.clone();
                             let is_public = state.is_public;
                             let id = state.space_id.to_string();
+                            let messages_space_id = id.clone();
                             let guide_href = format!("/inspace/guides/new?space_id={id}");
                             view! {
                                 <section class="chat-shell" aria-label="Space chat">
@@ -88,9 +89,13 @@ pub fn SpacePage() -> impl IntoView {
                                         <div>
                                             <p class="eyebrow">{move || if is_public { t(locale.get(), "公共空间", "Public space") } else { t(locale.get(), "私密空间", "Private space") }}</p>
                                             <h1>{title_space_name}</h1>
-                                            <p>{move || t(locale.get(), "这是当前阶段的持久化聊天入口；后续 Phase 6 会升级为实时聊天。", "This is the persistent chat entry for now; Phase 6 will upgrade it to realtime chat.")}</p>
+                                            <p>{move || t(locale.get(), "这是空间内的实时讨论区，消息会即时同步给当前在线成员。", "This is a realtime room; messages sync instantly with everyone currently online.")}</p>
                                         </div>
                                         <div class="page-head-actions">
+                                            <span class="chat-realtime-status" data-realtime-status="connecting">
+                                                {move || t(locale.get(), "正在连接实时房间…", "Connecting to realtime room…")}
+                                            </span>
+                                            <span class="chat-online-count" data-realtime-online="0">0 online</span>
                                             <a class="button button-primary" href=guide_href>{move || t(locale.get(), "写空间攻略", "Write guide")}</a>
                                             <a class="button button-secondary-light" href="/inspace">{move || t(locale.get(), "返回地图", "Back to map")}</a>
                                         </div>
@@ -103,10 +108,17 @@ pub fn SpacePage() -> impl IntoView {
                                     />
 
                                     <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载消息", "Loading messages")}</p> }>
-                                        {move || Suspend::new(async move {
+                                        {move || {
+                                            let realtime_space_id = messages_space_id.clone();
+                                            Suspend::new(async move {
                                             let items = messages.await;
                                             view! {
-                                                <div class="chat-message-list" aria-label="Chat messages">
+                                                <div
+                                                    class="chat-message-list"
+                                                    aria-label="Chat messages"
+                                                    data-realtime-messages="true"
+                                                    data-space-id=realtime_space_id
+                                                >
                                                     {if items.is_empty() {
                                                         view! { <p class="empty-state"><span>{move || t(locale.get(), "还没有消息，发第一条攻略线索吧。", "No messages yet. Share the first guide tip.")}</span></p> }.into_any()
                                                     } else {
@@ -115,7 +127,7 @@ pub fn SpacePage() -> impl IntoView {
                                                                 each=move || items.clone()
                                                                 key=|message| message.id
                                                                 children=move |message| view! {
-                                                                    <article class="chat-message">
+                                                                    <article class="chat-message" attr:data-message-id=message.id.to_string()>
                                                                         <strong>{message.sender}</strong>
                                                                         <p>{message.body}</p>
                                                                         <time>{message.created_at.to_string()}</time>
@@ -126,7 +138,7 @@ pub fn SpacePage() -> impl IntoView {
                                                     }}
                                                 </div>
                                             }
-                                        })}
+                                        })}}
                                     </Suspense>
 
                                     <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载空间攻略", "Loading space guides")}</p> }>
@@ -138,6 +150,8 @@ pub fn SpacePage() -> impl IntoView {
 
                                     <form
                                         class="chat-compose"
+                                        data-chat-form="true"
+                                        data-space-id=id.clone()
                                         on:submit=move |ev| {
                                             ev.prevent_default();
                                             send.dispatch(message_body.get());
@@ -148,6 +162,7 @@ pub fn SpacePage() -> impl IntoView {
                                             <textarea
                                                 rows="3"
                                                 aria-label=move || t(locale.get(), "聊天消息", "Chat message")
+                                                data-chat-input="true"
                                                 placeholder=move || t(locale.get(), "例如：这里傍晚 18:30 光线最好，从 3 号口出来最近。", "e.g. Best light is around 18:30; Exit 3 is closest.")
                                                 prop:value=move || message_body.get()
                                                 on:input=move |ev| message_body.set(event_target_value(&ev))
@@ -156,15 +171,11 @@ pub fn SpacePage() -> impl IntoView {
                                         <button class="button button-primary" type="submit">{move || t(locale.get(), "发送", "Send")}</button>
                                         {move || send_error.get().map(|message| view! { <p class="error">{message}</p> })}
                                     </form>
-                                    {move || {
-                                        let needs_reverify = send_error
-                                            .get()
-                                            .map(|message| message.contains("password changed") || message.contains("access expired"))
-                                            .unwrap_or(false);
-                                        (!is_public && needs_reverify).then(|| view! {
+                                    {(!is_public).then(|| view! {
+                                        <div class="realtime-reverify" data-private-reverify="true" style="display:none">
                                             <PrivateVerify space_id=id.clone() space_name=verify_space_name.clone() />
-                                        })
-                                    }}
+                                        </div>
+                                    })}
                                     <CommunityLinks space_name=community_space_name />
                                 </section>
                             }.into_any()

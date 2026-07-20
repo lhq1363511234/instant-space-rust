@@ -5982,3 +5982,52 @@ body[data-map-open="1"] #map {
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+/* Phase 6 realtime room status and bounded history viewport. */
+.chat-realtime-status,
+.chat-online-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-muted-fg);
+  background: rgb(255 255 255 / 0.78);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.chat-realtime-status[data-realtime-status="connected"] {
+  color: var(--color-success);
+}
+
+.chat-realtime-status[data-realtime-status="error"],
+.chat-realtime-status[data-realtime-status="access-required"] {
+  color: var(--color-danger, #b42318);
+}
+
+.chat-message-list {
+  max-height: min(42rem, 58vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.realtime-reverify {
+  padding: var(--space-4);
+  border: 1px solid rgb(180 35 24 / 0.22);
+  border-radius: var(--radius-xl);
+  background: rgb(255 247 237 / 0.92);
+}
+
+@media (max-width: 760px) {
+  .page-head-actions {
+    align-items: stretch;
+  }
+
+  .chat-realtime-status,
+  .chat-online-count {
+    justify-content: center;
+  }
+}
