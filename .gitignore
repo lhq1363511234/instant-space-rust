@@ -8,3 +8,7 @@ test-results/
 playwright-report/
 
 .admin-credentials
+
+# Stray runtime artifacts (not part of this project)
+/one-api.db
+*.dump

@@ -121,7 +121,7 @@ async fn create_session_cookie(
 fn set_session_cookie(token: &str) -> Result<(), ServerFnError> {
     if let Some(response) = use_context::<ResponseOptions>() {
         let cookie =
-            format!("instant_session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800");
+            format!("instant_session={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800");
         let value =
             HeaderValue::from_str(&cookie).map_err(|err| ServerFnError::new(err.to_string()))?;
         response.insert_header(SET_COOKIE, value);
@@ -132,7 +132,7 @@ fn set_session_cookie(token: &str) -> Result<(), ServerFnError> {
 #[cfg(feature = "ssr")]
 fn clear_session_cookie() -> Result<(), ServerFnError> {
     if let Some(response) = use_context::<ResponseOptions>() {
-        let cookie = "instant_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+        let cookie = "instant_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
         let value =
             HeaderValue::from_str(cookie).map_err(|err| ServerFnError::new(err.to_string()))?;
         response.insert_header(SET_COOKIE, value);

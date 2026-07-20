@@ -196,7 +196,7 @@ fn access_cookie_name(space_id: Uuid) -> String {
 fn set_access_cookie(space_id: Uuid, token: &str) -> Result<(), ServerFnError> {
     if let Some(response) = use_context::<ResponseOptions>() {
         let cookie = format!(
-            "{}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200",
+            "{}={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200",
             access_cookie_name(space_id)
         );
         let value =

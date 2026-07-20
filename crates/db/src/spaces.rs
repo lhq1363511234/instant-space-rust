@@ -65,6 +65,25 @@ pub struct SpaceAccessMeta {
     pub password_version: i32,
 }
 
+/// Transition any `active` space whose `expires_at` has passed into `expired`.
+/// Returns the number of rows updated. This keeps the map, explore list and
+/// space detail consistent without relying on per-request ad-hoc checks.
+pub async fn expire_stale_spaces(pool: &PgPool) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        r#"
+        UPDATE spaces
+        SET status = 'expired', updated_at = now()
+        WHERE status = 'active'
+          AND expires_at IS NOT NULL
+          AND expires_at < now()
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected())
+}
+
 pub async fn list_home_spaces(
     pool: &PgPool,
     filter: SpaceFilter,

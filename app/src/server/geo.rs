@@ -1,12 +1,23 @@
 use instant_domain::locations::{GeoMatch, GeoOption};
 use leptos::prelude::*;
 
+// The country list is derived from the static `geo_places` import and never
+// changes at runtime, yet the query aggregates ~69k rows. Cache it once per
+// process so the "choose a country" step is instant instead of ~1s cold.
+#[cfg(feature = "ssr")]
+static COUNTRIES_CACHE: std::sync::OnceLock<Vec<GeoOption>> = std::sync::OnceLock::new();
+
 #[server(ListGeoCountries, "/inspace/api")]
 pub async fn list_geo_countries() -> Result<Vec<GeoOption>, ServerFnError> {
+    if let Some(cached) = COUNTRIES_CACHE.get() {
+        return Ok(cached.clone());
+    }
     let pool = crate::server::db_pool().await?;
-    instant_db::geo::countries(&pool)
+    let countries = instant_db::geo::countries(&pool)
         .await
-        .map_err(|err| ServerFnError::new(err.to_string()))
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+    let _ = COUNTRIES_CACHE.set(countries.clone());
+    Ok(countries)
 }
 
 #[server(ListGeoRegions, "/inspace/api")]
