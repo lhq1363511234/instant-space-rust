@@ -399,6 +399,51 @@ pub async fn archive_guide(pool: &PgPool, guide_id: Uuid) -> Result<GuideSummary
     row_to_guide_summary(row)
 }
 
+/// Admin-only: list every guide regardless of status (draft/published/archived),
+/// so operators can review, publish, and archive across the whole platform.
+pub async fn list_all_guides_admin(pool: &PgPool) -> Result<Vec<GuideSummary>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, title_zh, title_en, province, city, district, spot_name,
+               status::text AS status, featured, author_id, space_id
+        FROM guides
+        ORDER BY
+            CASE status WHEN 'draft' THEN 0 WHEN 'published' THEN 1 ELSE 2 END,
+            updated_at DESC, created_at DESC
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(|row| row_to_guide_summary(row))
+        .collect()
+}
+
+/// Admin/owner: set a guide's publication status (publish / unpublish / archive).
+pub async fn set_guide_status(
+    pool: &PgPool,
+    guide_id: Uuid,
+    status: GuideStatus,
+) -> Result<GuideSummary, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        UPDATE guides
+        SET status = $2::guide_status,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+                  status::text AS status, featured, author_id, space_id
+        "#,
+    )
+    .bind(guide_id)
+    .bind(guide_status_to_db(&status))
+    .fetch_one(pool)
+    .await?;
+
+    row_to_guide_summary(row)
+}
+
 fn guide_status_from_db(value: &str) -> GuideStatus {
     match value {
         "draft" => GuideStatus::Draft,

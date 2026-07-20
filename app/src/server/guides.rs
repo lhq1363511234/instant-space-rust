@@ -369,6 +369,50 @@ pub async fn delete_guide(guide_id: String) -> Result<GuideSummary, ServerFnErro
         .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
+#[server(ListAdminGuides, "/inspace/api")]
+pub async fn list_admin_guides() -> Result<Vec<GuideSummary>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let pool = crate::server::db_pool().await?;
+        let mut guides = instant_db::guides::list_all_guides_admin(&pool)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        for guide in guides.iter_mut() {
+            guide.can_edit = true;
+        }
+        Ok(guides)
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(SetGuideStatusAdmin, "/inspace/api")]
+pub async fn set_guide_status_admin(
+    guide_id: String,
+    status: GuideStatus,
+) -> Result<GuideSummary, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let guide_uuid = uuid::Uuid::parse_str(&guide_id)
+            .map_err(|_| ServerFnError::new("invalid guide id"))?;
+        let pool = crate::server::db_pool().await?;
+        instant_db::guides::set_guide_status(&pool, guide_uuid, status)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (guide_id, status);
+        Err(ServerFnError::new("server only"))
+    }
+}
+
 #[cfg(feature = "ssr")]
 async fn ensure_guide_editor(
     pool: &sqlx::PgPool,
