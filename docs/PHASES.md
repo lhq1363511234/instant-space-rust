@@ -556,6 +556,37 @@ current_user.id == spaces.host_user_id OR current_user.role is admin
 - 所有危险操作有确认。
 - 后台操作可审计。
 
+### Phase 5 落地进度（2026-07-12）
+
+已完成 admin 后台三大管理块 + 审计：
+
+- **空间管理** `/inspace/admin/spaces`：
+  - `list_all_spaces_admin` 列全站空间（含 archived/已删除，供审计恢复）。
+  - 客户端搜索 + 状态筛选。
+  - 复用现有生命周期 server fn（关闭 / 重新激活 / 归档模板 / 删除），admin 绕过 owner 校验。
+  - 删除需二次确认。
+- **攻略管理** `/inspace/admin/guides`：
+  - `list_all_guides_admin` 列全状态攻略（draft / published / archived）。
+  - 状态筛选 + 一键发布 / 归档（`set_guide_status_admin`）。
+  - 编辑复用现有 `/inspace/admin/guides/:id/edit` 编辑器。
+- **驻留审批** `/inspace/admin/resident-applications`：
+  - `list_resident_applications` 列待审申请（带空间名 + 申请人邮箱）。
+  - 批准（可填驻留天数，写 `expires_at`）/ 拒绝。
+- **用户角色** `/inspace/admin/users`：
+  - `list_users` 列全部用户 + 角色。
+  - 改角色仅限 super_admin（防 admin 互相提权）；禁止 super_admin 自我降级。
+- **操作审计**：
+  - 新增 `admin_audit_log` 表（append-only）。
+  - 敏感操作（批准 / 拒绝驻留、改角色）写审计记录。
+  - Dashboard 展示最近 200 条审计日志。
+- 所有 admin server fn 走 `require_admin_user()` 门；改角色额外要求 super_admin。
+
+后续可选：
+
+- 空间管理弹窗接入地图重新选点（当前 admin 空间页是轻量列表，重定位仍走 `/my-spaces` 管理弹窗）。
+- 审计日志分页 / 筛选 / 导出。
+- admin 空间编辑（描述、标签、有效期）的完整表单。
+
 ---
 
 ## Phase 6：实时互动
