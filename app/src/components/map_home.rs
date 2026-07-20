@@ -422,6 +422,111 @@ fn HomeHero(
                     )}
                 </p>
 
+                <div class="home-hero-visual" aria-label=move || t(locale.get(), "产品动态展示", "Product showcase")>
+                    <div class="hero-glow hero-glow-a"></div>
+                    <div class="hero-glow hero-glow-b"></div>
+                    <div class="hero-orbit hero-orbit-one"></div>
+                    <div class="hero-orbit hero-orbit-two"></div>
+                    <div class="hero-spark hero-spark-a"></div>
+                    <div class="hero-spark hero-spark-b"></div>
+                    <div class="hero-spark hero-spark-c"></div>
+
+                    <div class="hero-visual-map">
+                        <span class="hero-map-grid"></span>
+                        <span class="hero-route"></span>
+                        <span class="hero-pin hero-pin-a"></span>
+                        <span class="hero-pin hero-pin-b"></span>
+                        <span class="hero-pin hero-pin-c"></span>
+                        <span class="hero-map-label">{move || t(locale.get(), "全球旅行 · 实时空间", "Global travel · live spaces")}</span>
+                        <span class="hero-map-chip hero-map-chip-a">{move || t(locale.get(), "景点", "Scenic")}</span>
+                        <span class="hero-map-chip hero-map-chip-b">{move || t(locale.get(), "攻略", "Guide")}</span>
+                    </div>
+
+                    <div class="hero-phone">
+                        <span class="hero-phone-camera"></span>
+                        <div class="hero-phone-screen">
+                            <span class="hero-qr-title">{move || t(locale.get(), "扫码进空间", "Scan into space")}</span>
+                            <span class="hero-qr-code">
+                                <i></i><i></i><i></i><i></i>
+                                <i></i><i></i><i></i><i></i>
+                                <i></i><i></i><i></i><i></i>
+                                <i></i><i></i><i></i><i></i>
+                            </span>
+                            <span class="hero-hotspot">"InstantSpace_123456"</span>
+                            <span class="hero-phone-cta">{move || t(locale.get(), "进入攻略空间", "Enter guide space")}</span>
+                        </div>
+                    </div>
+
+                    <div class="hero-people-bubble">
+                        <span>{move || t(locale.get(), "你", "You")}</span>
+                        <span>{move || t(locale.get(), "友", "Friend")}</span>
+                        <strong>"3D"</strong>
+                    </div>
+
+                    // 123 steps + story copy live inside the visual as a carousel
+                    <div class="hero-carousel" aria-live="polite">
+                        <div class="hero-carousel-track">
+                            <article class="hero-slide hero-slide-step">
+                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
+                                <div class="hero-slide-step-row">
+                                    <strong>"1"</strong>
+                                    <div>
+                                        <b>{move || t(locale.get(), "发现地点", "Discover places")}</b>
+                                        <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="hero-slide hero-slide-step">
+                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
+                                <div class="hero-slide-step-row">
+                                    <strong>"2"</strong>
+                                    <div>
+                                        <b>{move || t(locale.get(), "读懂攻略", "Read the guide")}</b>
+                                        <span>{move || t(locale.get(), "路线 · 亮点 · 避坑", "Routes · highlights · tips")}</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="hero-slide hero-slide-step">
+                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
+                                <div class="hero-slide-step-row">
+                                    <strong>"3"</strong>
+                                    <div>
+                                        <b>{move || t(locale.get(), "分享同行", "Share the trip")}</b>
+                                        <span>{move || t(locale.get(), "链接 / 二维码发给朋友", "Send link or QR to friends")}</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="hero-slide hero-slide-story">
+                                <span class="hero-slide-kicker">{move || t(locale.get(), "攻略空间", "Guide space")}</span>
+                                <strong>{move || t(locale.get(), "先到的人写攻略，后来的人直接用", "Early travelers write. Later travelers use.")}</strong>
+                                <em>{move || t(locale.get(), "链接 · 二维码 · 未来 3D 同行", "Link · QR · 3D together soon")}</em>
+                            </article>
+
+                            // duplicate first slide for seamless loop
+                            <article class="hero-slide hero-slide-step" aria-hidden="true">
+                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
+                                <div class="hero-slide-step-row">
+                                    <strong>"1"</strong>
+                                    <div>
+                                        <b>{move || t(locale.get(), "发现地点", "Discover places")}</b>
+                                        <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                        <div class="hero-carousel-dots" aria-hidden="true">
+                            <i class="is-a"></i>
+                            <i class="is-b"></i>
+                            <i class="is-c"></i>
+                            <i class="is-d"></i>
+                        </div>
+                    </div>
+                </div>
+
+
                                 <section class="home-destination-guide" aria-label=move || t(locale.get(), "你想去哪", "Where do you want to go")>
                     <div class="home-destination-head">
                         <strong>{move || t(locale.get(), "你想去哪？", "Where do you want to go?")}</strong>
@@ -592,109 +697,6 @@ fn HomeHero(
                 </div>
             </div>
 
-            <div class="home-hero-visual" aria-label=move || t(locale.get(), "产品动态展示", "Product showcase")>
-                <div class="hero-glow hero-glow-a"></div>
-                <div class="hero-glow hero-glow-b"></div>
-                <div class="hero-orbit hero-orbit-one"></div>
-                <div class="hero-orbit hero-orbit-two"></div>
-                <div class="hero-spark hero-spark-a"></div>
-                <div class="hero-spark hero-spark-b"></div>
-                <div class="hero-spark hero-spark-c"></div>
-
-                <div class="hero-visual-map">
-                    <span class="hero-map-grid"></span>
-                    <span class="hero-route"></span>
-                    <span class="hero-pin hero-pin-a"></span>
-                    <span class="hero-pin hero-pin-b"></span>
-                    <span class="hero-pin hero-pin-c"></span>
-                    <span class="hero-map-label">{move || t(locale.get(), "全球旅行 · 实时空间", "Global travel · live spaces")}</span>
-                    <span class="hero-map-chip hero-map-chip-a">{move || t(locale.get(), "景点", "Scenic")}</span>
-                    <span class="hero-map-chip hero-map-chip-b">{move || t(locale.get(), "攻略", "Guide")}</span>
-                </div>
-
-                <div class="hero-phone">
-                    <span class="hero-phone-camera"></span>
-                    <div class="hero-phone-screen">
-                        <span class="hero-qr-title">{move || t(locale.get(), "扫码进空间", "Scan into space")}</span>
-                        <span class="hero-qr-code">
-                            <i></i><i></i><i></i><i></i>
-                            <i></i><i></i><i></i><i></i>
-                            <i></i><i></i><i></i><i></i>
-                            <i></i><i></i><i></i><i></i>
-                        </span>
-                        <span class="hero-hotspot">"InstantSpace_123456"</span>
-                        <span class="hero-phone-cta">{move || t(locale.get(), "进入攻略空间", "Enter guide space")}</span>
-                    </div>
-                </div>
-
-                <div class="hero-people-bubble">
-                    <span>{move || t(locale.get(), "你", "You")}</span>
-                    <span>{move || t(locale.get(), "友", "Friend")}</span>
-                    <strong>"3D"</strong>
-                </div>
-
-                // 123 steps + story copy live inside the visual as a carousel
-                <div class="hero-carousel" aria-live="polite">
-                    <div class="hero-carousel-track">
-                        <article class="hero-slide hero-slide-step">
-                            <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                            <div class="hero-slide-step-row">
-                                <strong>"1"</strong>
-                                <div>
-                                    <b>{move || t(locale.get(), "发现地点", "Discover places")}</b>
-                                    <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
-                                </div>
-                            </div>
-                        </article>
-
-                        <article class="hero-slide hero-slide-step">
-                            <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                            <div class="hero-slide-step-row">
-                                <strong>"2"</strong>
-                                <div>
-                                    <b>{move || t(locale.get(), "读懂攻略", "Read the guide")}</b>
-                                    <span>{move || t(locale.get(), "路线 · 亮点 · 避坑", "Routes · highlights · tips")}</span>
-                                </div>
-                            </div>
-                        </article>
-
-                        <article class="hero-slide hero-slide-step">
-                            <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                            <div class="hero-slide-step-row">
-                                <strong>"3"</strong>
-                                <div>
-                                    <b>{move || t(locale.get(), "分享同行", "Share the trip")}</b>
-                                    <span>{move || t(locale.get(), "链接 / 二维码发给朋友", "Send link or QR to friends")}</span>
-                                </div>
-                            </div>
-                        </article>
-
-                        <article class="hero-slide hero-slide-story">
-                            <span class="hero-slide-kicker">{move || t(locale.get(), "攻略空间", "Guide space")}</span>
-                            <strong>{move || t(locale.get(), "先到的人写攻略，后来的人直接用", "Early travelers write. Later travelers use.")}</strong>
-                            <em>{move || t(locale.get(), "链接 · 二维码 · 未来 3D 同行", "Link · QR · 3D together soon")}</em>
-                        </article>
-
-                        // duplicate first slide for seamless loop
-                        <article class="hero-slide hero-slide-step" aria-hidden="true">
-                            <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                            <div class="hero-slide-step-row">
-                                <strong>"1"</strong>
-                                <div>
-                                    <b>{move || t(locale.get(), "发现地点", "Discover places")}</b>
-                                    <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
-                                </div>
-                            </div>
-                        </article>
-                    </div>
-                    <div class="hero-carousel-dots" aria-hidden="true">
-                        <i class="is-a"></i>
-                        <i class="is-b"></i>
-                        <i class="is-c"></i>
-                        <i class="is-d"></i>
-                    </div>
-                </div>
-            </div>
         </section>
     }
 }
