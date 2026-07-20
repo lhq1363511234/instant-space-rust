@@ -13,6 +13,7 @@ pub fn AdminNav() -> impl IntoView {
             <a href="/inspace/admin/guides">{move || t(locale.get(), "攻略", "Guides")}</a>
             <a href="/inspace/admin/templates">{move || t(locale.get(), "模板", "Templates")}</a>
             <a href="/inspace/admin/resident-applications">{move || t(locale.get(), "常驻", "Resident")}</a>
+            <a href="/inspace/admin/users">{move || t(locale.get(), "用户", "Users")}</a>
         </nav>
     }
 }

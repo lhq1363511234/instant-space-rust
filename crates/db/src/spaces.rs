@@ -1,3 +1,4 @@
+use instant_domain::admin::ResidentApplication;
 use instant_domain::spaces::{SpaceStatus, SpaceSummary, SpaceType};
 use sqlx::{PgPool, Row};
 
@@ -156,6 +157,23 @@ pub async fn list_manageable_spaces(pool: &PgPool) -> Result<Vec<SpaceSummary>, 
                lat, lng, is_public, status::text AS status, expires_at, online_count
         FROM spaces
         WHERE status <> 'archived'
+        ORDER BY created_at DESC
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter().map(row_to_space_summary).collect()
+}
+
+/// Admin-only: list every space regardless of status (includes archived),
+/// so operators can audit and restore soft-deleted spaces.
+pub async fn list_all_spaces_admin(pool: &PgPool) -> Result<Vec<SpaceSummary>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
+               lat, lng, is_public, status::text AS status, expires_at, online_count
+        FROM spaces
         ORDER BY created_at DESC
         "#,
     )
@@ -436,6 +454,58 @@ pub async fn approve_resident_application(
     )
     .bind(space_id)
     .bind(resident_days)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+/// Admin-only: list pending resident applications (applied but not yet approved),
+/// joined with the space name and host contact for review.
+pub async fn list_resident_applications(
+    pool: &PgPool,
+) -> Result<Vec<ResidentApplication>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT s.id AS space_id, s.name_zh, s.name_en, s.host_user_id,
+               u.email AS host_email, s.resident_days
+        FROM spaces s
+        LEFT JOIN users u ON u.id = s.host_user_id
+        WHERE s.resident_apply_at IS NOT NULL AND s.resident = false
+        ORDER BY s.resident_apply_at ASC
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(|row| {
+            Ok(ResidentApplication {
+                space_id: row.try_get("space_id")?,
+                name_zh: row.try_get("name_zh")?,
+                name_en: row.try_get("name_en")?,
+                host_user_id: row.try_get("host_user_id")?,
+                host_email: row.try_get("host_email")?,
+                resident_days: row.try_get("resident_days")?,
+            })
+        })
+        .collect()
+}
+
+/// Admin-only: reject a resident application by clearing the applied marker,
+/// leaving the space as a normal (non-resident) space.
+pub async fn reject_resident_application(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE spaces
+        SET resident_apply_at = NULL, updated_at = now()
+        WHERE id = $1
+        "#,
+    )
+    .bind(space_id)
     .execute(pool)
     .await?;
 

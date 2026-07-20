@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use instant_auth::{generate_password_code, hash_password};
 #[cfg(feature = "ssr")]
 use instant_db::spaces::{
-    apply_resident, archive_template, create_host_space, get_space_summary, list_home_spaces,
-    list_host_spaces, list_manageable_spaces, rotate_space_password, set_space_status,
-    space_host_user_id, update_host_space, CreateSpaceInput, SpaceFilter, UpdateSpaceInput,
+    apply_resident, archive_template, create_host_space, get_space_summary, list_all_spaces_admin,
+    list_home_spaces, list_host_spaces, list_manageable_spaces, rotate_space_password,
+    set_space_status, space_host_user_id, update_host_space, CreateSpaceInput, SpaceFilter,
+    UpdateSpaceInput,
 };
 
 #[cfg(feature = "ssr")]
@@ -98,6 +99,25 @@ pub async fn list_my_spaces() -> Result<Vec<SpaceMarker>, ServerFnError> {
             list_host_spaces(&pool, user.id).await
         }
         .map_err(|err| ServerFnError::new(err.to_string()))?;
+
+        Ok(rows.into_iter().map(to_marker).collect())
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(ListAdminSpaces, "/inspace/api")]
+pub async fn list_admin_spaces() -> Result<Vec<SpaceMarker>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let pool = crate::server::db_pool().await?;
+        let rows = list_all_spaces_admin(&pool)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
 
         Ok(rows.into_iter().map(to_marker).collect())
     }

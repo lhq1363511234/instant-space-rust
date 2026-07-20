@@ -2,6 +2,7 @@ use sqlx::{PgPool, Row};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+use instant_domain::admin::AdminUser;
 use instant_domain::auth::{CurrentUser, UserRole};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,4 +143,45 @@ fn user_role_from_db(value: &str) -> UserRole {
         "super_admin" => UserRole::SuperAdmin,
         _ => UserRole::User,
     }
+}
+
+fn user_role_to_db(role: &UserRole) -> &'static str {
+    match role {
+        UserRole::User => "user",
+        UserRole::Admin => "admin",
+        UserRole::SuperAdmin => "super_admin",
+    }
+}
+
+/// Admin-only: list every user with role, newest first.
+pub async fn list_users(pool: &PgPool) -> Result<Vec<AdminUser>, sqlx::Error> {
+    let rows = sqlx::query("SELECT id, email, name, role FROM users ORDER BY created_at DESC")
+        .fetch_all(pool)
+        .await?;
+
+    rows.into_iter()
+        .map(|record| {
+            Ok(AdminUser {
+                id: record.try_get("id")?,
+                email: record.try_get("email")?,
+                name: record.try_get("name")?,
+                role: user_role_from_db(record.try_get::<String, _>("role")?.as_str()),
+            })
+        })
+        .collect()
+}
+
+/// Admin-only: change a user's role.
+pub async fn set_user_role(
+    pool: &PgPool,
+    user_id: Uuid,
+    role: UserRole,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE users SET role = $2, updated_at = now() WHERE id = $1")
+        .bind(user_id)
+        .bind(user_role_to_db(&role))
+        .execute(pool)
+        .await?;
+
+    Ok(())
 }
