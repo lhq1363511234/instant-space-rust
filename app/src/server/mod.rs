@@ -3,6 +3,7 @@ pub mod auth;
 pub mod chat;
 pub mod geo;
 pub mod guides;
+pub mod site;
 pub mod spaces;
 
 #[cfg(feature = "ssr")]

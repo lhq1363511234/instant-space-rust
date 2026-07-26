@@ -14,24 +14,30 @@ BACKUP="/tmp/${DB_NAME}_${STAMP}.dump"
 
 cd "$(dirname "$0")/.."
 
-echo "==> 1/6 Backing up database to ${BACKUP}"
+echo "==> 1/7 Backing up database to ${BACKUP}"
 sudo -u postgres pg_dump -Fc "$DB_NAME" -f "$BACKUP"
 
-echo "==> 2/6 Building release binary"
+echo "==> 2/7 Building release binary"
 cargo build --release -p instant-space-app --bin instant-space-app
 
-echo "==> 3/6 Building WASM bundle"
+echo "==> 3/7 Installing release binary"
+# The systemd unit executes /usr/local/bin/instant-space-app, not target/release.
+# Install to a temporary path and rename atomically so the running inode is not truncated.
+install -m755 target/release/instant-space-app /usr/local/bin/instant-space-app.new
+mv -f /usr/local/bin/instant-space-app.new /usr/local/bin/instant-space-app
+
+echo "==> 4/7 Building WASM bundle"
 node scripts/build-wasm.mjs
 
-echo "==> 4/6 Applying migrations (via one-shot run of the binary)"
+echo "==> 5/7 Applying migrations (via one-shot run of the binary)"
 # The binary runs embedded migrations on startup; a dedicated migrate check
 # can be added later. For now migrations already applied are skipped safely.
 
-echo "==> 5/6 Restarting ${SERVICE}"
+echo "==> 6/7 Restarting ${SERVICE}"
 systemctl restart "$SERVICE"
 sleep 2
 
-echo "==> 6/6 Health check"
+echo "==> 7/7 Health check"
 for i in 1 2 3 4 5; do
   if curl -fsS http://127.0.0.1:3001/health >/dev/null 2>&1; then
     echo "health OK"

@@ -71,13 +71,26 @@ pub fn GuideBrowser() -> impl IntoView {
         <section class="guide-browser">
             <div class="page-head">
                 <div>
-                    <h1>{move || t(locale.get(), "全球攻略", "Global Guides")}</h1>
-                    <p>{move || t(locale.get(), "浏览已发布攻略，或提交新的结构化攻略草稿。", "Browse published guides or submit a structured draft.")}</p>
+                    <p class="survey-kicker">{move || t(locale.get(), "全部记录", "All records")}</p>
+                    <h1>{move || t(locale.get(), "按目的地浏览攻略", "Browse guides by destination")}</h1>
+                    <p>{move || t(locale.get(), "按省市、区域和地点筛选，找到路线、美食和避坑提示。", "Filter by region and place to find routes, food, and practical warnings.")}</p>
                 </div>
-                <a class="button button-primary" href="/inspace/guides/new">
-                    {move || t(locale.get(), "提交攻略", "Submit guide")}
-                </a>
+                <div class="guide-browser-head-actions">
+                    <a class="button button-primary" href="/inspace/my-spaces">
+                        {move || t(locale.get(), "去我的空间写攻略", "Write from My Spaces")}
+                    </a>
+                    <a class="button button-secondary-light" href="/inspace/guides/new">
+                        {move || t(locale.get(), "写独立攻略", "Write standalone")}
+                    </a>
+                </div>
             </div>
+            <p class="guide-browser-note">
+                {move || t(
+                    locale.get(),
+                    "攻略最好写在空间里：进入一个空间点「写攻略」，地点信息会自动带入，写完的攻略会挂在那个真实地点下。",
+                    "Guides work best inside a Space: open a Space, click Write guide, and the place details are carried over so the guide stays attached to that real location.",
+                )}
+            </p>
             <div class="filter-row">
                 <select
                     aria-label="Province"
@@ -199,6 +212,7 @@ pub fn GuideBrowser() -> impl IntoView {
                                                 <strong>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</strong>
                                             </a>
                                             <span>{location}</span>
+                                            <small>{move || t(locale.get(), "可绑定空间，也可作为独立攻略被发现", "Can be linked to a Space or discovered independently")}</small>
                                             {can_edit.then(|| view! {
                                                 <div class="guide-list-actions">
                                                     <a class="button button-secondary-light" href=edit_href>{move || t(locale.get(), "编辑", "Edit")}</a>

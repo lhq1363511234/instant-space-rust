@@ -49,6 +49,51 @@ pub struct UpdateGuideInput {
     pub featured: bool,
 }
 
+/// List guides an author can choose when creating or managing a Space.
+/// Admin callers use `list_all_guides_admin`; regular users only see their own.
+pub async fn list_guides_by_author(
+    pool: &PgPool,
+    author_id: Uuid,
+) -> Result<Vec<GuideSummary>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, title_zh, title_en, province, city, district, spot_name,
+               status::text AS status, featured, author_id, space_id
+        FROM guides
+        WHERE author_id = $1
+        ORDER BY updated_at DESC, created_at DESC
+        "#,
+    )
+    .bind(author_id)
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter().map(row_to_guide_summary).collect()
+}
+
+/// Bind an existing guide to a Space. A guide has at most one Space context.
+pub async fn bind_guide_to_space(
+    pool: &PgPool,
+    guide_id: Uuid,
+    space_id: Uuid,
+) -> Result<GuideSummary, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        UPDATE guides
+        SET space_id = $2, updated_at = now()
+        WHERE id = $1
+        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+                  status::text AS status, featured, author_id, space_id
+        "#,
+    )
+    .bind(guide_id)
+    .bind(space_id)
+    .fetch_one(pool)
+    .await?;
+
+    row_to_guide_summary(row)
+}
+
 pub async fn list_published_guides(
     pool: &PgPool,
     province: Option<String>,
@@ -76,9 +121,7 @@ pub async fn list_published_guides(
     .fetch_all(pool)
     .await?;
 
-    rows.into_iter()
-        .map(|row| row_to_guide_summary(row))
-        .collect()
+    rows.into_iter().map(row_to_guide_summary).collect()
 }
 
 pub async fn get_published_guide(
@@ -213,9 +256,7 @@ pub async fn list_guides_by_space(
         .await?
     };
 
-    rows.into_iter()
-        .map(|row| row_to_guide_summary(row))
-        .collect()
+    rows.into_iter().map(row_to_guide_summary).collect()
 }
 
 fn row_to_guide_summary(row: sqlx::postgres::PgRow) -> Result<GuideSummary, sqlx::Error> {
@@ -415,9 +456,7 @@ pub async fn list_all_guides_admin(pool: &PgPool) -> Result<Vec<GuideSummary>, s
     .fetch_all(pool)
     .await?;
 
-    rows.into_iter()
-        .map(|row| row_to_guide_summary(row))
-        .collect()
+    rows.into_iter().map(row_to_guide_summary).collect()
 }
 
 /// Admin/owner: set a guide's publication status (publish / unpublish / archive).

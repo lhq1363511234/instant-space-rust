@@ -234,11 +234,12 @@ pub async fn country_capital(
         return Ok(None);
     }
     // Taiwan is China province, not a country capital target.
-    let country_key = if country.eq_ignore_ascii_case("taiwan") || country == "台湾" || country == "台灣" {
-        "China"
-    } else {
-        country
-    };
+    let country_key =
+        if country.eq_ignore_ascii_case("taiwan") || country == "台湾" || country == "台灣" {
+            "China"
+        } else {
+            country
+        };
 
     // 1) Dedicated capitals table (all countries seeded)
     let row = sqlx::query(
@@ -310,7 +311,9 @@ pub async fn country_capital(
 }
 
 /// All stored national capitals for client-side accurate fly-to.
-pub async fn list_capitals(pool: &PgPool) -> Result<Vec<(String, String, f64, f64, f64)>, sqlx::Error> {
+pub async fn list_capitals(
+    pool: &PgPool,
+) -> Result<Vec<(String, String, f64, f64, f64)>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
         SELECT country_name, capital_name, lng::float8 AS lng, lat::float8 AS lat, zoom::float8 AS zoom
@@ -333,7 +336,6 @@ pub async fn list_capitals(pool: &PgPool) -> Result<Vec<(String, String, f64, f6
     }
     Ok(out)
 }
-
 
 fn clean_optional(value: Option<String>) -> Option<String> {
     value.and_then(|v| {

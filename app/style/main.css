@@ -6031,3 +6031,369 @@ body[data-map-open="1"] #map {
     justify-content: center;
   }
 }
+
+/* Page-first discovery: no map is mounted on these routes. */
+.landing-page, .explore-page { max-width: 1180px; margin: 0 auto; padding: clamp(32px, 6vw, 80px) var(--space-5); color: var(--color-ink-900); }
+.landing-hero, .page-hero { padding: clamp(28px, 5vw, 64px); border-radius: 28px; background: linear-gradient(135deg, #172554, #312e81 58%, #155e75); color: #f8fafc; box-shadow: 0 24px 60px rgb(15 23 42 / .18); }
+.landing-hero h1, .page-hero h1 { max-width: 18ch; margin: 8px 0 18px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.02; }
+.landing-lede, .page-hero > p { max-width: 64ch; font-size: 1.05rem; line-height: 1.7; color: rgb(226 232 240 / .94); }
+.landing-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top: 26px; }
+.landing-grid, .page-space-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:18px; margin-top:28px; }
+.landing-grid article, .page-space-card, .explore-toolbar { padding:22px; border:1px solid rgb(148 163 184 / .28); border-radius:20px; background:#fff; box-shadow: 0 8px 24px rgb(15 23 42 / .06); }
+.landing-grid h2, .page-space-card h2 { margin: 8px 0; }.landing-grid p, .page-space-card p { line-height:1.6; color:#475569; }
+.explore-content { margin-top:28px; }.explore-toolbar { display:flex; gap:18px; align-items:end; flex-wrap:wrap; }.explore-toolbar label { display:grid; gap:6px; flex:1 1 270px; font-weight:700; }.explore-toolbar input { min-height:44px; padding:0 12px; border:1px solid #cbd5e1; border-radius:10px; }.filter-chip-row { display:flex; gap:8px; flex-wrap:wrap; }.page-result-count { margin:24px 0 0; }
+.map-workspace { position:relative; min-height:calc(100dvh - 72px); background:#0f172a; }.map-workspace .map-canvas { position:absolute; inset:0; min-height:100%; }.map-workspace-bar { position:relative; z-index:5; display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px clamp(16px, 4vw, 44px); color:#fff; background:linear-gradient(180deg, rgb(15 23 42 / .9), transparent); pointer-events:none; }.map-workspace-bar > * { pointer-events:auto; }.map-workspace-bar h1 { margin:0; font-size:1.35rem; }.map-workspace-bar .eyebrow { margin:0 0 4px; }.map-workspace-actions { display:flex; flex-wrap:wrap; gap:8px; }.map-workspace-actions button { min-height:38px; padding:0 12px; border:1px solid rgb(255 255 255 / .25); background:rgb(15 23 42 / .72); color:#fff; border-radius:10px; }
+@media (max-width: 700px) { .landing-page, .explore-page { padding:28px 16px; }.landing-hero, .page-hero { padding:26px 20px; }.map-workspace-bar { align-items:flex-start; flex-direction:column; } }
+
+/* ===== Product vision restoration v64 =====
+   首页与主要内容页回到 PRODUCT_VISION：全球旅行攻略空间，Space 是真实地点入口，
+   Guide 是结构化内容，QR/Link/Community 是增长与共享体验入口。 */
+.product-landing-page,
+.explore-page {
+  max-width: 1200px;
+}
+.product-landing-page {
+  background:
+    radial-gradient(circle at 8% 4%, rgb(34 197 94 / 0.11), transparent 28%),
+    radial-gradient(circle at 92% 8%, rgb(14 165 233 / 0.14), transparent 28%);
+}
+.product-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(330px, 0.78fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 56px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 72% 18%, rgb(125 211 252 / 0.32), transparent 22%),
+    linear-gradient(135deg, #063f46 0%, #0f766e 38%, #164e63 70%, #172554 100%);
+  box-shadow: 0 24px 70px rgb(15 23 42 / 0.18);
+}
+.product-hero .eyebrow,
+.explore-hero .eyebrow,
+.guide-browser .page-head .eyebrow,
+.auth-page-head .eyebrow {
+  color: rgb(204 251 241 / 0.95);
+  letter-spacing: 0.09em;
+}
+.product-hero h1 {
+  max-width: 13.5ch;
+  letter-spacing: -0.055em;
+}
+.product-hero .landing-lede {
+  max-width: 62ch;
+  color: rgb(240 253 250 / 0.94);
+}
+.product-hero-actions .button-primary {
+  background: #f97316;
+  color: #fff7ed;
+  box-shadow: 0 14px 32px rgb(249 115 22 / 0.26);
+}
+.product-hero-actions .button-secondary {
+  background: rgb(255 255 255 / 0.95);
+  color: #0f3d45;
+  border-color: rgb(255 255 255 / 0.7);
+}
+.product-hero-actions .button-ghost {
+  border-color: rgb(255 255 255 / 0.34);
+  background: rgb(255 255 255 / 0.09);
+  color: #f8fafc;
+}
+.product-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+.product-trust-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  color: #ecfeff;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.product-hero-visual {
+  position: relative;
+  min-height: 430px;
+}
+.visual-map-card,
+.visual-phone-card,
+.visual-space-card,
+.visual-guide-card {
+  border: 1px solid rgb(255 255 255 / 0.28);
+  background: rgb(255 255 255 / 0.93);
+  color: #0f172a;
+  box-shadow: 0 18px 46px rgb(15 23 42 / 0.24);
+}
+.visual-map-card {
+  position: absolute;
+  inset: 18px 40px 72px 0;
+  border-radius: 30px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgb(14 165 233 / 0.16) 1px, transparent 1px),
+    linear-gradient(rgb(14 165 233 / 0.16) 1px, transparent 1px),
+    linear-gradient(135deg, #ecfeff, #f0fdf4 58%, #eff6ff);
+  background-size: 38px 38px, 38px 38px, auto;
+}
+.visual-route {
+  position: absolute;
+  left: 18%;
+  top: 46%;
+  width: 58%;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f97316, #22c55e, #0ea5e9);
+  transform: rotate(-18deg);
+  box-shadow: 0 0 0 7px rgb(14 165 233 / 0.08);
+}
+.visual-pin {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 4px solid #fff;
+  border-radius: 999px 999px 999px 0;
+  background: #f97316;
+  transform: rotate(-45deg);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.28);
+  animation: product-pin-pulse 2.8s ease-in-out infinite;
+}
+.visual-pin-a { left: 18%; top: 32%; }
+.visual-pin-b { left: 58%; top: 47%; animation-delay: .35s; background: #22c55e; }
+.visual-pin-c { left: 76%; top: 22%; animation-delay: .7s; background: #0ea5e9; }
+.visual-space-card,
+.visual-guide-card {
+  position: absolute;
+  display: grid;
+  gap: 5px;
+  border-radius: 18px;
+  padding: 16px;
+}
+.visual-space-card-main {
+  left: 24px;
+  bottom: 24px;
+  width: min(250px, 72%);
+}
+.visual-guide-card {
+  right: 16px;
+  top: 24px;
+  width: min(210px, 56%);
+}
+.visual-space-card small,
+.visual-guide-card small {
+  color: #0f766e;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.visual-space-card p,
+.visual-guide-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.visual-phone-card {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 178px;
+  min-height: 280px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 14px;
+  padding: 16px 16px 18px;
+  border-radius: 30px;
+  transform: rotate(4deg);
+  animation: product-phone-float 5.4s ease-in-out infinite;
+}
+.visual-phone-top {
+  width: 54px;
+  height: 6px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+.visual-qr {
+  display: grid;
+  grid-template-columns: repeat(3, 24px);
+  grid-template-rows: repeat(3, 24px);
+  gap: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+.visual-qr i {
+  display: block;
+  border-radius: 5px;
+  background: #0f172a;
+}
+.visual-qr i:nth-child(2n) { background: #0f766e; }
+.visual-qr i:nth-child(3n) { opacity: .38; }
+.visual-phone-card span {
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.product-flow-grid article {
+  box-shadow: none;
+  border-color: rgb(15 118 110 / 0.16);
+}
+.product-flow-grid article strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #ccfbf1;
+  color: #115e59;
+}
+.explore-hero {
+  background:
+    radial-gradient(circle at 80% 18%, rgb(251 146 60 / 0.28), transparent 24%),
+    linear-gradient(135deg, #134e4a, #0f766e 52%, #1e3a8a);
+}
+.page-space-card {
+  display: grid;
+  gap: 10px;
+  min-height: 220px;
+  box-shadow: none;
+  border-color: rgb(20 184 166 / 0.2);
+}
+.page-space-card h2 {
+  color: #0f172a;
+  line-height: 1.18;
+}
+.page-space-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+.page-space-card-foot span,
+.guide-list small {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.guide-browser .page-head {
+  border: 1px solid rgb(20 184 166 / 0.18);
+  border-radius: 24px;
+  padding: clamp(22px, 4vw, 38px);
+  background:
+    radial-gradient(circle at 92% 0%, rgb(20 184 166 / 0.14), transparent 24%),
+    #ffffff;
+}
+.guide-browser .page-head h1,
+.auth-page-head h1,
+.my-spaces-page .page-head h1 {
+  letter-spacing: -0.035em;
+}
+.guide-list li {
+  display: grid;
+  gap: 6px;
+}
+.auth-page {
+  max-width: 860px;
+}
+.auth-page-head {
+  margin-bottom: 18px;
+}
+.auth-page-head .eyebrow {
+  color: #0f766e;
+}
+.my-spaces-page .page-head {
+  border-radius: 24px;
+  border: 1px solid rgb(20 184 166 / 0.16);
+  background:
+    linear-gradient(135deg, rgb(240 253 250 / 0.96), rgb(255 251 235 / 0.84));
+}
+@keyframes product-pin-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgb(249 115 22 / 0)); }
+  50% { filter: drop-shadow(0 0 14px rgb(249 115 22 / 0.55)); }
+}
+@keyframes product-phone-float {
+  0%, 100% { transform: translateY(0) rotate(4deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .visual-pin,
+  .visual-phone-card {
+    animation: none !important;
+  }
+}
+@media (max-width: 900px) {
+  .product-hero {
+    grid-template-columns: 1fr;
+  }
+  .product-hero-visual {
+    min-height: 320px;
+  }
+  .visual-map-card {
+    inset: 0 18px 44px 0;
+  }
+}
+@media (max-width: 700px) {
+  .product-landing-page,
+  .explore-page {
+    padding: 20px 14px 34px;
+  }
+  .product-hero,
+  .explore-hero {
+    padding: 24px 18px;
+    border-radius: 22px;
+  }
+  .product-hero h1,
+  .explore-hero h1 {
+    max-width: 14ch;
+    font-size: clamp(2.05rem, 11vw, 3.05rem);
+  }
+  .product-hero-visual {
+    min-height: 250px;
+  }
+  .visual-map-card {
+    inset: 0 0 36px;
+    border-radius: 22px;
+  }
+  .visual-phone-card {
+    right: 10px;
+    bottom: 0;
+    width: 136px;
+    min-height: 214px;
+    border-radius: 24px;
+    gap: 9px;
+    padding: 12px;
+  }
+  .visual-qr {
+    grid-template-columns: repeat(3, 18px);
+    grid-template-rows: repeat(3, 18px);
+    gap: 5px;
+  }
+  .visual-guide-card {
+    display: none;
+  }
+  .visual-space-card-main {
+    width: calc(100% - 156px);
+    min-width: 138px;
+    left: 12px;
+    bottom: 14px;
+    padding: 12px;
+  }
+  .product-trust-row span {
+    min-height: 32px;
+    font-size: 0.78rem;
+  }
+  .page-space-card-foot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .page-space-card-foot .button {
+    width: 100%;
+  }
+}

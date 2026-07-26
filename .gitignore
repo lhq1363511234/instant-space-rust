@@ -12,3 +12,6 @@ playwright-report/
 # Stray runtime artifacts (not part of this project)
 /one-api.db
 *.dump
+
+# QA / screenshot artifacts
+/output/

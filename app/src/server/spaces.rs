@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use instant_auth::{generate_password_code, hash_password};
 #[cfg(feature = "ssr")]
 use instant_db::spaces::{
-    apply_resident, archive_template, create_host_space, get_space_summary, list_all_spaces_admin,
-    list_home_spaces, list_host_spaces, list_manageable_spaces, rotate_space_password,
-    set_space_status, space_host_user_id, update_host_space, CreateSpaceInput, SpaceFilter,
-    UpdateSpaceInput,
+    apply_resident, archive_template, create_host_space, get_space_summary, list_admin_spaces_page,
+    list_all_spaces_admin, list_home_spaces, list_home_spaces_page, list_host_spaces,
+    list_manageable_spaces, rotate_space_password, set_space_status, space_host_user_id,
+    update_host_space, CreateSpaceInput, SpaceFilter, UpdateSpaceInput,
 };
 
 #[cfg(feature = "ssr")]
@@ -35,6 +35,15 @@ pub struct SpaceMarker {
     pub online_count: i32,
     pub generated_password: Option<String>,
     pub hotspot_name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpacePageResult {
+    pub items: Vec<SpaceMarker>,
+    pub total: i64,
+    pub page: i32,
+    pub page_size: i32,
+    pub total_pages: i32,
 }
 
 pub fn to_marker(space: SpaceSummary) -> SpaceMarker {
@@ -85,6 +94,58 @@ pub async fn list_spaces(
     Ok(rows.into_iter().map(to_marker).collect())
 }
 
+#[server(ListSpacePage, "/inspace/api")]
+pub async fn list_space_page(
+    q: Option<String>,
+    space_type: Option<SpaceType>,
+    page: i32,
+    page_size: i32,
+) -> Result<SpacePageResult, ServerFnError> {
+    let page_size = page_size.clamp(10, 50);
+    let page = page.max(1);
+    let pool = crate::server::db_pool().await?;
+    let filter = SpaceFilter {
+        q: clean_optional(q),
+        space_type,
+        ..Default::default()
+    };
+    let fetch = |page: i32| {
+        let pool = pool.clone();
+        let filter = filter.clone();
+        async move {
+            list_home_spaces_page(
+                &pool,
+                filter,
+                i64::from(page_size),
+                i64::from((page - 1) * page_size),
+            )
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+        }
+    };
+
+    let mut result = fetch(page).await?;
+    let total_pages = if result.total == 0 {
+        1
+    } else {
+        ((result.total + i64::from(page_size) - 1) / i64::from(page_size)) as i32
+    };
+    // Out-of-range page numbers (deep links, stale bookmarks) resolve to the
+    // last real page instead of silently showing page 1 content.
+    let page = page.min(total_pages);
+    if result.items.is_empty() && result.total > 0 {
+        result = fetch(page).await?;
+    }
+
+    Ok(SpacePageResult {
+        items: result.items.into_iter().map(to_marker).collect(),
+        total: result.total,
+        page,
+        page_size,
+        total_pages,
+    })
+}
+
 #[server(ListMySpaces, "/inspace/api")]
 pub async fn list_my_spaces() -> Result<Vec<SpaceMarker>, ServerFnError> {
     #[cfg(feature = "ssr")]
@@ -101,6 +162,77 @@ pub async fn list_my_spaces() -> Result<Vec<SpaceMarker>, ServerFnError> {
         .map_err(|err| ServerFnError::new(err.to_string()))?;
 
         Ok(rows.into_iter().map(to_marker).collect())
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(ListAdminSpacePage, "/inspace/api")]
+pub async fn list_admin_space_page(
+    q: Option<String>,
+    status: Option<String>,
+    space_type: Option<SpaceType>,
+    page: i32,
+    page_size: i32,
+) -> Result<SpacePageResult, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let page_size = page_size.clamp(10, 100);
+        let requested_page = page.max(1);
+        let pool = crate::server::db_pool().await?;
+        let status = clean_optional(status).and_then(|value| {
+            matches!(
+                value.as_str(),
+                "managed" | "active" | "expired" | "closed" | "archived" | "template"
+            )
+            .then_some(value)
+        });
+        let q = clean_optional(q);
+        let result = list_admin_spaces_page(
+            &pool,
+            q.clone(),
+            status.clone(),
+            space_type.clone(),
+            i64::from(page_size),
+            i64::from((requested_page - 1) * page_size),
+        )
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let total_pages = if result.total == 0 {
+            1
+        } else {
+            ((result.total + i64::from(page_size) - 1) / i64::from(page_size)) as i32
+        };
+        let page = requested_page.min(total_pages);
+
+        // A filter change can leave the browser on a page past the new end.
+        // Fetch the valid last page instead of returning an empty, confusing table.
+        let result = if page != requested_page {
+            list_admin_spaces_page(
+                &pool,
+                q,
+                status,
+                space_type,
+                i64::from(page_size),
+                i64::from((page - 1) * page_size),
+            )
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?
+        } else {
+            result
+        };
+
+        Ok(SpacePageResult {
+            items: result.items.into_iter().map(to_marker).collect(),
+            total: result.total,
+            page,
+            page_size,
+            total_pages,
+        })
     }
 
     #[cfg(not(feature = "ssr"))]
@@ -150,6 +282,7 @@ pub async fn get_space_for_guide(space_id: String) -> Result<Option<SpaceMarker>
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[server(CreateSpace, "/inspace/api")]
 pub async fn create_space(
     name_zh: String,
@@ -267,6 +400,7 @@ pub async fn create_space(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[server(UpdateMySpace, "/inspace/api")]
 pub async fn update_my_space(
     space_id: String,

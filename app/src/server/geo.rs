@@ -71,7 +71,6 @@ pub async fn reverse_geo_point(lat: f64, lng: f64) -> Result<Option<GeoMatch>, S
         .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
-
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlaceCenter {
     pub lng: f64,

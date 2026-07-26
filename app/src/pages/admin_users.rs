@@ -21,7 +21,7 @@ pub fn AdminUsersPage() -> impl IntoView {
     );
 
     view! {
-        <main class="page admin-layout">
+        <main id="main-content" class="page admin-layout">
             <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在检查管理员权限", "Checking admin access")}</p> }>
                 {move || Suspend::new(async move {
                     let user = session.await;
@@ -107,7 +107,9 @@ fn AdminUserRow(user: AdminUser, reload: RwSignal<u32>, is_super: bool) -> impl 
             match result {
                 Ok(()) => {
                     error.set(None);
-                    message.set(Some(t(locale.get(), "角色已更新", "Role updated").to_string()));
+                    message.set(Some(
+                        t(locale.get(), "角色已更新", "Role updated").to_string(),
+                    ));
                     reload.update(|n| *n += 1);
                 }
                 Err(err) => {

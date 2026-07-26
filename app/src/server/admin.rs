@@ -38,8 +38,8 @@ pub async fn approve_resident_application(
     #[cfg(feature = "ssr")]
     {
         let actor = crate::server::auth::require_admin_user().await?;
-        let space_uuid = uuid::Uuid::parse_str(&space_id)
-            .map_err(|_| ServerFnError::new("invalid space id"))?;
+        let space_uuid =
+            uuid::Uuid::parse_str(&space_id).map_err(|_| ServerFnError::new("invalid space id"))?;
         let days = resident_days.clamp(1, 3650);
         let pool = crate::server::db_pool().await?;
         instant_db::spaces::approve_resident_application(&pool, space_uuid, days)
@@ -70,8 +70,8 @@ pub async fn reject_resident_application(space_id: String) -> Result<(), ServerF
     #[cfg(feature = "ssr")]
     {
         let actor = crate::server::auth::require_admin_user().await?;
-        let space_uuid = uuid::Uuid::parse_str(&space_id)
-            .map_err(|_| ServerFnError::new("invalid space id"))?;
+        let space_uuid =
+            uuid::Uuid::parse_str(&space_id).map_err(|_| ServerFnError::new("invalid space id"))?;
         let pool = crate::server::db_pool().await?;
         instant_db::spaces::reject_resident_application(&pool, space_uuid)
             .await
@@ -125,12 +125,14 @@ pub async fn set_user_role(user_id: String, role: String) -> Result<(), ServerFn
             return Err(ServerFnError::new("super admin permission required"));
         }
 
-        let user_uuid = uuid::Uuid::parse_str(&user_id)
-            .map_err(|_| ServerFnError::new("invalid user id"))?;
+        let user_uuid =
+            uuid::Uuid::parse_str(&user_id).map_err(|_| ServerFnError::new("invalid user id"))?;
 
         // Guard against self-demotion locking out the last super admin.
         if user_uuid == current.id && role != "super_admin" {
-            return Err(ServerFnError::new("cannot change your own super admin role"));
+            return Err(ServerFnError::new(
+                "cannot change your own super admin role",
+            ));
         }
 
         let role = match role.as_str() {

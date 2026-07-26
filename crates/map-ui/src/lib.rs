@@ -225,7 +225,6 @@ pub fn disable_picker(_element_id: &str) {
     // MapLibre is browser-only; native server builds keep this as a no-op.
 }
 
-
 #[cfg(target_arch = "wasm32")]
 pub fn page_origin() -> String {
     get_page_origin()

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>InSpaceOS 初版设计审核稿</title>
+  <style>
+    :root {
+      --ink: #071b2c;
+      --ink-soft: #49677d;
+      --paper: #edf6fc;
+      --surface: #f9fcff;
+      --line: #c8ddeb;
+      --deep: #061a2b;
+      --deep-2: #0b3150;
+      --primary: #238ee8;
+      --primary-soft: #dcefff;
+      --blue-soft: #d6eaf6;
+      --green: #2d7894;
+      --signal: #ff8a3d;
+      --shadow: 0 24px 70px rgba(5, 38, 64, .17);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    html { background: #d8d4cc; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    .review-shell { width: min(1440px, 100%); margin: 0 auto; min-height: 100vh; background: var(--paper); }
+    .review-strip { display:flex; align-items:center; justify-content:space-between; padding: 11px 34px; background: var(--deep); color: #edf3f4; font-size: 12px; letter-spacing: .04em; }
+    .review-strip strong { color: #fff; }
+    .review-strip span { color: #a9c7da; }
+    .review-admin { margin-left:14px; padding:5px 10px; border:1px solid rgba(145,212,255,.35); border-radius:999px; background:rgba(35,142,232,.12); color:#cbeaff; font-size:11px; }
+    .site-nav { height: 78px; display:flex; align-items:center; justify-content:space-between; padding: 0 56px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .wordmark { display:flex; align-items:center; gap: 12px; color: var(--deep); text-decoration:none; font-weight: 800; letter-spacing: -.02em; }
+    .wordmark-mark { width: 25px; height: 25px; display:block; border: 6px solid var(--primary); border-right-color: var(--deep); border-radius: 50% 50% 50% 10%; transform: rotate(-45deg); }
+    .nav-links { display:flex; align-items:center; gap: 28px; }
+    .nav-links button, .nav-links a { border:0; background:none; color: var(--ink-soft); text-decoration:none; padding: 10px 0; font-size: 14px; }
+    .nav-links .active { color: var(--ink); font-weight: 800; }
+    .nav-cta { padding: 11px 17px !important; border: 1px solid var(--ink) !important; border-radius: 999px; color: var(--ink) !important; }
+    .view { display:none; }
+    .view.active { display:block; }
+    .hero { display:grid; grid-template-columns: 1.05fr .95fr; gap: 70px; align-items:center; padding: 88px 9% 100px; background: var(--surface); }
+    .eyebrow { margin: 0 0 18px; color: var(--primary); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top:0; }
+    h1 { max-width: 10ch; margin-bottom: 24px; font-size: clamp(48px, 6vw, 88px); line-height: .98; letter-spacing: -.08em; }
+    .hero-copy > p:not(.eyebrow) { max-width: 590px; color: var(--ink-soft); font-size: 18px; line-height: 1.8; }
+    .hero-actions { display:flex; align-items:center; gap: 12px; margin-top: 34px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; min-height: 48px; padding: 0 19px; border: 1px solid transparent; border-radius: 999px; text-decoration:none; font-weight: 750; font-size: 14px; }
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 9px 22px rgba(35,142,232,.24); }
+    .btn-secondary { border-color: var(--line); color: var(--ink); background: transparent; }
+    .hero-note { margin-top: 24px; color: #7d827f; font-size: 12px; }
+    .space-sample { position:relative; min-height: 490px; padding: 26px; overflow:hidden; border-radius: 30px; background: var(--deep); color:#f7f4ed; box-shadow: var(--shadow); }
+    .space-sample::before { content:""; position:absolute; inset:0; opacity:.32; background: linear-gradient(135deg, transparent 0 48%, rgba(235,219,178,.35) 49% 50%, transparent 51%), repeating-linear-gradient(0deg, transparent 0 38px, rgba(255,255,255,.07) 39px 40px), repeating-linear-gradient(90deg, transparent 0 38px, rgba(255,255,255,.07) 39px 40px); }
+    .sample-top, .sample-content, .sample-memory { position:relative; z-index:1; }
+    .sample-top { display:flex; justify-content:space-between; color:#b9cbd0; font-size:12px; }
+    .sample-tag { color:#91d4ff; }
+    .sample-content { margin-top: 120px; }
+    .sample-content h2 { margin-bottom: 8px; font-size: 52px; letter-spacing: -.06em; }
+    .sample-content p { color:#c3d0d1; line-height:1.6; }
+    .sample-pin { position:absolute; left: 54%; top: 30%; width: 18px; height: 18px; border: 5px solid #fff; border-radius:50% 50% 50% 0; background:var(--primary); transform:rotate(-45deg); box-shadow:0 0 0 9px rgba(35,142,232,.20); }
+    .sample-memory { position:absolute; right: 24px; bottom: 24px; width: 78%; padding: 17px 18px; border:1px solid rgba(255,255,255,.18); border-radius:16px; background:rgba(255,255,255,.09); backdrop-filter:blur(12px); }
+    .sample-memory small { display:block; margin-bottom:8px; color:#91d4ff; font-weight:800; }
+    .sample-memory p { margin:0; color:#eef3f0; font-size:14px; }
+    .section { padding: 82px 9%; }
+    .section-head { display:flex; justify-content:space-between; align-items:end; gap: 30px; margin-bottom: 28px; }
+    .section h2 { max-width: 11ch; margin-bottom:0; font-size: clamp(32px, 4vw, 58px); letter-spacing: -.07em; line-height:1; }
+    .section-head p { max-width: 420px; margin-bottom:0; color: var(--ink-soft); line-height:1.7; }
+    .principles { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); }
+    .principle { padding: 26px 24px 10px 0; border-right:1px solid var(--line); }
+    .principle + .principle { padding-left:24px; }
+    .principle:last-child { border-right:0; }
+    .principle b { color:var(--primary); font-size:14px; }
+    .principle h3 { margin:34px 0 10px; font-size:22px; letter-spacing:-.04em; }
+    .principle p { color:var(--ink-soft); line-height:1.7; }
+    .memory-feature { display:grid; grid-template-columns: .95fr 1.05fr; gap: 52px; align-items:center; background: #deeff9; }
+    .memory-image { min-height:340px; border-radius: 24px; background: linear-gradient(145deg, #8bc8e8, #334a55 54%, #172a38); position:relative; overflow:hidden; }
+    .memory-image::before { content:""; position:absolute; inset:20% -10% 0; background: repeating-linear-gradient(150deg, transparent 0 35px, rgba(250,245,231,.17) 36px 38px); transform: rotate(-8deg); }
+    .memory-image span { position:absolute; left:24px; bottom:22px; color:#f7f4ed; font-size:12px; letter-spacing:.1em; }
+    .memory-copy h2 { max-width: 10ch; }
+    .memory-copy p { color:var(--ink-soft); line-height:1.8; }
+    .host { display:flex; align-items:center; justify-content:space-between; gap:30px; padding: 60px 9%; background: var(--deep); color:#f7f4ed; }
+    .host h2 { max-width: 12ch; margin-bottom:0; font-size: 36px; letter-spacing:-.06em; }
+    .host p { max-width: 440px; margin-bottom:0; color:#bac8ca; line-height:1.7; }
+    .host .btn-secondary { border-color:rgba(255,255,255,.3); color:#fff; }
+
+    /* Map view */
+    .map-view { min-height: 680px; display:grid; grid-template-columns: 390px 1fr; background: #dfe5e4; }
+    .map-panel { padding: 50px 34px; background: var(--surface); border-right:1px solid var(--line); }
+    .map-panel h1 { max-width: 8ch; margin-bottom:18px; font-size:56px; }
+    .map-panel p { color:var(--ink-soft); line-height:1.7; }
+    .map-search { display:flex; gap:8px; margin: 28px 0; }
+    .map-search input { width:100%; min-width:0; border:1px solid var(--line); border-radius:999px; padding:0 15px; background:#fff; }
+    .map-legend { display:grid; gap:10px; margin-top:30px; font-size:13px; color:var(--ink-soft); }
+    .legend-row { display:flex; align-items:center; gap:10px; }
+    .legend-dot { width:9px; height:9px; border-radius:50%; background:var(--primary); }
+    .map-canvas { position:relative; overflow:hidden; background-color:#b8d9ea; background-image:linear-gradient(28deg, transparent 0 47%, rgba(255,255,255,.65) 48% 49%, transparent 50%), linear-gradient(112deg, transparent 0 55%, rgba(255,255,255,.45) 56% 57%, transparent 58%), repeating-linear-gradient(0deg, transparent 0 48px, rgba(35,70,77,.11) 49px 50px), repeating-linear-gradient(90deg, transparent 0 48px, rgba(35,70,77,.11) 49px 50px); }
+    .map-label { position:absolute; color:rgba(22,55,64,.62); font-size:12px; letter-spacing:.1em; }
+    .map-label.a { left:20%; top:20%; }.map-label.b { right:18%; top:37%; }.map-label.c { left:42%; bottom:18%; }
+    .map-marker { position:absolute; width:20px; height:20px; border:5px solid #fff; border-radius:50% 50% 50% 0; background:var(--primary); transform:rotate(-45deg); box-shadow:0 5px 14px rgba(18,45,52,.22); }
+    .map-marker.one { left:29%; top:33%; }.map-marker.two { left:60%; top:46%; background:var(--green); }.map-marker.three { left:73%; top:24%; background:#4b93bd; }
+    .map-place-card { position:absolute; left:42%; bottom:48px; width:260px; padding:18px; border-radius:18px; background:rgba(251,250,247,.94); box-shadow:0 18px 30px rgba(22,31,39,.17); }
+    .map-place-card small { color:var(--primary); font-weight:800; }.map-place-card h3 { margin:8px 0 4px; font-size:22px; }.map-place-card p { margin:0 0 14px; color:var(--ink-soft); font-size:13px; }
+
+    /* Space view */
+    .space-view { background:var(--surface); }
+    .space-hero { display:grid; grid-template-columns: 1.05fr .95fr; gap: 56px; padding: 70px 9%; background:#deeff9; }
+    .space-hero h1 { max-width: none; margin-bottom: 12px; font-size: clamp(48px, 6vw, 84px); }
+    .space-meta { color:var(--ink-soft); }.space-actions { display:flex; gap:10px; margin-top:25px; flex-wrap:wrap; }
+    .space-photo { min-height: 350px; border-radius:26px; background:linear-gradient(150deg,#77b8dc,#334954 52%,#122535); position:relative; overflow:hidden; }.space-photo::after { content:""; position:absolute; inset:18% -14% 0; background:repeating-linear-gradient(155deg, transparent 0 45px, rgba(250,245,231,.18) 46px 48px); transform:rotate(-8deg); }.space-photo small { position:absolute; left:22px; bottom:20px; z-index:1; color:#f4eee1; letter-spacing:.1em; }
+    .space-sections { display:grid; grid-template-columns: 1.08fr .92fr; gap:30px; padding: 54px 9%; }.space-card { padding: 26px; border-top:1px solid var(--line); }.space-card h2 { margin:0 0 15px; font-size:30px; letter-spacing:-.05em; }.space-card p { color:var(--ink-soft); line-height:1.8; }.timeline { display:grid; gap:15px; }.timeline-row { display:grid; grid-template-columns:72px 1fr; gap:16px; padding-bottom:16px; border-bottom:1px solid var(--line); }.timeline-row time { color:var(--primary); font-size:12px; font-weight:800; }.timeline-row p { margin:0; }
+    .presence { display:flex; align-items:center; gap:14px; padding:16px; background:var(--primary-soft); border-radius:16px; }.presence-dot { width:10px; height:10px; border-radius:50%; background:var(--green); box-shadow:0 0 0 5px rgba(45,120,148,.16); }.presence strong { display:block; font-size:14px; }.presence span { color:var(--ink-soft); font-size:12px; }
+
+    /* Admin settings review */
+    .admin-preview { min-height:760px; display:grid; grid-template-columns:230px 1fr; background:#eff6fb; }
+    .admin-side { padding:34px 22px; background:var(--deep); color:#d7eaf5; }
+    .admin-side strong { display:block; margin-bottom:30px; color:#fff; }
+    .admin-side span { display:block; margin:8px 0; padding:11px 12px; border-radius:10px; font-size:13px; color:#9fc2d5; }
+    .admin-side .selected { background:rgba(35,142,232,.2); color:#fff; }
+    .admin-main { padding:54px 7%; }
+    .admin-main h1 { max-width:none; margin-bottom:10px; font-size:48px; }
+    .admin-main > p { color:var(--ink-soft); }
+    .settings-grid { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:28px; margin-top:34px; }
+    .settings-form, .settings-preview { padding:26px; border:1px solid var(--line); border-radius:20px; background:var(--surface); }
+    .settings-form label { display:grid; gap:8px; margin-bottom:18px; color:var(--ink); font-size:13px; font-weight:750; }
+    .settings-form input, .settings-form textarea { width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:11px; background:#fff; color:var(--ink); font:inherit; font-size:14px; }
+    .settings-form textarea { min-height:96px; resize:vertical; line-height:1.6; }
+    .settings-help { color:var(--ink-soft); font-size:12px; font-weight:400; }
+    .module-list { display:grid; gap:8px; }
+    .module-item { display:flex; justify-content:space-between; gap:12px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink-soft); font-weight:650; }
+    .module-item.selected { border-color:var(--primary); background:var(--primary-soft); color:var(--ink); }
+    .module-item b { color:var(--primary); font-size:11px; }
+    .field-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .style-controls { display:flex; gap:8px; flex-wrap:wrap; }
+    .theme-chip { padding:9px 11px; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink-soft); font-size:12px; font-weight:650; }
+    .theme-chip.selected { border-color:var(--primary); background:var(--primary-soft); color:var(--ink); }
+    .settings-actions { display:flex; justify-content:flex-end; gap:10px; padding-top:8px; }
+    .settings-preview { align-self:start; background:linear-gradient(150deg,var(--deep),var(--deep-2)); color:#fff; }
+    .settings-preview small { color:#91d4ff; letter-spacing:.1em; }
+    .settings-preview h2 { margin:80px 0 18px; font-size:42px; line-height:1.03; letter-spacing:-.07em; }
+    .settings-preview p { color:#c2d8e5; line-height:1.7; }
+
+    /* Guide management review */
+    .admin-side button { width:100%; display:block; margin:8px 0; padding:11px 12px; border:0; border-radius:10px; background:transparent; color:#9fc2d5; text-align:left; font:inherit; font-size:13px; }
+    .admin-side button:hover, .admin-side button:focus-visible { background:rgba(255,255,255,.07); color:#fff; outline:none; }
+    .admin-side button.selected { background:rgba(35,142,232,.2); color:#fff; }
+    .admin-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:28px 0 20px; }
+    .admin-search { display:flex; align-items:center; gap:10px; flex:1; max-width:760px; }
+    .admin-search input, .admin-search select { min-height:46px; padding:0 14px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); font:inherit; }
+    .admin-search input { flex:1; min-width:180px; }
+    .admin-search select { min-width:132px; }
+    .guide-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:28px; }
+    .guide-stat { padding:18px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+    .guide-stat span { display:block; color:var(--ink-soft); font-size:12px; }
+    .guide-stat strong { display:block; margin-top:8px; font-size:28px; letter-spacing:-.04em; }
+    .guide-table { overflow:hidden; border:1px solid var(--line); border-radius:18px; background:var(--surface); }
+    .guide-row { display:grid; grid-template-columns:minmax(260px,1.5fr) minmax(150px,.8fr) 100px 110px 150px; gap:18px; align-items:center; padding:17px 20px; border-bottom:1px solid var(--line); }
+    .guide-row:last-child { border-bottom:0; }
+    .guide-row.header { min-height:44px; padding-top:11px; padding-bottom:11px; background:#e5f1f8; color:var(--ink-soft); font-size:11px; font-weight:800; letter-spacing:.05em; }
+    .guide-title strong { display:block; margin-bottom:5px; }
+    .guide-title span, .guide-cell-muted { color:var(--ink-soft); font-size:12px; line-height:1.5; }
+    .status-pill { display:inline-flex; align-items:center; width:max-content; padding:6px 9px; border-radius:999px; background:var(--primary-soft); color:#0968b5; font-size:11px; font-weight:800; }
+    .status-pill.draft { background:#edf0f2; color:#526778; }
+    .status-pill.archived { background:#e7edf2; color:#647681; }
+    .row-actions { display:flex; gap:6px; justify-content:flex-end; }
+    .row-actions button { min-height:38px; padding:0 11px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+    .row-actions .primary { border-color:var(--primary); background:var(--primary); color:#fff; }
+    .guide-note { display:flex; justify-content:space-between; gap:18px; margin-top:16px; color:var(--ink-soft); font-size:12px; }
+    .mobile-tabbar { display:none; }
+    .review-shell.admin-mode .mobile-tabbar { display:none; }
+
+    @media (max-width: 820px) {
+      .review-strip, .site-nav { padding-left:20px; padding-right:20px; }
+      body { padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
+      .site-nav { height:64px; position:sticky; top:0; z-index:40; }.nav-links { display:none; }
+      .hero, .space-hero { grid-template-columns:1fr; gap:34px; padding: 54px 20px 62px; }.hero h1 { font-size: clamp(46px, 14vw, 70px); }.hero-copy > p:not(.eyebrow) { font-size:16px; }.hero-actions { flex-wrap:wrap; }.space-sample { min-height:390px; }.sample-content { margin-top:90px; }.sample-content h2 { font-size:44px; }
+      .section { padding:56px 20px; }.section-head { display:block; }.section-head p { margin-top:17px; }.principles { display:block; }.principle, .principle + .principle { padding:22px 0; border-right:0; border-bottom:1px solid var(--line); }.memory-feature { grid-template-columns:1fr; gap:24px; }.memory-image { min-height:250px; }.host { display:block; padding:48px 20px; }.host p { margin-top:18px; }.host .hero-actions { margin-top:26px; }
+      .map-view { display:block; min-height:0; }.map-panel { padding:42px 20px 30px; border-right:0; }.map-panel h1 { font-size:52px; }.map-canvas { min-height:500px; }.map-place-card { left:20px; right:20px; width:auto; bottom:24px; }
+      .space-sections { grid-template-columns:1fr; padding:34px 20px; }.space-photo { min-height:260px; }
+      .review-strip { align-items:flex-start; gap:8px; }.review-strip span { text-align:right; }.review-admin { display:block; margin:5px 0 0 auto; }
+      .admin-preview { display:block; }.admin-side { display:flex; gap:6px; overflow-x:auto; padding:12px 20px; }.admin-side strong { flex:0 0 auto; margin:0 10px 0 0; align-self:center; }.admin-side span { display:none; }.admin-side button { width:auto; flex:0 0 auto; margin:0; padding:10px 12px; white-space:nowrap; }.admin-main { padding:34px 20px; }.admin-main h1 { font-size:40px; }.settings-grid { grid-template-columns:1fr; }.settings-preview h2 { margin-top:45px; }
+      .guide-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.admin-toolbar { align-items:stretch; flex-direction:column; }.admin-search { display:grid; grid-template-columns:1fr 120px; max-width:none; }.admin-search input { min-width:0; }.admin-toolbar > .btn { width:100%; }.guide-row.header { display:none; }.guide-row { grid-template-columns:1fr auto; gap:12px; padding:18px; }.guide-row > :nth-child(2), .guide-row > :nth-child(4) { display:none; }.guide-row .status-pill { grid-column:2; grid-row:1; align-self:start; }.row-actions { grid-column:1 / -1; justify-content:flex-start; padding-top:10px; border-top:1px solid var(--line); }.guide-note { display:block; }.guide-note span { display:block; margin-top:6px; }
+      .mobile-tabbar { position:fixed; z-index:100; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(4,1fr); min-height:68px; padding:7px 10px calc(7px + env(safe-area-inset-bottom)); border-top:1px solid rgba(8,50,78,.16); background:rgba(249,252,255,.94); backdrop-filter:blur(18px); box-shadow:0 -12px 30px rgba(5,38,64,.10); }
+      .mobile-tabbar button, .mobile-tabbar a { display:flex; min-width:0; min-height:52px; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:0; border-radius:12px; background:transparent; color:#587489; text-decoration:none; font-size:11px; font-weight:700; touch-action:manipulation; }
+      .mobile-tabbar button.active { background:var(--primary-soft); color:#0968b5; }.mobile-tabbar svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    }
+  </style>
+</head>
+<body>
+  <div class="review-shell">
+    <div class="review-strip"><strong>InSpaceOS · 初版设计审核稿</strong><span>设计原型 · 未接入正式业务 · 2026.07 <button class="review-admin" data-view="admin">首页编辑</button><button class="review-admin" data-view="admin-guides">攻略管理</button></span></div>
+    <header class="site-nav">
+      <a class="wordmark" href="#home" data-view="home"><span class="wordmark-mark"></span><span>InSpaceOS</span></a>
+      <nav class="nav-links" aria-label="原型导航">
+        <button class="active" data-view="home">首页</button>
+        <button data-view="map">空间地图</button>
+        <button data-view="space">空间攻略</button>
+        <a class="nav-cta" href="#create">创建空间</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="home" class="view active">
+        <div class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Be IN the space, beyond the map.</p>
+            <h1>导航结束后，体验才开始。</h1>
+            <p>InSpaceOS 为现实中的地点建立数字空间。来到一间咖啡馆、一条街或一个地标后，你可以看见这里留下的故事、正在发生的事情，以及同样身处这里的人。</p>
+            <div class="hero-actions"><button class="btn btn-primary" data-view="map">进入空间地图</button><button class="btn btn-secondary" data-view="space">看看一个空间</button></div>
+            <div class="hero-note">不需要先理解“介观空间”。先进入一个真实地点看看。</div>
+          </div>
+          <aside class="space-sample" aria-label="空间示例">
+            <div class="sample-top"><span class="sample-tag">IN-SPACE / 001</span><span>上海 · 黄浦区</span></div>
+            <div class="sample-pin"></div>
+            <div class="sample-content"><p class="eyebrow">THE BUND / 外滩</p><h2>先看攻略，再和正在这里的人聊聊。</h2><p>这里不只是一个地图坐标。先了解路线、交通和避坑信息，再进入在线空间向真实的人提问。</p></div>
+            <div class="sample-memory"><small>热门攻略 · 夜景与人流</small><p>“第一次去外滩，哪个地铁口更顺路？晚上几点人会少一点？”</p></div>
+          </aside>
+        </div>
+        <section class="section"><div class="section-head"><h2>到达一个地点之后，人们真正需要什么？</h2><p>地图解决到达，攻略提供共同知识，在线空间让来到这里的人围绕真实问题互相帮助。</p></div><div class="principles"><article class="principle"><b>01 / 到达</b><h3>地图带你来到这里。</h3><p>知道方向、路线和坐标，是进入一个地点的开始。</p></article><article class="principle"><b>02 / 攻略</b><h3>攻略让经验成为共同知识。</h3><p>路线、交通、玩法和避坑信息，被整理在真实地点下面。</p></article><article class="principle"><b>03 / 互助</b><h3>一群人在在线空间里互帮互助。</h3><p>围绕攻略继续提问、补充现场变化，也把有效答案沉淀回来。</p></article></div></section>
+        <section class="section memory-feature"><div class="memory-image"><span>GUIDES ANCHORED TO PLACE</span></div><div class="memory-copy"><p class="eyebrow">空间攻略</p><h2>先看懂这个地方，再进入有上下文的讨论。</h2><p>攻略把路线、交通、玩法和避坑经验整理成共同知识。在线空间里的提问不再从零开始，现场用户可以补充变化、回答问题，并把有效信息继续沉淀回攻略。</p><button class="btn btn-primary" data-view="space">查看空间攻略</button></div></section>
+        <section class="host"><div><p class="eyebrow">FOR CURATORS</p><h2>你比别人更了解这个地方？</h2></div><div><p>为一间店、一条街、一个活动或一个你珍惜的地点建立空间。初版只需要从一个真实坐标开始。</p><div class="hero-actions"><a class="btn btn-primary" href="#create">创建空间</a><a class="btn btn-secondary" href="#manifesto">阅读创始人寄语</a></div></div></section>
+      </section>
+
+      <section id="map" class="view">
+        <div class="map-view"><aside class="map-panel"><p class="eyebrow">SPACES NEARBY</p><h1>先找到你想在场的地方。</h1><p>地图只负责帮你找到地点。选中之后，进入它的空间，看看这里留下了什么。</p><div class="map-search"><input placeholder="搜索地点" aria-label="搜索地点" /><button class="btn btn-primary">搜索</button></div><div class="map-legend"><div class="legend-row"><span class="legend-dot"></span>有空间内容的地点</div><div class="legend-row"><span class="legend-dot" style="background:#2d7894"></span>此刻有人在场</div><div class="legend-row"><span class="legend-dot" style="background:#4b93bd"></span>可以远程查看</div></div></aside><div class="map-canvas"><span class="map-label a">黄浦江</span><span class="map-label b">老城区</span><span class="map-label c">公共空间</span><span class="map-marker one"></span><span class="map-marker two"></span><span class="map-marker three"></span><article class="map-place-card"><small>空间 / SPACE</small><h3>外滩</h3><p>4 篇攻略 · 12 人在线互助</p><button class="btn btn-primary" data-view="space">进入这个空间</button></article></div></div>
+      </section>
+
+      <section id="space" class="view space-view">
+        <div class="space-hero"><div><p class="eyebrow">SPACE / 001</p><h1>外滩</h1><p class="space-meta">上海 · 黄浦区 · 一个可以被反复抵达的地方</p><div class="space-actions"><button class="btn btn-primary">进入在线空间</button><button class="btn btn-secondary">分享这个空间</button></div></div><div class="space-photo"><small>THE BUND / VIEW FROM THE RIVER</small></div></div>
+        <div class="space-sections"><div class="space-card"><h2>空间攻略</h2><div class="timeline"><div class="timeline-row"><time>路线</time><p><strong>第一次去外滩怎么走</strong><br>地铁出口、步行方向和推荐到达时间。</p></div><div class="timeline-row"><time>避坑</time><p><strong>夜景、人流与拍照位置</strong><br>什么时候人少，哪些位置容易拥堵。</p></div><div class="timeline-row"><time>周边</time><p><strong>吃饭和雨天备选路线</strong><br>附近餐馆、室内停留点和临时调整建议。</p></div></div></div><div class="space-card"><h2>在线空间</h2><div class="presence"><span class="presence-dot"></span><div><strong>12 人正在空间里</strong><span>有人在提问，也有人补充现场情况</span></div></div><p style="margin-top:18px">讨论围绕这个地点和攻略展开：问路线、确认现场变化、寻找同行帮助。有效答案可以由主理人整理回攻略。</p><button class="btn btn-secondary">进入互助讨论</button></div></div>
+      </section>
+
+      <section id="admin" class="view">
+        <div class="admin-preview">
+          <aside class="admin-side"><strong>InSpaceOS Admin</strong><span>内容与站点</span><button type="button" data-view="admin" class="selected">首页编辑</button><button type="button" data-view="admin-guides">攻略管理</button><span>空间管理</span><span>用户与权限</span><span>审计日志</span></aside>
+          <div class="admin-main">
+            <p class="eyebrow">SITE SETTINGS</p>
+            <h1>首页编辑器</h1>
+            <p>管理员可以调整整页模块、文案、图片、按钮、顺序与主题风格；所有改动先预览，再发布。</p>
+            <div class="settings-grid">
+              <form class="settings-form">
+                <label>首页模块与顺序
+                  <div class="module-list">
+                    <span class="module-item selected">01　首屏主张与行动按钮 <b>显示</b></span>
+                    <span class="module-item">02　地图 / 攻略 / 在线互助 <b>显示</b></span>
+                    <span class="module-item">03　空间攻略价值说明 <b>显示</b></span>
+                    <span class="module-item">04　主理人创建入口 <b>显示</b></span>
+                  </div>
+                  <span class="settings-help">模块可以拖动排序、隐藏或恢复，初版使用受控模块，不允许插入任意脚本。</span>
+                </label>
+                <label>当前模块标题（中文）<input value="导航结束后，体验才开始。" /></label>
+                <label>当前模块标题（英文）<input value="When navigation ends, the experience begins." /></label>
+                <label>说明文案（中文）<textarea>InSpaceOS 为现实地点建立数字空间。先阅读这个地点的攻略，再进入在线空间，与正在这里或熟悉这里的人互帮互助。</textarea></label>
+                <label>按钮
+                  <div class="field-pair"><input value="进入空间地图" /><input value="/inspace/map" /></div>
+                </label>
+                <label>主题风格
+                  <div class="style-controls"><span class="theme-chip selected">天空与深海</span><span class="theme-chip">纯净天空</span><span class="theme-chip">深海沉浸</span></div>
+                </label>
+                <label>版式与密度
+                  <div class="style-controls"><span class="theme-chip selected">图文双栏</span><span class="theme-chip">文字居中</span><span class="theme-chip">紧凑</span></div>
+                </label>
+                <div class="settings-actions"><button type="button" class="btn btn-secondary">查看版本</button><button type="button" class="btn btn-secondary">保存草稿</button><button type="button" class="btn btn-primary">预览并发布</button></div>
+              </form>
+              <aside class="settings-preview"><small>首页实时预览</small><h2>导航结束后，体验才开始。</h2><p>先看地点攻略，再进入在线空间，与正在这里和熟悉这里的人互帮互助。</p><button class="btn btn-primary" type="button">进入空间地图</button></aside>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin-guides" class="view">
+        <div class="admin-preview">
+          <aside class="admin-side"><strong>InSpaceOS Admin</strong><span>内容与站点</span><button type="button" data-view="admin">首页编辑</button><button type="button" data-view="admin-guides" class="selected">攻略管理</button><span>空间管理</span><span>用户与权限</span><span>审计日志</span></aside>
+          <div class="admin-main">
+            <p class="eyebrow">GUIDE OPERATIONS</p>
+            <h1>空间攻略管理</h1>
+            <p>管理攻略从草稿到发布的全过程，并清楚看到它属于哪个真实空间。攻略是讨论的共同上下文，不是孤立文章。</p>
+            <div class="guide-stats">
+              <div class="guide-stat"><span>全部攻略</span><strong>128</strong></div>
+              <div class="guide-stat"><span>已发布</span><strong>86</strong></div>
+              <div class="guide-stat"><span>待完善草稿</span><strong>31</strong></div>
+              <div class="guide-stat"><span>本周讨论沉淀</span><strong>11</strong></div>
+            </div>
+            <div class="admin-toolbar">
+              <div class="admin-search"><input aria-label="搜索攻略" placeholder="搜索攻略标题、地点或空间" value="" /><select aria-label="攻略状态"><option>全部状态</option><option>已发布</option><option>草稿</option><option>已归档</option></select></div>
+              <button class="btn btn-primary" type="button">新建空间攻略</button>
+            </div>
+            <div class="guide-table" aria-label="空间攻略列表">
+              <div class="guide-row header"><span>攻略</span><span>所属空间</span><span>状态</span><span>最后更新</span><span style="text-align:right">操作</span></div>
+              <article class="guide-row">
+                <div class="guide-title"><strong>第一次去外滩怎么走</strong><span>路线 · 地铁出口、步行方向和推荐到达时间</span></div><div><strong>上海 · 外滩</strong><div class="guide-cell-muted">在线空间 12 人</div></div><span class="status-pill">已发布</span><span class="guide-cell-muted">今天 14:32</span><div class="row-actions"><button>预览</button><button class="primary">编辑</button></div>
+              </article>
+              <article class="guide-row">
+                <div class="guide-title"><strong>夜景、人流与拍照位置</strong><span>避坑 · 根据空间讨论补充了周末拥堵信息</span></div><div><strong>上海 · 外滩</strong><div class="guide-cell-muted">3 条讨论待整理</div></div><span class="status-pill draft">草稿</span><span class="guide-cell-muted">昨天 21:08</span><div class="row-actions"><button>查看讨论</button><button class="primary">继续编辑</button></div>
+              </article>
+              <article class="guide-row">
+                <div class="guide-title"><strong>雨天半日路线</strong><span>周边 · 室内停留点和临时调整建议</span></div><div><strong>上海 · 外滩</strong><div class="guide-cell-muted">由主理人维护</div></div><span class="status-pill">已发布</span><span class="guide-cell-muted">7 月 19 日</span><div class="row-actions"><button>取消发布</button><button class="primary">编辑</button></div>
+              </article>
+              <article class="guide-row">
+                <div class="guide-title"><strong>旧版交通说明</strong><span>交通 · 内容已被新版攻略替代</span></div><div><strong>北京 · 鼓楼</strong><div class="guide-cell-muted">无待处理讨论</div></div><span class="status-pill archived">已归档</span><span class="guide-cell-muted">7 月 12 日</span><div class="row-actions"><button>恢复</button><button>查看</button></div>
+              </article>
+            </div>
+            <div class="guide-note"><strong>讨论沉淀工作流</strong><span>空间讨论 → 标记有效回答 → 主理人整理 → 攻略版本审核 → 发布</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <nav class="mobile-tabbar" aria-label="移动端主菜单">
+      <button class="active" type="button" data-view="home" aria-label="首页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.8 12 3l9 7.8v9.7a.5.5 0 0 1-.5.5h-6v-6h-5v6h-6a.5.5 0 0 1-.5-.5z"/></svg><span>首页</span></button>
+      <button type="button" data-view="map" aria-label="空间地图"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 6.5 5-2.5 7 2.5 5-2.5v14l-5 2.5-7-2.5-5 2.5zM8.5 4v14M15.5 6.5v14"/></svg><span>地图</span></button>
+      <button type="button" data-view="space" aria-label="空间攻略"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10.5A2.5 2.5 0 0 1 18 7v13H7.5A2.5 2.5 0 0 1 5 17.5zM5 17.5A2.5 2.5 0 0 1 7.5 15H18M9 8h5M9 11h4"/></svg><span>攻略</span></button>
+      <a href="#my-spaces" aria-label="我的空间"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6"/></svg><span>我的</span></a>
+    </nav>
+  </div>
+  <script>
+    const views = [...document.querySelectorAll('.view')];
+    const nav = [...document.querySelectorAll('[data-view]')];
+    function show(name) {
+      views.forEach(view => view.classList.toggle('active', view.id === name));
+      nav.forEach(item => item.classList.toggle('active', item.dataset.view === name && item.matches('button')));
+      document.querySelector('.review-shell')?.classList.toggle('admin-mode', name.startsWith('admin'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    nav.forEach(item => item.addEventListener('click', event => { event.preventDefault(); show(item.dataset.view); }));
+  </script>
+</body>
+</html>

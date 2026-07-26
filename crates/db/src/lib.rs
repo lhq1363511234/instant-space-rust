@@ -3,6 +3,7 @@ pub mod chat;
 pub mod geo;
 pub mod guides;
 pub mod locations;
+pub mod site;
 pub mod spaces;
 pub mod users;
 

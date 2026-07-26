@@ -12,6 +12,12 @@ pub struct SpaceFilter {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaginatedSpaces {
+    pub items: Vec<SpaceSummary>,
+    pub total: i64,
+}
+
+#[derive(Debug, Clone)]
 pub struct CreateSpaceInput {
     pub name_zh: String,
     pub name_en: Option<String>,
@@ -129,6 +135,92 @@ pub async fn list_home_spaces(
     rows.into_iter().map(row_to_space_summary).collect()
 }
 
+pub async fn list_home_spaces_page(
+    pool: &PgPool,
+    filter: SpaceFilter,
+    limit: i64,
+    offset: i64,
+) -> Result<PaginatedSpaces, sqlx::Error> {
+    let q = filter.q;
+    let space_type = filter.space_type.map(space_type_to_db);
+    let country = filter.country;
+    let province = filter.province;
+    let city = filter.city;
+
+    let total: i64 = sqlx::query_scalar(
+        r#"
+        SELECT count(*)::bigint
+        FROM spaces
+        WHERE status IN ('active', 'expired')
+          AND (
+            $1::text IS NULL
+            OR name_zh ILIKE '%' || $1 || '%'
+            OR name_en ILIKE '%' || $1 || '%'
+            OR country ILIKE '%' || $1 || '%'
+            OR province ILIKE '%' || $1 || '%'
+            OR city ILIKE '%' || $1 || '%'
+            OR district ILIKE '%' || $1 || '%'
+            OR spot_name ILIKE '%' || $1 || '%'
+            OR address_line ILIKE '%' || $1 || '%'
+          )
+          AND ($2::text IS NULL OR space_type::text = $2)
+          AND ($3::text IS NULL OR country ILIKE $3 OR province ILIKE $3 OR city ILIKE $3)
+          AND ($4::text IS NULL OR province ILIKE $4 OR city ILIKE $4 OR district ILIKE $4)
+          AND ($5::text IS NULL OR city ILIKE $5 OR district ILIKE $5 OR spot_name ILIKE $5)
+        "#,
+    )
+    .bind(q.clone())
+    .bind(space_type.clone())
+    .bind(country.clone())
+    .bind(province.clone())
+    .bind(city.clone())
+    .fetch_one(pool)
+    .await?;
+
+    let rows = sqlx::query(
+        r#"
+        SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
+               lat, lng, is_public, status::text AS status, expires_at, online_count
+        FROM spaces
+        WHERE status IN ('active', 'expired')
+          AND (
+            $1::text IS NULL
+            OR name_zh ILIKE '%' || $1 || '%'
+            OR name_en ILIKE '%' || $1 || '%'
+            OR country ILIKE '%' || $1 || '%'
+            OR province ILIKE '%' || $1 || '%'
+            OR city ILIKE '%' || $1 || '%'
+            OR district ILIKE '%' || $1 || '%'
+            OR spot_name ILIKE '%' || $1 || '%'
+            OR address_line ILIKE '%' || $1 || '%'
+          )
+          AND ($2::text IS NULL OR space_type::text = $2)
+          AND ($3::text IS NULL OR country ILIKE $3 OR province ILIKE $3 OR city ILIKE $3)
+          AND ($4::text IS NULL OR province ILIKE $4 OR city ILIKE $4 OR district ILIKE $4)
+          AND ($5::text IS NULL OR city ILIKE $5 OR district ILIKE $5 OR spot_name ILIKE $5)
+        ORDER BY (CASE WHEN resident THEN 10 ELSE 0 END) DESC, created_at DESC, id DESC
+        LIMIT $6 OFFSET $7
+        "#,
+    )
+    .bind(q)
+    .bind(space_type)
+    .bind(country)
+    .bind(province)
+    .bind(city)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(PaginatedSpaces {
+        items: rows
+            .into_iter()
+            .map(row_to_space_summary)
+            .collect::<Result<Vec<_>, _>>()?,
+        total,
+    })
+}
+
 pub async fn list_host_spaces(
     pool: &PgPool,
     host_user_id: uuid::Uuid,
@@ -164,6 +256,89 @@ pub async fn list_manageable_spaces(pool: &PgPool) -> Result<Vec<SpaceSummary>, 
     .await?;
 
     rows.into_iter().map(row_to_space_summary).collect()
+}
+
+/// Admin-only: search and paginate spaces without loading the full catalog.
+/// `status = "managed"` means every operational space except soft-deleted rows.
+pub async fn list_admin_spaces_page(
+    pool: &PgPool,
+    q: Option<String>,
+    status: Option<String>,
+    space_type: Option<SpaceType>,
+    limit: i64,
+    offset: i64,
+) -> Result<PaginatedSpaces, sqlx::Error> {
+    let space_type = space_type.map(space_type_to_db);
+    let total: i64 = sqlx::query_scalar(
+        r#"
+        SELECT count(*)::bigint
+        FROM spaces
+        WHERE (
+            $1::text IS NULL
+            OR name_zh ILIKE '%' || $1 || '%'
+            OR name_en ILIKE '%' || $1 || '%'
+            OR country ILIKE '%' || $1 || '%'
+            OR province ILIKE '%' || $1 || '%'
+            OR city ILIKE '%' || $1 || '%'
+            OR district ILIKE '%' || $1 || '%'
+            OR spot_name ILIKE '%' || $1 || '%'
+            OR address_line ILIKE '%' || $1 || '%'
+          )
+          AND (
+            $2::text IS NULL
+            OR ($2 = 'managed' AND status <> 'archived')
+            OR ($2 <> 'managed' AND status::text = $2)
+          )
+          AND ($3::text IS NULL OR space_type::text = $3)
+        "#,
+    )
+    .bind(q.clone())
+    .bind(status.clone())
+    .bind(space_type.clone())
+    .fetch_one(pool)
+    .await?;
+
+    let rows = sqlx::query(
+        r#"
+        SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
+               lat, lng, is_public, status::text AS status, expires_at, online_count
+        FROM spaces
+        WHERE (
+            $1::text IS NULL
+            OR name_zh ILIKE '%' || $1 || '%'
+            OR name_en ILIKE '%' || $1 || '%'
+            OR country ILIKE '%' || $1 || '%'
+            OR province ILIKE '%' || $1 || '%'
+            OR city ILIKE '%' || $1 || '%'
+            OR district ILIKE '%' || $1 || '%'
+            OR spot_name ILIKE '%' || $1 || '%'
+            OR address_line ILIKE '%' || $1 || '%'
+          )
+          AND (
+            $2::text IS NULL
+            OR ($2 = 'managed' AND status <> 'archived')
+            OR ($2 <> 'managed' AND status::text = $2)
+          )
+          AND ($3::text IS NULL OR space_type::text = $3)
+        ORDER BY updated_at DESC, created_at DESC, id DESC
+        LIMIT $4 OFFSET $5
+        "#,
+    )
+    .bind(q)
+    .bind(status)
+    .bind(space_type)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(PaginatedSpaces {
+        items: rows
+            .into_iter()
+            .map(row_to_space_summary)
+            .collect::<Result<Vec<_>, _>>()?,
+        total,
+    })
 }
 
 /// Admin-only: list every space regardless of status (includes archived),

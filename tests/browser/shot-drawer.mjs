@@ -1,0 +1,11 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 390, height: 834 }, deviceScaleFactor: 2 });
+await page.goto("http://127.0.0.1:3001/inspace/explore", { waitUntil: "networkidle", timeout: 20000 }).catch(() => {});
+await page.waitForTimeout(1200);
+await page.click(".app-topbar-menu").catch((e) => console.log("click err", e.message));
+await page.waitForTimeout(700);
+const out = "/tmp/shot-drawer-390x834.png";
+await page.screenshot({ path: out, fullPage: false });
+console.log("saved", out);
+await browser.close();

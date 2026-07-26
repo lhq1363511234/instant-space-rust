@@ -1,29 +1,30 @@
 import { expect, test } from "@playwright/test";
 
-const PRIVATE_TEA_ROOM = "\u79c1\u5bc6\u8336\u5ba4";
-const PRIVATE_TEA_ROOM_EN = "Private Tea Room";
-
 test("private space verification entry is reachable", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "Explore" }).click();
-  await page.getByLabel("Search spaces").fill(PRIVATE_TEA_ROOM);
-  const marker = page.locator(".map-marker").filter({ hasText: PRIVATE_TEA_ROOM });
-  await expect(marker).toBeVisible();
-  await marker.click();
-  await expect(page.getByRole("complementary", { name: "Space detail" })).toBeVisible();
-  await expect(page.getByLabel("Private space verification")).toBeVisible();
-  await page.getByLabel("Private space password").fill("123456");
-  await expect(page.getByRole("button", { name: "Enter chat" })).toBeVisible();
-  await page.getByRole("button", { name: "Enter chat" }).click();
-  await expect(page.getByRole("link", { name: "Open private chat" })).toBeVisible();
-  await page.getByRole("link", { name: "Open private chat" }).click();
-  await expect(page.getByRole("region", { name: "Space chat" })).toBeVisible();
+  await page.goto("/inspace/spaces/10000000-0000-0000-0000-000000000002");
+  await expect(
+    page.getByRole("heading", {
+      name: /Private space requires an access code|私密空间需要访问码/,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel(/Private space password|私密空间密码/),
+  ).toBeVisible();
+  await page.getByLabel(/Private space password|私密空间密码/).fill("123456");
+  await page.getByRole("button", { name: /Enter chat|进入聊天/ }).click();
+  await expect(
+    page.getByRole("region", { name: /Space discussion|空间讨论/ }),
+  ).toBeVisible();
 
   const message = `Guide tip ${Date.now()}`;
-  await page.getByRole("textbox", { name: "Chat message" }).fill(message);
-  await page.getByRole("button", { name: "Send" }).click();
+  await page
+    .getByRole("textbox", { name: /Chat message|聊天消息/ })
+    .fill(message);
+  await page.getByRole("button", { name: /Send|发送/ }).click();
   await expect(page.getByText(message)).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("region", { name: "Space chat" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: /Space discussion|空间讨论/ }),
+  ).toBeVisible();
 });

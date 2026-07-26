@@ -1,0 +1,23 @@
+/* Self-hosted Chinese brand typography. Single complete Simplified Chinese
+   files replace the previous unicode shards, some of which were empty. */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../vendor/fonts/noto-sans-sc-400.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(../vendor/fonts/noto-sans-sc-500.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../vendor/fonts/noto-serif-sc-600.woff2) format('woff2');
+}

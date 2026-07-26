@@ -13,19 +13,24 @@ pub fn AdminRoutes() -> impl IntoView {
         |_| async move { current_session().await.ok().flatten() },
     );
     let stats = Resource::new(|| (), |_| async move { get_admin_stats().await.ok() });
-    let audit = Resource::new(|| (), |_| async move { list_audit_log().await.unwrap_or_default() });
+    let audit = Resource::new(
+        || (),
+        |_| async move { list_audit_log().await.unwrap_or_default() },
+    );
 
     view! {
-        <main class="page admin-layout">
+        <main id="main-content" class="page admin-layout">
             <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在检查管理员权限", "Checking admin access")}</p> }>
                 {move || Suspend::new(async move {
                     let user = session.await;
                     if user.as_ref().is_some_and(|user| user.role.is_admin()) {
                         view! {
                             <AdminNav />
-                            <section>
-                                <h1>{move || t(locale.get(), "管理后台", "Admin Dashboard")}</h1>
-                                <p>{move || t(locale.get(), "仪表盘、空间、攻略、模板和常驻申请共用这个后台外壳。", "Dashboard, spaces, guides, templates, and resident applications share this shell.")}</p>
+                            <section class="admin-dashboard">
+                                <header class="admin-dashboard-head">
+                                    <h1>{move || t(locale.get(), "管理后台", "Admin Dashboard")}</h1>
+                                    <p>{move || t(locale.get(), "仪表盘、空间、攻略、模板和常驻申请共用这个后台外壳。", "Dashboard, spaces, guides, templates, and resident applications share this shell.")}</p>
+                                </header>
                                 <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载统计", "Loading stats")}</p> }>
                                     {move || Suspend::new(async move {
                                         let stats = stats.await;
@@ -51,16 +56,22 @@ pub fn AdminRoutes() -> impl IntoView {
                                         }
                                     })}
                                 </Suspense>
-                                <h2>{move || t(locale.get(), "操作日志", "Audit Log")}</h2>
-                                <p>{move || t(locale.get(), "记录改角色、驻留审批等敏感操作。", "Records privileged actions such as role changes and resident approvals.")}</p>
-                                <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载日志", "Loading log")}</p> }>
+                                <section class="admin-audit-section">
+                                    <header class="admin-audit-head">
+                                        <div>
+                                            <h2>{move || t(locale.get(), "操作日志", "Audit Log")}</h2>
+                                            <p>{move || t(locale.get(), "记录改角色、驻留审批等敏感操作。", "Records privileged actions such as role changes and resident approvals.")}</p>
+                                        </div>
+                                    </header>
+                                    <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载日志", "Loading log")}</p> }>
                                     {move || Suspend::new(async move {
                                         let entries = audit.await;
                                         if entries.is_empty() {
                                             view! { <p class="muted">{move || t(locale.get(), "暂无操作记录。", "No audit entries yet.")}</p> }.into_any()
                                         } else {
                                             view! {
-                                                <table class="admin-audit-table">
+                                                <div class="admin-audit-table-wrap">
+                                                    <table class="admin-table admin-audit-table">
                                                     <thead>
                                                         <tr>
                                                             <th>{move || t(locale.get(), "时间", "Time")}</th>
@@ -85,11 +96,13 @@ pub fn AdminRoutes() -> impl IntoView {
                                                             }
                                                         />
                                                     </tbody>
-                                                </table>
+                                                    </table>
+                                                </div>
                                             }.into_any()
                                         }
                                     })}
-                                </Suspense>
+                                    </Suspense>
+                                </section>
                             </section>
                         }.into_any()
                     } else {

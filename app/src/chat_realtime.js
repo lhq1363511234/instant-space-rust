@@ -12,7 +12,8 @@
 
   function socketUrl(spaceId) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${location.host}/inspace/ws/spaces/${encodeURIComponent(spaceId)}`;
+    const prefix = location.pathname.startsWith('/inspace/') ? '/inspace' : '';
+    return `${protocol}//${location.host}${prefix}/ws/spaces/${encodeURIComponent(spaceId)}`;
   }
 
   function appendMessage(list, message) {
@@ -31,10 +32,19 @@
     const body = document.createElement('p');
     body.textContent = message.body || '';
     const time = document.createElement('time');
-    const parsed = new Date(message.created_at);
+    let parsed;
+    if (Array.isArray(message.created_at) && message.created_at.length >= 5) {
+      const [year, ordinalDay, hour, minute, second = 0] = message.created_at;
+      parsed = new Date(Date.UTC(year, 0, ordinalDay, hour, minute, second));
+    } else {
+      parsed = new Date(message.created_at);
+    }
     time.textContent = Number.isNaN(parsed.getTime())
-      ? String(message.created_at || '')
-      : parsed.toLocaleString();
+      ? ''
+      : parsed.toLocaleString([], {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit',
+        });
 
     article.append(sender, body, time);
     list.appendChild(article);
@@ -127,14 +137,19 @@
     };
 
     const submit = (event) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
       const body = String(input.value || '').trim();
       if (!body) return;
+
+      // WebSocket is the fast path. If it is still connecting or temporarily
+      // unavailable, let the hydrated Leptos submit handler use the regular
+      // server function instead of blocking the user.
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        showError(text('实时连接尚未建立，请稍后再试。', 'Realtime connection is not ready yet.'));
+        clearError();
         return;
       }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
       ws.send(JSON.stringify({ type: 'message', body }));
       input.value = '';
       input.dispatchEvent(new Event('input', { bubbles: true }));

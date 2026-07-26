@@ -6,6 +6,9 @@ import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
 const pkgDir = join(root, "target", "site", "pkg");
+// Keep this in sync with app/src/main.rs. A versioned loader name prevents an
+// immutable CDN cache from serving an old JS glue file with a new WASM binary.
+const OUTPUT_NAME = "instant_space_app_v64";
 const wasmInput = join(
   root,
   "target",
@@ -99,11 +102,11 @@ run(wasmBindgen, [
   "--target",
   "web",
   "--out-name",
-  "instant_space_app",
+  OUTPUT_NAME,
   "--no-typescript",
 ]);
 
-const jsOutput = join(pkgDir, "instant_space_app.js");
+const jsOutput = join(pkgDir, `${OUTPUT_NAME}.js`);
 let js = readFileSync(jsOutput, "utf8");
 const shimImport = js.match(
   /from ['"](\.\/snippets\/instant-map-ui-[^'"]+\/src\/maplibre_shim\.js)['"]/,

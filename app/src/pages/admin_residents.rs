@@ -22,7 +22,7 @@ pub fn AdminResidentsPage() -> impl IntoView {
     );
 
     view! {
-        <main class="page admin-layout">
+        <main id="main-content" class="page admin-layout">
             <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在检查管理员权限", "Checking admin access")}</p> }>
                 {move || Suspend::new(async move {
                     let user = session.await;

@@ -1,0 +1,322 @@
+# Instant Space Rust — Agent Memory
+
+> 给后续模型/会话快速接盘用。有更新就往下追加，不要删历史关键结论。
+
+## 项目
+
+- 路径：`/root/opt/instant-space-rust`
+- 产品：Instant Space（Rust/Leptos 重写）
+- 本地：http://127.0.0.1:3001
+- 线上：opctoai.com `/inspace`（Nginx → `instant-space-rust.service` → release 二进制）
+- 服务：`/etc/systemd/system/instant-space-rust.service`
+- 二进制：`target/release/instant-space-app`
+
+## 已完成的关键修复
+
+### 1) HAPI 会话 ctx 剩余 0%（已在 hapi-src 修并部署）
+
+- 文档：`/root/opt/newapi-stack/hapi-session-repair/ctx-remaining-zero-fix.md`
+- 原因：
+  - UI 用了累计 `total.inputTokens` 对比有限窗口，长会话会永远显示 0%。
+  - 自定义超大窗口（如 `1e12`）会污染百分比/元数据。
+  - 无模型元数据时 fallback 窗口 258400，累计已超窗口。
+- 修复：优先用 `last`；拒绝非物理窗口；StatusBar 清洗 contextWindow。
+- 用户需硬刷新 HAPI 页面（Ctrl+Shift+R）。
+
+### 2) 手机端 UI（本仓库，样式版本 ui-v59 → ui-v60）
+
+目标：手机端更合理、更像 App，而不是桌面布局硬挤。
+
+改动文件：
+
+- `app/src/app.rs`：样式缓存 `ui-v59 → ui-v60`
+- `app/src/pages/space.rs`：
+  - 聊天时间从完整 `OffsetDateTime` 显示改为 `YYYY-MM-DD HH:MM`
+  - 空间页 header 拆成 status row + action row，方便手机排版
+- `app/src/pages/admin.rs`：admin 仪表盘语义化结构 + 审计表横向滚动
+- `app/style/ui-system.css`：
+  - 全局 box-sizing / 手机密度
+  - 空间聊天：消息区占主视觉；composer sticky 在 bottom-nav 上方；底部四 Tab 导航
+  - 首页 hero：缩小超大标题、减少视觉高度浪费、按钮更易点
+  - 消息气泡左右分栏（even 右对齐紫色浅底）
+  - 桌面 ≥761/980：聊天左、攻略/分享右
+
+## 约束（不要踩坑）
+
+- 不要重启无关服务（如 cliproxyapi）
+- 不要破坏 map/WASM/chat websocket
+- 不要把 `.env` / 密钥 commit
+- 用户偏好中文、直接出结果；**未明确要求不要 commit**
+- 线上路径前缀是 `/inspace`
+
+## 构建 / 部署
+
+```bash
+# 检查
+cargo check -p instant-space-app
+
+# 发布（需要 WASM 时再跑 npm）
+cargo build -p instant-space-app --release
+# 如改了 hydrate/WASM UI：
+# npm run build:wasm
+systemctl restart instant-space-rust
+```
+
+样式改了只 bump `app.rs` 里 `?v=...-ui-vXX` 即可让浏览器拉新 CSS。
+
+## 目录文档
+
+- `docs/ARCHITECTURE_RUST.md`
+- `docs/PRODUCT_VISION.md`
+- `docs/PHASES.md`
+- `docs/NGINX_WEBSOCKET.md`
+- `docs/superpowers/`
+- 本文件：`memory.md`（模型记忆）
+
+## 待续注意
+
+- 用户曾说手机聊天“完全没改好”；优先保证：时间可读、输入框不被底栏挡住、header 不占半屏、消息可滚。
+- 未提交 diff 时先看 `git status` / `git diff`，不要盲 push。
+
+### 3) 手机密度压缩 v60
+
+- 首屏去掉嵌套卡片感：目的地区块去边框背景；手机隐藏 hero visual
+- 空间页 header 变薄条；描述隐藏
+- 消息气泡去厚边框/阴影；消息列表更扁
+- guides/share 卡片 padding 缩小、去重阴影
+- 仅 CSS + cache bump；先不强制全量 release（省资源）
+
+## ui-v61 UX Pro Max + SEO foundation (2026-07-21)
+
+### UX (ui-ux-pro-max skill)
+- Touch targets ≥44px on key controls
+- Safe-area for topbar / bottom-nav / composer / modals
+- Focus-visible rings; reduced-motion respect
+- Phone: flatten home destination card nesting; hide hero visual
+- Space room denser header; flatter message bubbles
+- inputs font-size 16px to prevent iOS zoom
+
+### SEO / Search GEO foundation
+- Meta description, OG/Twitter, canonical, robots meta in `app.rs`
+- JSON-LD WebSite / Organization / WebApplication
+- `/inspace/robots.txt` + `/inspace/sitemap.xml` (public spaces + published guides)
+- Submit sitemap in Google Search Console: `https://opctoai.com/inspace/sitemap.xml`
+
+## 2026-07-21 — 全站 UI/UX Pro Max v62
+- 用户要求“所有页面都用 skill 优化，包括网页端”。按 UI/UX Pro Max 的无障碍、触控、安全区、响应式、表单与反馈规范完成全站统一 v62 层。
+- `app/style/ui-system.css`：为首页地图之外的所有内容页统一最大内容宽度/桌面阅读行长、卡片和表单节奏、44px 触控目标、禁用与成功/错误状态、指南/空间/后台布局；移动端统一 14px gutter、单列表单、可换行动作区、后台导航横向滚动与表格滑动提示；包含高对比与 reduced-motion 支持。
+- `app/src/app.rs`：加入键盘可见的“跳至主要内容”链接，CSS cache 更新为 `ui-v62`。
+- 各路由的 `<main>` 均增加 `id="main-content"`：首页、聊天室、登录、我的空间、指南列表/详情/编辑器及全部 5 个后台页面；404 fallback 也覆盖。
+- 验证：`cargo check -p instant-space-app` 通过；release 构建通过（4m22s）；本地真实服务重启后，10 条公开/登录/空间/后台路由在 1440px 与 390px 视口均 200、无页面横向溢出、每页有 main/skip link、加载 `ui-v62`。
+- 部署：仅重启 `instant-space-rust`，未触碰其他服务；本地和 `https://opctoai.com/inspace` 均返回 200。
+
+## 2026-07-25 — 关键部署根因 + 首页重构启动 (inspace-v2)
+
+### ⚠️ 根因：为什么"刷新也没用还是旧版"
+- systemd 服务跑的是 `/usr/local/bin/instant-space-app`（WorkingDirectory=/root/opt/instant-space-rust）
+- 但 `scripts/deploy.sh` 只 `cargo build` 到 `target/release/`，**从不复制到 /usr/local/bin**
+- 所以 `systemctl restart` 一直重启旧二进制 → 新代码/新 CSS 版本永不生效
+- **正确部署**：build 后必须 `cp target/release/instant-space-app /usr/local/bin/instant-space-app` 再 restart
+- CSS 版本号 `?v=` 编译进 `app.rs`，浏览器按 URL 缓存；改 CSS 必须 bump 版本 + 重新 build + 复制二进制才会到浏览器
+- CSS/JS 本体由 ServeDir 从磁盘 `app/style` 实时读（改内容无需 build），但版本号变更需要 build
+
+### 首页文案来源（重要）
+- 线上首页文案来自 DB 表 `site_page_configs.published_config`（page_key='home'），**不是** Rust 默认值
+- 改文案：直接 UPDATE DB 的 published_config + draft_config 即可，**零重启零编译**
+- 已确认 A 款标题写入 DB：hero.title=走到导航的尽头，才是体验的开始。/ hero.body=副标题 / hero.note=slogan(Be IN the space, beyond the map.)
+
+### 本轮已完成 (v2)
+- 品牌 InSpaceOS → inspace（header.rs + DB seo）
+- 手机首页 hero 标题从 clamp(3rem,14vw,4rem) 4行 → clamp(2rem,8vw,2.55rem) 2行
+- 手机 hero 预览卡 min-height 540→360，缩小
+- 对比度：--inspace-muted #526b7d→#41576a，--inspace-subtle→#4b6070，note色#71889a→#43566a
+- CSS 版本 → 20260725-inspace-v2；已 cp 二进制到 /usr/local/bin 并重启，线上已生效
+
+### 待续（本次大重构剩余）
+- 底部导航 4→5 Tab（发现/攻略/分享/讨论/我的）
+- 探索/攻略：先分类金刚区 + 分页（后端 list_spaces/list_guides 加 category/limit/offset+总数）
+- 空间页手机重排 + 讨论独立成页 /inspace/spaces/:id/chat + 修聊天抢滚动
+
+## 2026-07-25 — inspace-v2 大重构「需求基线」（用户确认版，全面开工）
+
+> 用户已明确"全面开工"。以下是逐轮确认锁定的完整需求，后续任何会话以此为准，不要再问已定项。
+
+### 全局基调
+- 布局：ChatGPT 式**左侧固定导航 + 右侧内容**（当前是顶部横向导航，要改成左右结构）
+- 品牌名统一对外显示 **inspace**（代码里 Instant Space / SpaceOS / InSpaceOS 混用 → 统一 inspace）
+- 首页主叙事走**愿景高度**（白皮书/寄语的"介观层/体验的开始"），承接内容落到 Phase 1 真实能力（空间/攻略/地图/扫码），避免吹大点进去没东西
+- 对比度：正文实色 `#0f172a`(主)/`#334155`(次)，最弱不低于 `#47569`，全部 ≥4.5:1；废弃半透明灰字与透明叠层文字
+
+### 首页文案（已定，来源=白皮书/寄语，非自编）
+- 主标题(A)：**走到导航的尽头，才是体验的开始。**
+- 副标题：**地图带你到达，inspace 让你真正进入——看它的过去、此刻在场的人、以及属于这里的故事。**
+- 尾签 slogan：**Be IN the space, beyond the map.**
+- 注意：线上首页文案来自 DB `site_page_configs.published_config`(page_key='home')，改文案 UPDATE DB 即可，零编译零重启
+- 第一屏中文正文 ≤3 行；删掉旧的 4 个基线 chip + 轮播/漂浮元素
+- 视线动线：标题 → 搜索框(主 CTA,高亮主色) → 精选空间卡片 → 地图入口；只有搜索是主行动，其余降级
+- hero 用深色块(近黑 #0f172a)承托白字标题，与下方浅色内容区分层
+- 精选/地图卡片加视觉引导（点位脉冲、"进入空间"箭头）
+
+### 左侧导航（金刚区 + Tab 差异化）
+- 桌面 240px 固定侧栏，可折叠 64px 图标栏
+- 项目：发现地图 · 探索空间 · 攻略 · 我的空间 · 创建空间 ── 语言/账号
+- 每项配专属图标 + 一句微文案（强化金刚区业务属性）
+- 当前项主色实心 + 图标微动效；非当前项中性色
+- <1024px：侧栏收起为抽屉（顶部汉堡打开）；手机主导航走底部 5 Tab
+
+### 探索 & 攻略（先分类，后分页）
+- 进页先给**分类金刚区**：探索=景点/美食/城市街区/活动；攻略=国家→城市（沿用现有地区数据）
+- 选分类后 → 网格 + **页码分页**，每页 24 条，显示总数；顶部保留搜索，可跨分类搜
+- 卡片网格响应式：手机 1 列 / 平板 2 列 / 桌面 3–4 列
+- 后端 `list_spaces` / `list_guides` 增加 `category` / `limit` / `offset` + 返回总数
+- 1 万条也只看某分类某页 24 条，不靠无限下滑
+
+### 空间页（手机重点修 + 讨论独立成页）
+- 从上到下：①空间信息大卡（做详细：封面/名称/公开·私密/地点/在线人数/主理人 + 主按钮：分享·二维码、写攻略、进入讨论）②攻略区 ③分享/二维码 + 社群入口
+- 讨论**不内嵌**，点"进入讨论"跳独立页 `/inspace/spaces/:id/chat`
+- 手机滚动修复：页面整体正常竖滚，聊天区不再抢占页面滚动（去掉吃手势的 overflow）
+- 底部 5 Tab：**发现 / 攻略 / 分享 / 讨论 / 我的**，固定 + 安全区适配 + 44px 触控，底栏高度纳入内容 padding，修正错位
+
+### 要落地的 UX 技巧（用户点名）
+- 优化视觉引导，确立核心转化路径 / 优化交互操作路径
+- 增强 tab 栏的差异化和趣味性
+- 强化金刚区的业务属性
+- 重色/黑元素植入，强化空间层次
+- 地图类卡片添加视觉引导
+
+### 执行顺序
+1. 左右布局骨架 + 底部 5Tab + 安全区/对比度基线
+2. 首页（A 标题 + 愿景，精简 + 视觉引导 + 深色层次）
+3. 探索/攻略：分类金刚区 + 分页（含后端 limit/offset）
+4. 空间页重排 + 讨论独立成页 + 手机滚动修复
+5. cargo check → 正式部署 → 桌面/手机截图验收
+
+### 部署纪律（血泪坑，务必遵守）
+- 改 Rust：`cargo build -p instant-space-app --release` → **`cp target/release/instant-space-app /usr/local/bin/instant-space-app`** → `systemctl restart instant-space-rust` → 健康检查
+- 改 hydrate/WASM UI：`npm run build:wasm`
+- 改 CSS 版本号：bump `app.rs` 里 `?v=...`（当前 `20260725-inspace-v2`）
+- 验收：`shot.mjs` 截桌面(1440)+手机(390)图
+
+## v5/v6 轮（2026-07-26）
+
+### Skill 体系
+- 总控 skill：`/root/.codex/skills/inspace-design-engineer/`（编排 impeccable + web-design-guidelines 等）
+- 主设计 skill：`impeccable`（v4.0.2）；UI 修改后必须跑 `node /root/.codex/skills/impeccable/scripts/detect.mjs --json <改动的css/组件>`
+- 仓库根有 `PRODUCT.md`（impeccable init 规范：定位=介观层，标题、Slogan、5 条原则）
+
+### v5 完成
+- workspace.css "v5 refinements"：hero 标题压缩、journey 数字弱化、guide-browser 拍平、登录页去横幅、空间页底部快捷导航浅色化
+- backoffice.css：admin 手机 390px 横向溢出修复（根因：main.css:1552 stats-grid 4 列 + audit table min-width:760px 撑开隐式网格；修法：`.admin-layout` 等 `grid-template-columns: minmax(0,1fr) !important` + `overflow-x: clip`）——**已复验全部 admin 路由 390px 溢出=0**
+- app-shell.css：折叠态 login-link 隐藏、移动断点 1099px、explore chip 横滑
+
+### v6 完成
+- impeccable 检测器修复 2 个 warning：侧栏 `transition: width` → 只 transform；`.app-main` 去掉 margin-left 过渡（layout thrash）。剩 1 个 advisory（hero 装饰网格背景，属地图产品语境，保留）
+- 修复空间页嵌入聊天消息被压扁（flex 滚动容器里 item 被 shrink 到 31px 互相重叠）：workspace.css 末尾加 `.chat-message { flex-shrink: 0 !important }`
+- CSS 版本 bump `20260726-inspace-v6`（需重建二进制）
+
+### QA 结论（v6 前置验证）
+- 14 路由 × 1440/390：横向溢出全 0、console 错误全 0
+- 空间页 390 整页滚动正常（wheel 600 → scrollY 600）
+- QA 登录方式：psql 直插 sessions（token 明文即 token_hash 列，无哈希），playwright addCookies `instant_session`
+- 数据库：`postgres://instant_space:***@127.0.0.1:5432/instant_space_rust`（密码见 systemd unit）；spaces 表可见性字段是 `is_public`（不是 visibility）
+
+### 已知遗留
+- login server fn 偶发 500（sessions INSERT 慢 >1s），未修
+- 首页 hero 底部旧装饰模块（GUIDE/THE BUND 卡、蓝 CTA 横条）保留中，用户未表态
+
+## v7 — 视觉世界重构「测绘图记 / Field Survey」（2026-07-26）
+
+用户诉求：不只是版面，是**审美 + 文案 + 高级感**整体重做。按 impeccable 的 redesign 流程（替换视觉世界，非打补丁）。
+
+### 视觉世界
+把「SaaS 深蓝 + 卡片堆 + 渐变 hero」整体替换为**测绘图记**：产品本身就是"地图之后的那一层"，所以界面做成一本实地勘测笔记。
+- 纸底 `#faf8f4` / 墨 `#171512` / 朱红 `#b23a29`（唯一强调色）/ 发丝线 `#ddd6c7`
+- 圆角 2–3px（原 12–18px），去阴影去渐变，靠**横线 + 留白 + 字重**分层
+- 卡片只保留一处：首页 hero 的"空间记录示例"卡（唯一独立对象）
+
+### 字体（高级感的最大单点）
+- 自托管 **Noto Serif SC 600**（中文标题）+ **Noto Sans SC 400/500**（正文）
+- 316 个 unicode-range 分片 woff2 存 `app/vendor/fonts/`（4.5MB 总量，浏览器只取用到的几片）
+- `app/style/fonts.css` 由脚本从 fontsource 的 index.css 生成 288 个 @font-face
+- `/vendor` 已有 ServeDir，**加字体不需要改 Rust**
+
+### 新文件
+- `app/style/inspace-world.css`（唯一主视觉层，最后加载）——含：token 重定义、**接管全部遗留调色板变量**（`--inspace-*` / `--ui-*` / `--ux-*` / `--color-*` / `--home-*`），这是让整站换色的关键；否则 `body .button-primary` 这类高特异性遗留规则会盖回蓝色
+- `app/style/fonts.css`
+
+### 首页结构（app/src/pages/home.rs 改写）
+- hero：标题 + 一段 lede + 两个按钮 + slogan；右侧"空间记录示例"卡（标注「示例」，不伪造真实数据）
+- journey：去掉 01/02/03 序号，改三栏 `<dl>` 竖线分隔
+- guide：假的 GUIDE 深色卡 → 真实 `<table>` 日志（路线/避坑/现场），带 caption 标注示意
+- host：横幅 CTA → 结尾 colophon 版式
+- 类名：`survey-hero` / `survey-sheet` / `survey-passage` / `survey-stages` / `survey-plate` / `survey-log` / `survey-colophon` / `survey-kicker`
+
+### 文案（crates/domain/src/site.rs 默认值 + DB published_config 同步）
+去掉"全球介观空间网络"这类内部术语，改成用户视角的具体话：
+- eyebrow「到达之后」/ 主标题保留「走到导航的尽头，才是体验的开始。」
+- body「地图把你送到门口。这个地方怎么走、什么时候来、哪里会踩坑，写在这里；还没写下的，问此刻正在现场的人。」
+- journey 三段：到达 / 看懂 / 问人
+- demo 数据改为具体可信内容（"南京东路站 2 号口出，沿滇池路步行 8 分钟"），全部标注示例
+- **改 DB 文案的 SQL 模式**：`UPDATE site_page_configs SET published_config = published_config || jsonb_build_object('hero', published_config->'hero' || '{...}'::jsonb)`
+
+### 关键经验
+- 遗留 CSS（ui-system.css 7135 行 / main.css 6399 行）大量 `body .x` 高特异性规则。**不要逐条打补丁**，直接在 world 层接管它们的 CSS 变量，一次性换掉全站配色。
+- 少数顽固规则（button-primary/language-button）需要用 `body .x` 同级特异性覆盖。
+- fullPage 截图会把 fixed 底栏和滚动前的旧渲染合成进来，**看到"斑马纹紫底"先用 getComputedStyle 验证**，不要照着截图瞎改。
+
+### QA
+- 5 路由 × 1440/390：横向溢出全 0、console 错误全 0
+- impeccable detect.mjs：0 findings
+- CSS 版本 `20260727-survey-v2`
+
+## v8 — 地图恢复、独立聊天页与工作台全栈修复（2026-07-26）
+
+### 地图与资源
+- 修复生产前缀：`app/src/map_boot.js` 通过 `assetBase()` 在 `/inspace` 下加载 `/inspace/vendor/maplibre-gl/*`，地图模式恢复。
+- `crates/map-ui/src/maplibre_shim.js` 的投影/样式切换改到 MapLibre `idle` 安全边界，并捕获过早 `setProjection`；线上已无 `Style is not done loading`。
+- 字体旧 unicode shard 中有 173 个 0 字节文件；已删除 316 个分片，改成 3 个完整自托管 WOFF2（Noto Sans SC 400/500、Noto Serif SC 600），总量 3.7MB。
+- nginx 的 WASM 缓存版本更新到 `20260726-ui-v66`；CSS 生产缓存使用 `20260728-survey-v5`。配置备份：`/etc/nginx/conf.d/opctoai.com.conf.bak-inspace-v8-20260726`。
+
+### 空间与聊天 IA
+- 空间详情页不再嵌入聊天；聊天独立路由：`/inspace/spaces/:space_id/chat`（同时保留无前缀路由）。
+- 独立聊天页保留访问控制、历史消息、WebSocket 在线状态与发言框；手机端从消息区域滑动会滚动页面，不再锁住手势。
+- 私密聊天路由在访问码验证前不渲染任何消息；QA 测试为 0 个消息节点。
+
+### 用户工作台与攻略入口
+- 工作台增加“先建空间 → 在空间里写攻略 → 发布后分享二维码”三步说明。
+- 每个空间卡新增：打开空间 / 写攻略 / 讨论区 / 管理空间；写攻略链接始终携带 `space_id`。
+- 空间详情、管理弹窗、攻略浏览页均增加空间内写攻略入口；编辑器通过 `?space_id=` 自动选中空间并预填省市地点。
+- 管理弹窗操作按状态/危险操作分组，反馈中文化；保存、暂停、重新开放已在生产真实点击验证。关键修复：操作成功后不立即刷新外层列表，避免弹窗被卸载；关闭弹窗时才刷新。删除仍立即刷新。
+- 修复管理员空间分页按钮中 Rust 表达式被渲染到页面的问题；静态扫描无 `href="#"`、空点击处理器或 `todo!()`。
+
+### 后端与数据库
+- 新增 session 过期索引迁移并清理历史过期记录：`sessions_expires_at_idx`、`access_sessions_expires_at_idx` 均已存在，过期 session 为 0。
+- 生产旧表原所有者为 `postgres`，首次迁移因应用账号无 DDL 所有权而启动失败；已将 `sessions` / `access_sessions` 所有者调整为 `instant_space`，迁移成功，服务恢复。
+- `create_session()` 增加过期 session 清理，修复历史登录偶发慢 INSERT/500 风险。
+
+### 生产 QA
+- 地图：MapLibre object、1180×900 canvas、瓦片可见、0 page error、0 failed request。
+- 独立聊天：WebSocket `connected`、历史消息与输入框存在；私密消息无泄漏。
+- 390px：空间详情/聊天/工作台横向溢出均为 0；核心按钮均至少 44px；管理弹窗无横向溢出。
+- 管理按钮：保存成功；暂停后按钮状态切换；重新开放后恢复测试空间为 `active`；0 console/page error。
+- 最终证据保存在 `output/playwright/`：地图、空间页、聊天页、工作台、管理弹窗、管理员空间页截图及 `qa-results.json` / `qa-final.json`。
+
+## v9 — 修复「地图上不显示空间标记」（2026-07-26）
+
+**症状**：创建空间时在地图上标点，`/inspace/map` 上看不到任何标记。
+
+**根因**：v8 IA 重构时新建了 `app/src/components/map_workspace.rs` 作为 `/map` 与 `/inspace/map` 的唯一地图组件，但它只调用 `instant_map_ui::mount()`，**从未加载空间数据、也从未调用 `sync_points()`**。原来负责渲染标记的 `MapHome`（`app/src/components/map_home.rs`）在重构后已不被任何路由引用，成为死代码，标记逻辑随之失效。
+
+**次因**：`MapMarkerSync` 的隐藏代理按钮用的是 `data-space-open`，而 `crates/map-ui/src/maplibre_shim.js` 的 marker click 查询的是 `[data-space-select="{id}"]`，属性名不一致 → 即使有标记，点击也打不开详情。
+
+**修复**：
+- `app/src/components/map_home.rs`：`MapMarkerSync` / `SpaceDetailDrawer` / `SpaceListSkeleton` 改为 `pub`；代理按钮属性 `data-space-open` → `data-space-select`（与 shim 对齐）
+- `app/src/components/map_workspace.rs`：新增 `Resource` 调用 `list_spaces()`（跟随 `refresh.spaces` / dest 筛选信号），挂 `<MapMarkerSync>` 和 `<SpaceDetailDrawer>`，标题下加 `.map-workspace-count` 显示「N 个空间在地图上」
+- `app/style/inspace-world.css`：`.map-workspace-bar` 标题块加纸底卡片 + 墨色字（原来白字压在浅色瓦片上不可读）
+- `.gitignore`：新增 `/output/`（QA 截图产物 3.6MB 不入库）
+
+**验证**（真实浏览器，线上 https://opctoai.com/inspace/map）：`markerCount=3`、`libreMarkers=3`、`proxyCount=3`、`drawerOpened=true`、`consoleErrors=[]`。脚本 `tests/browser/map-marker-check.mjs`。
+
+**注意**：本地 127.0.0.1:3001 直接访问 `/inspace/map` 会因 `assetBase()` 走 `/inspace` 前缀而 404 加载不到 maplibre，**地图标记验证必须走线上域名**。
+
+**版本号**：二进制 CSS 版本已 bump 到 `20260728-map-v6`；因随后有纯 CSS 改动，nginx sub_filter 追加 `'20260728-map-v6' -> '20260728-map-v7'`。WASM sub_filter 版本同步为 `20260728-map-v6`。nginx 备份 `/etc/nginx/conf.d/opctoai.com.conf.bak-map-v6`。

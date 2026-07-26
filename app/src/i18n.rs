@@ -72,5 +72,5 @@ pub fn localized_online_count(locale: Locale, count: i32) -> String {
 }
 
 fn default_locale() -> Locale {
-    Locale::from_code(option_env!("INSTANT_SPACE_DEFAULT_LOCALE").unwrap_or("en"))
+    Locale::from_code(option_env!("INSTANT_SPACE_DEFAULT_LOCALE").unwrap_or("zh-CN"))
 }

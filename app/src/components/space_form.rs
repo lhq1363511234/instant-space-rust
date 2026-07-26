@@ -8,6 +8,7 @@ use crate::server::auth::current_session;
 use crate::server::geo::{
     list_geo_cities, list_geo_countries, list_geo_districts, list_geo_regions,
 };
+use crate::server::guides::{bind_guide_to_space, list_bindable_guides};
 use crate::server::spaces::create_space;
 
 #[derive(Clone, Copy)]
@@ -53,7 +54,7 @@ pub fn CreateSpaceModalHost() -> impl IntoView {
                 >
                     <div class="modal-head">
                         <div>
-                            <p class="eyebrow">"Instant Space"</p>
+                            <p class="eyebrow">"inspace"</p>
                             <h2 id="create-space-title">{move || t(locale.get(), "创建空间", "Create Space")}</h2>
                         </div>
                         <button
@@ -133,6 +134,13 @@ pub fn SpaceForm() -> impl IntoView {
     let created_name = RwSignal::new(None::<String>);
     let created_password = RwSignal::new(None::<String>);
     let created_hotspot = RwSignal::new(None::<String>);
+    let created_space_id = RwSignal::new(None::<String>);
+    let bound_guide = RwSignal::new(None::<String>);
+    let bind_guide_id = RwSignal::new(String::new());
+    let bindable_guides = Resource::new(
+        || (),
+        |_| async { list_bindable_guides().await.unwrap_or_default() },
+    );
     let countries = Resource::new(
         || (),
         |_| async { list_geo_countries().await.unwrap_or_default() },
@@ -206,6 +214,29 @@ pub fn SpaceForm() -> impl IntoView {
         }
     });
 
+    let bind = Action::new(move |_: &()| {
+        let guide_id = bind_guide_id.get();
+        let space_id = created_space_id.get().unwrap_or_default();
+        async move {
+            if guide_id.trim().is_empty() || space_id.trim().is_empty() {
+                return Err(leptos::prelude::ServerFnError::new("请选择要关联的攻略"));
+            }
+            bind_guide_to_space(guide_id, space_id).await
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = bind.value().get() {
+            match result {
+                Ok(guide) => {
+                    bound_guide.set(Some(guide.title_zh));
+                    error.set(None);
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+
     Effect::new(move |_| {
         instant_map_ui::mount("create-space-map", MapStyle::Road, MapProjection::Flat2d);
         let lat_value = lat.get().parse::<f64>().unwrap_or(31.2304);
@@ -228,6 +259,7 @@ pub fn SpaceForm() -> impl IntoView {
         if let Some(result) = create.value().get() {
             match result {
                 Ok(space) => {
+                    created_space_id.set(Some(space.id.clone()));
                     created_name.set(Some(space.name_zh));
                     created_password.set(space.generated_password);
                     created_hotspot.set(space.hotspot_name);
@@ -391,6 +423,36 @@ pub fn SpaceForm() -> impl IntoView {
                             <strong>{move || t(locale.get(), "系统生成密码", "Generated password")}</strong>
                             <code>{password}</code>
                             <span>{hotspot}</span>
+                            <div class="space-guide-bind-card">
+                                <strong>{move || t(locale.get(), "给这个空间配一篇攻略", "Add a guide to this Space")}</strong>
+                                <p>{move || t(locale.get(), "把你已经写过的攻略关联到刚创建的空间；没有攻略也可以先去写一篇。", "Attach one of your existing guides to the new Space, or write one now.")}</p>
+                                <Suspense fallback=move || view! { <span>{move || t(locale.get(), "正在读取可关联攻略", "Loading guides")}</span> }>
+                                    {move || Suspend::new(async move {
+                                        let guides = bindable_guides.await;
+                                        view! {
+                                            <div class="space-guide-bind-actions">
+                                                <select
+                                                    aria-label=move || t(locale.get(), "选择要关联的攻略", "Choose a guide to attach")
+                                                    prop:value=move || bind_guide_id.get()
+                                                    on:change=move |ev| bind_guide_id.set(event_target_value(&ev))
+                                                >
+                                                    <option value="">{move || t(locale.get(), "选择已有攻略（可选）", "Choose an existing guide (optional)")}</option>
+                                                    <For each=move || guides.clone() key=|guide| guide.id.to_string() children=move |guide| view! {
+                                                        <option value=guide.id.to_string()>{guide.title_zh}</option>
+                                                    } />
+                                                </select>
+                                                <button class="button button-secondary-light" type="button" on:click=move |_| { bind.dispatch(()); }>
+                                                    {move || t(locale.get(), "关联攻略", "Attach guide")}
+                                                </button>
+                                                <a class="button button-secondary-light" href=move || format!("/inspace/admin/guides/new?space_id={}", created_space_id.get().unwrap_or_default())>
+                                                    {move || t(locale.get(), "写一篇新攻略", "Write a new guide")}
+                                                </a>
+                                            </div>
+                                        }
+                                    })}
+                                </Suspense>
+                                {move || bound_guide.get().map(|title| view! { <p class="form-success">{format!("{}：{}", t(locale.get(), "已关联", "Attached"), title)}</p> })}
+                            </div>
                             <div class="community-setup-card">
                                 <strong>{move || t(locale.get(), "📡 设置手机热点名", "📡 Set phone hotspot name")}</strong>
                                 <p>{move || t(locale.get(), "请将手机热点名设为上方 InstantSpace_六位数字，用户在 WiFi 列表里直接抄 6 位密码。", "Set the phone hotspot name to the InstantSpace_ six-digit value above; visitors copy the six-digit password from WiFi.")}</p>

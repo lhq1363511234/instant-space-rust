@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 
 const root = process.cwd();
 const pkgDir = join(root, "target", "site", "pkg");
-const jsPath = join(pkgDir, "instant_space_app.js");
-const wasmPath = join(pkgDir, "instant_space_app_bg.wasm");
+const jsPath = join(pkgDir, "instant_space_app_v64.js");
+const wasmPath = join(pkgDir, "instant_space_app_v64_bg.wasm");
 
 rmSync(pkgDir, { recursive: true, force: true });
 
@@ -23,6 +23,6 @@ assert.ok(existsSync(jsPath), "WASM JS loader should be generated");
 assert.ok(existsSync(wasmPath), "WASM binary should be generated");
 
 const loader = readFileSync(jsPath, "utf8");
-assert.match(loader, /instant_space_app_bg\.wasm/);
+assert.match(loader, /instant_space_app_v64_bg\.wasm/);
 assert.match(loader, /export function hydrate/);
 assert.match(loader, /as default/);

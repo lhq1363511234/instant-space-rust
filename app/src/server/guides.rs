@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "ssr"), allow(dead_code))]
+
 use instant_domain::{
     guides::{GuideDetail, GuideSection, GuideStatus, GuideSummary},
     locations::LocationNode,
@@ -146,6 +148,61 @@ pub async fn get_guide_for_edit(guide_id: String) -> Result<Option<GuideDetail>,
     Ok(Some(guide))
 }
 
+#[server(ListBindableGuides, "/inspace/api")]
+pub async fn list_bindable_guides() -> Result<Vec<GuideSummary>, ServerFnError> {
+    let Some(user) = crate::server::auth::current_session().await? else {
+        return Err(ServerFnError::new("login required"));
+    };
+    let pool = crate::server::db_pool().await?;
+    let mut guides = if user.role.is_admin() {
+        instant_db::guides::list_all_guides_admin(&pool).await
+    } else {
+        instant_db::guides::list_guides_by_author(&pool, user.id).await
+    }
+    .map_err(|err| ServerFnError::new(err.to_string()))?;
+    for guide in guides.iter_mut() {
+        guide.can_edit = true;
+    }
+    Ok(guides)
+}
+
+#[server(BindGuideToSpace, "/inspace/api")]
+pub async fn bind_guide_to_space(
+    guide_id: String,
+    space_id: String,
+) -> Result<GuideSummary, ServerFnError> {
+    let Some(user) = crate::server::auth::current_session().await? else {
+        return Err(ServerFnError::new("login required"));
+    };
+    let guide_uuid =
+        uuid::Uuid::parse_str(&guide_id).map_err(|_| ServerFnError::new("invalid guide id"))?;
+    let space_uuid =
+        uuid::Uuid::parse_str(&space_id).map_err(|_| ServerFnError::new("invalid space id"))?;
+    let pool = crate::server::db_pool().await?;
+    let Some(existing) = instant_db::guides::get_guide(&pool, guide_uuid)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?
+    else {
+        return Err(ServerFnError::new("guide not found"));
+    };
+    ensure_guide_editor(&pool, &existing, &user).await?;
+    if !user.role.is_admin() {
+        let owner = instant_db::spaces::space_host_user_id(&pool, space_uuid)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        if owner != Some(user.id) {
+            return Err(ServerFnError::new("space owner or admin required"));
+        }
+    }
+    instant_db::spaces::get_space_summary(&pool, space_uuid)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?
+        .ok_or_else(|| ServerFnError::new("space not found"))?;
+    instant_db::guides::bind_guide_to_space(&pool, guide_uuid, space_uuid)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
 #[server(ListSpaceGuides, "/inspace/api")]
 pub async fn list_space_guides(space_id: String) -> Result<Vec<GuideSummary>, ServerFnError> {
     let pool = crate::server::db_pool().await?;
@@ -189,6 +246,7 @@ pub async fn list_manageable_space_guides(
     Ok(guides)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[server(CreateGuideDraft, "/inspace/api")]
 pub async fn create_guide_draft(
     title_zh: String,
@@ -266,6 +324,7 @@ pub async fn create_guide_draft(
     .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
+#[allow(clippy::too_many_arguments)]
 #[server(UpdateGuide, "/inspace/api")]
 pub async fn update_guide(
     guide_id: String,
@@ -397,13 +456,28 @@ pub async fn set_guide_status_admin(
 ) -> Result<GuideSummary, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
-        crate::server::auth::require_admin_user().await?;
-        let guide_uuid = uuid::Uuid::parse_str(&guide_id)
-            .map_err(|_| ServerFnError::new("invalid guide id"))?;
+        let actor = crate::server::auth::require_admin_user().await?;
+        let guide_uuid =
+            uuid::Uuid::parse_str(&guide_id).map_err(|_| ServerFnError::new("invalid guide id"))?;
         let pool = crate::server::db_pool().await?;
-        instant_db::guides::set_guide_status(&pool, guide_uuid, status)
+        let updated = instant_db::guides::set_guide_status(&pool, guide_uuid, status)
             .await
-            .map_err(|err| ServerFnError::new(err.to_string()))
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let _ = instant_db::admin::record_audit(
+            &pool,
+            Some(actor.id),
+            Some(&actor.email),
+            "set_guide_status",
+            "guide",
+            Some(&guide_id),
+            Some(match status {
+                GuideStatus::Draft => "draft",
+                GuideStatus::Published => "published",
+                GuideStatus::Archived => "archived",
+            }),
+        )
+        .await;
+        Ok(updated)
     }
 
     #[cfg(not(feature = "ssr"))]

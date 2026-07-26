@@ -4,7 +4,11 @@ use crate::i18n::{t, use_i18n};
 use crate::server::chat::verify_space_password;
 
 #[component]
-pub fn PrivateVerify(space_id: String, space_name: String) -> impl IntoView {
+pub fn PrivateVerify(
+    space_id: String,
+    space_name: String,
+    #[prop(optional)] on_verified: Option<Callback<()>>,
+) -> impl IntoView {
     let locale = use_i18n().locale;
     let password = RwSignal::new(String::new());
     let verified_version = RwSignal::new(None::<i32>);
@@ -23,6 +27,9 @@ pub fn PrivateVerify(space_id: String, space_name: String) -> impl IntoView {
                 Ok(grant) => {
                     verified_version.set(Some(grant.password_version));
                     error.set(None);
+                    if let Some(callback) = on_verified {
+                        callback.run(());
+                    }
                 }
                 Err(err) => {
                     verified_version.set(None);

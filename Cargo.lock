@@ -1144,6 +1144,7 @@ dependencies = [
  "url",
  "uuid",
  "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

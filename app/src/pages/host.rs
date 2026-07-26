@@ -5,12 +5,12 @@ use crate::components::space_form::OpenCreateSpaceButton;
 use crate::components::space_share::SpaceSharePanel;
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::auth::current_session;
+use crate::server::guides::{delete_guide, list_manageable_space_guides};
 use crate::server::spaces::{
     apply_my_space_resident, archive_my_space_template, close_my_space, delete_my_space,
     list_my_spaces, reactivate_my_space, regenerate_space_password, update_my_space,
     PasswordRotationResult, SpaceMarker,
 };
-use crate::server::guides::{delete_guide, list_manageable_space_guides};
 use instant_domain::guides::GuideStatus;
 
 #[component]
@@ -27,10 +27,10 @@ pub fn HostRoutes() -> impl IntoView {
     );
 
     view! {
-        <main class="page my-spaces-page">
+        <main id="main-content" class="page my-spaces-page">
             <div class="page-head">
                 <div>
-                    <p class="eyebrow">"Instant Space"</p>
+                    <p class="eyebrow">"inspace"</p>
                     <h1>{move || {
                         let is_admin = session
                             .get()
@@ -39,7 +39,7 @@ pub fn HostRoutes() -> impl IntoView {
                         if is_admin {
                             t(locale.get(), "全部空间管理", "All Spaces")
                         } else {
-                            t(locale.get(), "我的空间", "My Spaces")
+                            t(locale.get(), "我的旅行空间", "My travel spaces")
                         }
                     }}</h1>
                     <p>{move || {
@@ -50,12 +50,38 @@ pub fn HostRoutes() -> impl IntoView {
                         if is_admin {
                             t(locale.get(), "管理员可管理全站空间；普通用户只管理自己创建的空间。", "Admins can manage all spaces; regular users manage only their own spaces.")
                         } else {
-                            t(locale.get(), "管理你创建的空间。创建新空间会以弹窗打开，并支持地图选点。", "Manage the spaces you created. New spaces open in a modal and support map picking.")
+                            t(locale.get(), "管理你创建的真实地点入口：基础信息、密码、二维码分享、驻留申请，以及这个空间下的相关攻略。", "Manage your real-place entries: basic info, passwords, QR sharing, residency requests, and related guides under each Space.")
                         }
                     }}</p>
                 </div>
                 <OpenCreateSpaceButton />
             </div>
+            <section class="workspace-guidance" aria-label=move || t(locale.get(), "攻略入口说明", "Where guides come from")>
+                <p class="survey-kicker">{move || t(locale.get(), "怎么写攻略", "How guides work")}</p>
+                <ol class="workspace-guidance-steps">
+                    <li>
+                        <b>"1"</b>
+                        <span>
+                            <strong>{move || t(locale.get(), "先建一个空间", "Create a Space first")}</strong>
+                            <small>{move || t(locale.get(), "一个真实地点 = 一个空间，攻略挂在它下面。", "One real place = one Space. Guides live under it.")}</small>
+                        </span>
+                    </li>
+                    <li>
+                        <b>"2"</b>
+                        <span>
+                            <strong>{move || t(locale.get(), "在空间里点「写攻略」", "Open the Space and click Write guide")}</strong>
+                            <small>{move || t(locale.get(), "攻略的入口在空间内部，不在导航栏——这样地点信息会自动带入。", "The entry point is inside the Space, not in the nav — the place details are filled in for you.")}</small>
+                        </span>
+                    </li>
+                    <li>
+                        <b>"3"</b>
+                        <span>
+                            <strong>{move || t(locale.get(), "发布后分享二维码", "Publish, then share the QR")}</strong>
+                            <small>{move || t(locale.get(), "扫码的人进入的是空间，能看到这个地点的全部攻略。", "Scanning opens the Space, where every guide for this place is listed.")}</small>
+                        </span>
+                    </li>
+                </ol>
+            </section>
             <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在检查登录状态", "Checking session")}</p> }>
                 {move || Suspend::new(async move {
                     if session.await.is_some() {
@@ -91,7 +117,7 @@ fn MySpaceList(items: Vec<SpaceMarker>) -> impl IntoView {
         view! {
             <section class="empty-state">
                 <strong>{move || t(locale.get(), "还没有空间", "No spaces yet")}</strong>
-                <span>{move || t(locale.get(), "点击创建空间，选择地图位置后提交。", "Click Create Space, pick a map location, then submit.")}</span>
+                <span>{move || t(locale.get(), "点击创建空间，把一个景点、餐馆、街区或活动地点变成可扫码分享的数字入口。", "Create a Space to turn a scenic spot, restaurant, district, or event place into a QR-shareable digital entry.")}</span>
             </section>
         }
         .into_any()
@@ -124,6 +150,9 @@ fn MySpaceCard(space: SpaceMarker) -> impl IntoView {
         .clone()
         .unwrap_or_else(|| "No expiry".to_string());
     let modal_space = space.clone();
+    let space_href = format!("/inspace/spaces/{}", space.id);
+    let chat_href = format!("/inspace/spaces/{}/chat", space.id);
+    let write_guide_href = format!("/inspace/guides/new?space_id={}", space.id);
 
     view! {
         <article class="my-space-card">
@@ -140,16 +169,21 @@ fn MySpaceCard(space: SpaceMarker) -> impl IntoView {
                 {move || t(locale.get(), "到期时间：", "Expires: ")}
                 {expires_at}
             </p>
-            <button
-                type="button"
-                class="button button-secondary-light manage-space-open-btn"
-                on:click=move |ev| {
-                    ev.stop_propagation();
-                    manage_open.set(true);
-                }
-            >
-                {move || t(locale.get(), "管理空间", "Manage space")}
-            </button>
+            <div class="my-space-card-actions">
+                <a class="button button-secondary-light" href=space_href>{move || t(locale.get(), "打开空间", "Open Space")}</a>
+                <a class="button button-secondary-light" href=write_guide_href>{move || t(locale.get(), "写攻略", "Write guide")}</a>
+                <a class="button button-secondary-light" href=chat_href>{move || t(locale.get(), "讨论区", "Discussion")}</a>
+                <button
+                    type="button"
+                    class="button button-primary manage-space-open-btn"
+                    on:click=move |ev| {
+                        ev.stop_propagation();
+                        manage_open.set(true);
+                    }
+                >
+                    {move || t(locale.get(), "管理空间", "Manage")}
+                </button>
+            </div>
         </article>
         {move || if manage_open.get() {
             view! {
@@ -162,7 +196,7 @@ fn MySpaceCard(space: SpaceMarker) -> impl IntoView {
 }
 
 #[component]
-fn ManageSpaceModal(space: SpaceMarker, open: RwSignal<bool>) -> impl IntoView {
+pub(crate) fn ManageSpaceModal(space: SpaceMarker, open: RwSignal<bool>) -> impl IntoView {
     let locale = use_i18n().locale;
     let title = space
         .name_en
@@ -187,7 +221,7 @@ fn ManageSpaceModal(space: SpaceMarker, open: RwSignal<bool>) -> impl IntoView {
             >
                 <div class="modal-head">
                     <div>
-                        <p class="eyebrow">"Instant Space"</p>
+                        <p class="eyebrow">"inspace"</p>
                         <h2 id="manage-space-title">{move || format!("{} · {title}", t(locale.get(), "管理空间", "Manage space"))}</h2>
                     </div>
                     <button
@@ -229,6 +263,7 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
     let error = RwSignal::new(None::<String>);
     let rotated_password = RwSignal::new(None::<PasswordRotationResult>);
     let confirm_delete = RwSignal::new(false);
+    let status = RwSignal::new(space.status.clone());
 
     Effect::new(move |_| {
         // Mount after the modal is in the DOM; maplibre_shim also retries if missing.
@@ -330,22 +365,22 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
 
     Effect::new(move |_| {
         if let Some(result) = update.value().get() {
-            handle_space_result(result, "Space updated", message, error);
+            handle_space_result(result, t(locale.get(), "空间信息已保存", "Space updated"), message, error, status);
         }
     });
     Effect::new(move |_| {
         if let Some(result) = close.value().get() {
-            handle_space_result(result, "Space closed", message, error);
+            handle_space_result(result, t(locale.get(), "空间已关闭，访客暂时无法进入", "Space closed — visitors can no longer enter"), message, error, status);
         }
     });
     Effect::new(move |_| {
         if let Some(result) = reactivate.value().get() {
-            handle_space_result(result, "Space reactivated", message, error);
+            handle_space_result(result, t(locale.get(), "空间已重新开放", "Space reactivated"), message, error, status);
         }
     });
     Effect::new(move |_| {
         if let Some(result) = archive.value().get() {
-            handle_space_result(result, "Space archived as template", message, error);
+            handle_space_result(result, t(locale.get(), "已存为模板，可用于快速创建同类空间", "Archived as a template for creating similar Spaces"), message, error, status);
         }
     });
     Effect::new(move |_| {
@@ -353,7 +388,7 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
             match result {
                 Ok(_) => {
                     error.set(None);
-                    message.set(Some("Space deleted".to_string()));
+                    message.set(Some(t(locale.get(), "空间已删除", "Space deleted").to_string()));
                     confirm_delete.set(false);
                     refresh_spaces();
                 }
@@ -370,7 +405,7 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
                 Ok(()) => {
                     rotated_password.set(None);
                     error.set(None);
-                    message.set(Some("Resident application submitted".to_string()));
+                    message.set(Some(t(locale.get(), "驻留申请已提交，等待管理员审核", "Residency request submitted for admin review").to_string()));
                 }
                 Err(err) => {
                     message.set(None);
@@ -383,7 +418,7 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
         if let Some(result) = rotate_password.value().get() {
             match result {
                 Ok(result) => {
-                    message.set(Some("Password regenerated".to_string()));
+                    message.set(Some(t(locale.get(), "新密码已生成，请立即抄录", "New password generated — copy it now").to_string()));
                     error.set(None);
                     rotated_password.set(Some(result));
                 }
@@ -513,39 +548,52 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
 
             <RelatedSpaceGuides space_id=related_space_id />
 
-            <div class="my-space-actions" aria-label="Space management actions">
-                <button class="button button-secondary-light" type="button" on:click=move |_| { close.dispatch(()); }>
-                    {move || t(locale.get(), "关闭空间", "Close space")}
-                </button>
-                <button class="button button-secondary-light" type="button" on:click=move |_| { reactivate.dispatch(()); }>
-                    {move || t(locale.get(), "重新激活", "Reactivate")}
-                </button>
-                <button class="button button-secondary-light" type="button" on:click=move |_| { apply_resident.dispatch(()); }>
-                    {move || t(locale.get(), "申请驻留", "Apply resident")}
-                </button>
-                <button class="button button-secondary-light" type="button" on:click=move |_| { archive.dispatch(()); }>
-                    {move || t(locale.get(), "归档模板", "Archive template")}
-                </button>
-                {move || if confirm_delete.get() {
-                    view! {
-                        <button class="button button-danger" type="button" on:click=move |_| { delete.dispatch(()); }>
-                            {move || t(locale.get(), "确认删除", "Confirm delete")}
-                        </button>
-                    }.into_any()
-                } else {
-                    view! {
-                        <button class="button button-danger-light" type="button" on:click=move |_| { confirm_delete.set(true); }>
-                            {move || t(locale.get(), "删除空间", "Delete space")}
-                        </button>
-                    }.into_any()
-                }}
-            </div>
+            <section class="my-space-actions" aria-label=move || t(locale.get(), "空间状态操作", "Space status actions")>
+                <div class="my-space-actions-head">
+                    <p class="survey-kicker">{move || t(locale.get(), "状态操作", "Status")}</p>
+                    <p>{move || t(locale.get(), "以下操作会改变访客能否进入这个空间，攻略内容不会被删除。", "These change whether visitors can enter. Guide content is never deleted here.")}</p>
+                </div>
+                <div class="my-space-actions-row">
+                    <button class="button button-secondary-light" type="button" disabled=move || status.get() == "closed" on:click=move |_| { close.dispatch(()); }>
+                        {move || t(locale.get(), "暂停开放", "Pause access")}
+                    </button>
+                    <button class="button button-secondary-light" type="button" disabled=move || status.get() == "active" on:click=move |_| { reactivate.dispatch(()); }>
+                        {move || t(locale.get(), "重新开放", "Reopen")}
+                    </button>
+                    <button class="button button-secondary-light" type="button" on:click=move |_| { apply_resident.dispatch(()); }>
+                        {move || t(locale.get(), "申请长期驻留", "Request residency")}
+                    </button>
+                    <button class="button button-secondary-light" type="button" on:click=move |_| { archive.dispatch(()); }>
+                        {move || t(locale.get(), "存为模板", "Save as template")}
+                    </button>
+                </div>
+                <div class="my-space-danger-row">
+                    {move || if confirm_delete.get() {
+                        view! {
+                            <>
+                                <span class="my-space-danger-warning">{move || t(locale.get(), "删除后这个地点的入口和二维码立即失效。", "Deleting retires this place’s entry and QR immediately.")}</span>
+                                <button class="button button-danger" type="button" on:click=move |_| { delete.dispatch(()); }>
+                                    {move || t(locale.get(), "确认删除", "Confirm delete")}
+                                </button>
+                                <button class="button button-secondary-light" type="button" on:click=move |_| confirm_delete.set(false)>
+                                    {move || t(locale.get(), "取消", "Cancel")}
+                                </button>
+                            </>
+                        }.into_any()
+                    } else {
+                        view! {
+                            <button class="button button-danger-light" type="button" on:click=move |_| confirm_delete.set(true)>
+                                {move || t(locale.get(), "删除空间", "Delete Space")}
+                            </button>
+                        }.into_any()
+                    }}
+                </div>
+            </section>
             {move || message.get().map(|value| view! { <p class="form-success">{value}</p> })}
             {move || error.get().map(|value| view! { <p class="error">{value}</p> })}
         </div>
     }
 }
-
 
 #[component]
 fn RelatedSpaceGuides(space_id: String) -> impl IntoView {
@@ -559,7 +607,9 @@ fn RelatedSpaceGuides(space_id: String) -> impl IntoView {
     let guides = Resource::new(
         move || (space_id_for_resource.clone(), refresh_guides.get()),
         |(space_id, _)| async move {
-            list_manageable_space_guides(space_id).await.unwrap_or_default()
+            list_manageable_space_guides(space_id)
+                .await
+                .unwrap_or_default()
         },
     );
 
@@ -625,9 +675,9 @@ fn RelatedSpaceGuides(space_id: String) -> impl IntoView {
                                     children=move |guide| {
                                         let title_zh = guide.title_zh.clone();
                                         let title_en = guide.title_en.clone();
-                                        let status_class = guide_status_class(guide.status.clone());
-                                        let status_label_zh = guide_status_label_zh(guide.status.clone());
-                                        let status_label_en = guide_status_label_en(guide.status.clone());
+                                        let status_class = guide_status_class(guide.status);
+                                        let status_label_zh = guide_status_label_zh(guide.status);
+                                        let status_label_en = guide_status_label_en(guide.status);
                                         let can_edit = guide.can_edit;
                                         let view_href = format!("/inspace/guides/{}", guide.id);
                                         let edit_href = format!("/inspace/guides/{}/edit", guide.id);
@@ -701,15 +751,20 @@ fn guide_status_class(status: GuideStatus) -> &'static str {
     }
 }
 
-
+/// Space mutations always refresh the workspace list so the card badges
+/// (status, visibility) match what the modal just changed.
 fn handle_space_result(
     result: Result<SpaceMarker, ServerFnError>,
     success: &str,
     message: RwSignal<Option<String>>,
     error: RwSignal<Option<String>>,
+    status: RwSignal<String>,
 ) {
     match result {
-        Ok(_) => {
+        Ok(updated) => {
+            // Keep the modal mounted so the user can see the result and continue
+            // working. The outer workspace list refreshes when the modal closes.
+            status.set(updated.status.clone());
             error.set(None);
             message.set(Some(success.to_string()));
         }

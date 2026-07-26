@@ -1,6 +1,12 @@
 #![recursion_limit = "512"]
 
-use axum::{extract::Query, http::StatusCode, routing::get, Json, Router};
+use axum::{
+    extract::Query,
+    http::{header, HeaderValue, StatusCode},
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
+};
 use instant_domain::locations::GeoMatch;
 use instant_space_web::app::{shell, App};
 use leptos::prelude::LeptosOptions;
@@ -79,6 +85,10 @@ fn build_router() -> Router {
             get(instant_space_web::realtime::space_socket),
         )
         .route("/geo/reverse", get(reverse_geo))
+        .route("/robots.txt", get(robots_txt))
+        .route("/sitemap.xml", get(sitemap_xml))
+        .route("/inspace/robots.txt", get(robots_txt))
+        .route("/inspace/sitemap.xml", get(sitemap_xml))
         .nest_service("/pkg", ServeDir::new("target/site/pkg"))
         .nest_service("/style", ServeDir::new("app/style"))
         .nest_service("/vendor", ServeDir::new("app/vendor"))
@@ -112,6 +122,107 @@ struct ReverseGeoQuery {
     lng: f64,
 }
 
+async fn robots_txt() -> impl IntoResponse {
+    let body = "\
+User-agent: *\n\
+Allow: /inspace\n\
+Allow: /inspace/\n\
+Disallow: /inspace/admin\n\
+Disallow: /inspace/admin/\n\
+Disallow: /inspace/login\n\
+Disallow: /inspace/api\n\
+Disallow: /inspace/api/\n\
+Disallow: /inspace/ws/\n\
+Disallow: /admin\n\
+Disallow: /admin/\n\
+\n\
+Sitemap: https://opctoai.com/inspace/sitemap.xml\n";
+    (
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        )],
+        body,
+    )
+}
+
+async fn sitemap_xml() -> impl IntoResponse {
+    let mut body = String::from(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n\
+  <url><loc>https://opctoai.com/inspace</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n\
+  <url><loc>https://opctoai.com/inspace/guides</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n",
+    );
+
+    if let Ok(pool) = instant_space_web::server::db_pool().await {
+        if let Ok(rows) = sqlx::query(
+            r#"
+            SELECT id, updated_at
+            FROM spaces
+            WHERE is_public = true
+              AND status = 'active'
+            ORDER BY updated_at DESC
+            LIMIT 5000
+            "#,
+        )
+        .fetch_all(&pool)
+        .await
+        {
+            use sqlx::Row;
+            for row in rows {
+                let id: uuid::Uuid = match row.try_get("id") {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+                let updated_at: time::OffsetDateTime = row
+                    .try_get("updated_at")
+                    .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
+                body.push_str(&format!(
+                    "  <url><loc>https://opctoai.com/inspace/spaces/{id}</loc><lastmod>{}</lastmod><priority>0.8</priority></url>\n",
+                    updated_at.date()
+                ));
+            }
+        }
+
+        if let Ok(rows) = sqlx::query(
+            r#"
+            SELECT id, updated_at
+            FROM guides
+            WHERE status = 'published'
+            ORDER BY updated_at DESC
+            LIMIT 5000
+            "#,
+        )
+        .fetch_all(&pool)
+        .await
+        {
+            use sqlx::Row;
+            for row in rows {
+                let id: uuid::Uuid = match row.try_get("id") {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+                let updated_at: time::OffsetDateTime = row
+                    .try_get("updated_at")
+                    .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
+                body.push_str(&format!(
+                    "  <url><loc>https://opctoai.com/inspace/guides/{id}</loc><lastmod>{}</lastmod><priority>0.7</priority></url>\n",
+                    updated_at.date()
+                ));
+            }
+        }
+    }
+
+    body.push_str("</urlset>\n");
+    (
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/xml; charset=utf-8"),
+        )],
+        body,
+    )
+}
+
 async fn reverse_geo(
     Query(query): Query<ReverseGeoQuery>,
 ) -> Result<Json<Option<GeoMatch>>, (StatusCode, String)> {
@@ -130,7 +241,7 @@ async fn reverse_geo(
 
 fn leptos_options() -> LeptosOptions {
     LeptosOptions::builder()
-        .output_name("instant_space_app")
+        .output_name("instant_space_app_v64")
         .site_addr(SITE_ADDR.parse::<SocketAddr>().expect("valid site address"))
         .hash_files(false)
         .build()
@@ -156,12 +267,12 @@ mod tests {
         let html = String::from_utf8(body.to_vec()).unwrap();
 
         assert!(html.to_ascii_lowercase().contains("<!doctype html>"));
-        assert!(html.contains("Instant Space Rust"));
+        assert!(html.contains("inspace"));
         assert!(html.contains("data-instant-ssr=\"leptos\""));
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.js"));
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.css"));
         assert!(!html.contains("unpkg.com/maplibre-gl"));
-        assert!(html.contains("/pkg/instant_space_app.js"));
+        assert!(html.contains("/pkg/instant_space_app_v64.js"));
     }
 
     #[tokio::test]

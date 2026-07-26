@@ -60,8 +60,14 @@ pub fn LoginPage() -> impl IntoView {
     });
 
     view! {
-        <main class="page">
-            <h1>{move || t(locale.get(), "统一登录 / 注册", "Unified Sign in / Register")}</h1>
+        <main id="main-content" class="page auth-page">
+            <header class="page-head auth-page-head">
+                <div>
+                    <p class="eyebrow">{move || t(locale.get(), "主理人入口", "Host access")}</p>
+                    <h1>{move || t(locale.get(), "登录后创建和管理旅行空间", "Sign in to create and manage travel spaces")}</h1>
+                    <p>{move || t(locale.get(), "登录后可以把真实地点创建为空间，维护攻略、密码、二维码分享和社群入口。", "After signing in, create Spaces for real places and manage guides, passwords, QR sharing, and community entry.")}</p>
+                </div>
+            </header>
             <form
                 class="form auth-form"
                 on:submit=move |ev| {

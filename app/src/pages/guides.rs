@@ -16,7 +16,7 @@ use crate::server::{
 #[component]
 pub fn GuidesPage() -> impl IntoView {
     view! {
-        <main class="page">
+        <main id="main-content" class="page">
             <GuideBrowser />
         </main>
     }
@@ -40,7 +40,7 @@ pub fn GuideDetailPage() -> impl IntoView {
     );
 
     view! {
-        <main class="page guide-detail-page">
+        <main id="main-content" class="page guide-detail-page">
             <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载攻略", "Loading guide")}</p> }>
                 {move || Suspend::new(async move {
                     match guide.await {
@@ -290,7 +290,11 @@ pub fn GuideEditorPage() -> impl IntoView {
     );
     let spaces = Resource::new(
         || (),
-        |_| async move { list_spaces(None, None, None, None, None).await.unwrap_or_default() },
+        |_| async move {
+            list_spaces(None, None, None, None, None)
+                .await
+                .unwrap_or_default()
+        },
     );
     let guide = RwSignal::new(GuideDraft::default());
     let saved_guide_id = RwSignal::new(None::<String>);
@@ -338,7 +342,7 @@ pub fn GuideEditorPage() -> impl IntoView {
 
     let save = Action::new(move |target_status: &GuideStatus| {
         let mut draft = guide.get();
-        draft.status = target_status.clone();
+        draft.status = *target_status;
         let edit_id = saved_guide_id.get().unwrap_or_else(|| edit_guide_id.get());
         async move {
             if edit_id.is_empty() {
@@ -409,7 +413,7 @@ pub fn GuideEditorPage() -> impl IntoView {
     });
 
     view! {
-        <main class="page guide-editor-page">
+        <main id="main-content" class="page guide-editor-page">
             <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在检查登录状态", "Checking session")}</p> }>
                 {move || Suspend::new(async move {
                     let user = session.await;
@@ -487,18 +491,22 @@ fn GuideEditor(
         guide.update(|draft| draft.images = images);
     });
     let selectable_spaces = space_options.clone();
+    let linked_space_names = space_options
+        .iter()
+        .map(|space| (space.id.clone(), space_option_label(space)))
+        .collect::<Vec<_>>();
 
     view! {
         <section class="guide-editor form" aria-label="Structured guide editor">
             <div class="page-head">
                 <div>
-                    <p class="eyebrow">"Phase 4.2"</p>
+                    <p class="survey-kicker">{move || t(locale.get(), "写一篇攻略", "Write a guide")}</p>
                     <h1>{move || if is_edit {
-                        t(locale.get(), "编辑结构化攻略", "Edit structured guide")
+                        t(locale.get(), "编辑攻略", "Edit guide")
                     } else {
-                        t(locale.get(), "结构化攻略编辑器", "Structured guide editor")
+                        t(locale.get(), "写下这个地方", "Write down this place")
                     }}</h1>
-                    <p>{move || t(locale.get(), "一个 Guide signal 管理整篇攻略，板块和图片通过受控子组件回传更新。", "One Guide signal owns the whole guide; sections and images bubble updates through controlled child components.")}</p>
+                    <p>{move || t(locale.get(), "先选它属于哪个空间，地点信息会自动带入。然后按板块写：怎么去、什么时候来、花多少、哪里会踩坑。", "Pick the Space it belongs to and the place details fill in automatically. Then write it in sections: how to get there, when to come, what it costs, where people get caught out.")}</p>
                 </div>
                 <a class="button button-secondary-light" href="/inspace/guides">{move || t(locale.get(), "返回攻略", "Back to guides")}</a>
             </div>
@@ -524,7 +532,7 @@ fn GuideEditor(
                                 });
                             }
                         >
-                            <option value="">{move || t(locale.get(), "不关联空间，写独立攻略", "No linked space, write standalone guide")}</option>
+                            <option value="">{move || t(locale.get(), "先不关联（之后仍可挂到空间下）", "Not linked yet (you can attach it to a Space later)")}</option>
                             <For
                                 each=move || space_options.clone()
                                 key=|space| space.id.clone()
@@ -537,10 +545,15 @@ fn GuideEditor(
                     </label>
                     {move || guide.get().space_id.map(|space_id| {
                         let href = format!("/inspace/spaces/{space_id}");
+                        let label = linked_space_names
+                            .iter()
+                            .find(|(id, _)| *id == space_id)
+                            .map(|(_, label)| label.clone())
+                            .unwrap_or_else(|| space_id.clone());
                         view! {
                             <p class="guide-linked-space">
-                                {move || t(locale.get(), "当前关联空间：", "Current linked space: ")}
-                                <a href=href>{space_id}</a>
+                                {move || t(locale.get(), "这篇攻略会挂在：", "This guide will live under: ")}
+                                <a href=href>{label}</a>
                             </p>
                         }
                     })}

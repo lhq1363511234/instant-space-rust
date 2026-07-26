@@ -18,7 +18,9 @@ use wasm_bindgen::prelude::*;
 // cursor and every on:click after #map fails to bind. This flag/event lets the
 // native script wait for a safe moment.
 #[cfg(feature = "hydrate")]
-#[wasm_bindgen(inline_js = "export function __instant_mark_hydrated() { try { window.__instantSpaceHydrated = true; window.dispatchEvent(new Event('instant-space-hydrated')); } catch (e) {} }")]
+#[wasm_bindgen(
+    inline_js = "export function __instant_mark_hydrated() { try { window.__instantSpaceHydrated = true; window.dispatchEvent(new Event('instant-space-hydrated')); } catch (e) {} }"
+)]
 extern "C" {
     fn __instant_mark_hydrated();
 }

@@ -41,7 +41,8 @@ pub fn MapHome() -> impl IntoView {
         let search = location.search.get();
         let path = location.pathname.get();
         let on_home = path == "/inspace" || path == "/" || path == "/inspace/";
-        if !on_home {
+        let on_map_route = path == "/map" || path == "/inspace/map";
+        if !on_home && !on_map_route {
             return;
         }
 
@@ -50,12 +51,20 @@ pub fn MapHome() -> impl IntoView {
         let wants_explore = search.contains("explore=1") || search.contains("explore=true");
         let wants_home = search.contains("home=1") || search.contains("home=true");
 
+        if on_map_route {
+            explorer_open.set(false);
+            hero_open.set(false);
+            instant_map_ui::reveal("map");
+            return;
+        }
+
         if let Some(country) = country_q {
             let mut country = country.trim().to_string();
             // Taiwan, Hong Kong and Macao are part of China, not countries.
-            if country.eq_ignore_ascii_case("taiwan") || country == "台湾" || country == "台灣" {
-                country = "China".to_string();
-            } else if country.eq_ignore_ascii_case("hong kong")
+            if country.eq_ignore_ascii_case("taiwan")
+                || country == "台湾"
+                || country == "台灣"
+                || country.eq_ignore_ascii_case("hong kong")
                 || country == "香港"
                 || country.eq_ignore_ascii_case("macao")
                 || country.eq_ignore_ascii_case("macau")
@@ -160,7 +169,7 @@ pub fn MapHome() -> impl IntoView {
 
     view! {
         <section class="map-layout">
-            <div id="map" class="map-canvas" aria-label="Instant Space map">
+            <div id="map" class="map-canvas" aria-label="inspace map">
                 <div class="map-loading" aria-live="polite">
                     <span class="map-loading-dot" aria-hidden="true"></span>
                     <span>{move || t(locale.get(), "正在加载真实地图瓦片", "Loading real map tiles")}</span>
@@ -191,8 +200,8 @@ pub fn MapHome() -> impl IntoView {
                     <section class="map-filter-panel" aria-label="Space filters">
                         <div class="map-filter-heading">
                             <div>
-                                <p class="eyebrow">"Instant Space"</p>
-                                <h1>{move || t(locale.get(), "探索实时空间", "Explore live spaces")}</h1>
+                                <p class="eyebrow">"inspace"</p>
+                                <h1>{move || t(locale.get(), "探索旅行空间", "Explore travel spaces")}</h1>
                                 {move || {
                                     if dest_confirmed.get() {
                                         let label = crate::app_state::destination_label(
@@ -318,7 +327,7 @@ pub fn MapHome() -> impl IntoView {
             {move || if explorer_open.get() {
                 view! {
                     <section class="map-guide-card" aria-label="Map guide">
-                        <p class="eyebrow">{move || t(locale.get(), "实时地图", "Live map")}</p>
+                        <p class="eyebrow">{move || t(locale.get(), "旅行地图", "Travel map")}</p>
                         <p>{move || t(locale.get(), "点选地图标记或列表中的空间，查看攻略与详情。", "Select a map marker or list item to view guides and details.")}</p>
                     </section>
                 }.into_any()
@@ -363,10 +372,6 @@ fn HomeHero(
 ) -> impl IntoView {
     let locale = use_i18n().locale;
     let create_modal = use_create_space_modal().unwrap_or_else(provide_create_space_modal);
-    // kept for API compatibility with MapHome filters; carousel owns the step storytelling
-    let _selected_type = selected_type;
-    let guide_status = RwSignal::new(None::<String>);
-    // Country-only destination guide: seed first paint, then load ALL countries from API.
     let countries = RwSignal::new(fallback_countries());
     let countries_ready = RwSignal::new(false);
 
@@ -378,15 +383,20 @@ fn HomeHero(
                     countries_ready.set(true);
                 }
                 Ok(_) | Err(_) => {
-                    // keep fallback seed list so UI never goes empty
                     countries_ready.set(true);
                 }
             }
         });
     });
 
+    let open_explorer = move || {
+        hero_open.set(false);
+        explorer_open.set(true);
+        instant_map_ui::reveal("map");
+    };
+
     view! {
-        <section class="home-hero-card" aria-labelledby="home-hero-title">
+        <section class="home-hero-card home-hero-card--vision" aria-labelledby="home-hero-title">
             <button
                 type="button"
                 class="home-hero-close"
@@ -399,26 +409,27 @@ fn HomeHero(
             >
                 "×"
             </button>
+
             <div class="home-hero-content">
                 <div class="home-hero-kicker">
                     <span class="home-hero-live">
                         <i aria-hidden="true"></i>
-                        {move || t(locale.get(), "地图上的真实地点攻略", "Real places. Live guides.")}
+                        {move || t(locale.get(), "全球旅行攻略与共享体验空间平台", "Global travel guide and shared experience spaces")}
                     </span>
                 </div>
 
                 <h1 id="home-hero-title">
                     {move || t(
                         locale.get(),
-                        "把世界装进地图",
-                        "Put the world on a map.",
+                        "发现全球旅行攻略空间，扫码进入真实地点的共享体验。",
+                        "Discover travel guide spaces and scan into shared experiences at real places.",
                     )}
                 </h1>
                 <p class="home-hero-copy">
                     {move || t(
                         locale.get(),
-                        "发现攻略，进入空间，分享同行。",
-                        "Discover guides, enter spaces, share the trip.",
+                        "每一个真实旅行地点，都可以有一个可通过地图、链接或二维码进入的数字攻略空间。先找地点，再进入 Space 看攻略、社群与现场提醒。",
+                        "Every real travel place can have a digital guide space reached from a map, link, or QR code. Find the place first, then enter its Space for guides, community, and on-site tips.",
                     )}
                 </p>
 
@@ -428,154 +439,81 @@ fn HomeHero(
                     aria-label=move || t(locale.get(), "搜索旅行空间", "Search travel spaces")
                     on:submit=move |ev| {
                         ev.prevent_default();
-                        hero_open.set(false);
-                        explorer_open.set(true);
+                        open_explorer();
                     }
                 >
                     <span class="home-hero-search-icon" aria-hidden="true">"⌕"</span>
                     <input
                         type="search"
                         aria-label=move || t(locale.get(), "搜索旅行空间", "Search travel spaces")
-                        placeholder=move || t(locale.get(), "搜城市、景点或街区，例如：京都、外滩、圣托里尼", "Search cities, spots, neighborhoods… e.g. Kyoto, Bund, Santorini")
+                        placeholder=move || t(locale.get(), "搜真实地点：外滩、故宫、京都咖啡馆、夜市", "Search real places: Bund, Palace Museum, Kyoto cafe, night market")
                         prop:value=move || query.get()
                         on:input=move |ev| query.set(event_target_value(&ev))
                     />
                     <button type="submit" class="button button-primary">
-                        {move || t(locale.get(), "开始探索", "Start exploring")}
+                        {move || t(locale.get(), "搜索空间", "Search spaces")}
                     </button>
                 </form>
 
-
-                <div class="home-hero-visual" aria-label=move || t(locale.get(), "产品动态展示", "Product showcase")>
-                    <div class="hero-glow hero-glow-a"></div>
-                    <div class="hero-glow hero-glow-b"></div>
-                    <div class="hero-orbit hero-orbit-one"></div>
-                    <div class="hero-orbit hero-orbit-two"></div>
-                    <div class="hero-spark hero-spark-a"></div>
-                    <div class="hero-spark hero-spark-b"></div>
-                    <div class="hero-spark hero-spark-c"></div>
-
-                    <div class="hero-visual-map">
-                        <span class="hero-map-grid"></span>
-                        <span class="hero-route"></span>
-                        <span class="hero-pin hero-pin-a"></span>
-                        <span class="hero-pin hero-pin-b"></span>
-                        <span class="hero-pin hero-pin-c"></span>
-                        <span class="hero-map-label">{move || t(locale.get(), "全球旅行 · 实时空间", "Global travel · live spaces")}</span>
-                        <span class="hero-map-chip hero-map-chip-a">{move || t(locale.get(), "景点", "Scenic")}</span>
-                        <span class="hero-map-chip hero-map-chip-b">{move || t(locale.get(), "攻略", "Guide")}</span>
-                    </div>
-
-                    <div class="hero-phone">
-                        <span class="hero-phone-camera"></span>
-                        <div class="hero-phone-screen">
-                            <span class="hero-qr-title">{move || t(locale.get(), "扫码进空间", "Scan into space")}</span>
-                            <span class="hero-qr-code">
-                                <i></i><i></i><i></i><i></i>
-                                <i></i><i></i><i></i><i></i>
-                                <i></i><i></i><i></i><i></i>
-                                <i></i><i></i><i></i><i></i>
-                            </span>
-                            <span class="hero-hotspot">"InstantSpace_123456"</span>
-                            <span class="hero-phone-cta">{move || t(locale.get(), "进入攻略空间", "Enter guide space")}</span>
-                        </div>
-                    </div>
-
-                    <div class="hero-people-bubble">
-                        <span>{move || t(locale.get(), "你", "You")}</span>
-                        <span>{move || t(locale.get(), "友", "Friend")}</span>
-                        <strong>"3D"</strong>
-                    </div>
-
-                    // 123 steps + story copy live inside the visual as a carousel
-                    <div class="hero-carousel" aria-live="polite">
-                        <div class="hero-carousel-track">
-                            <article class="hero-slide hero-slide-step">
-                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                                <div class="hero-slide-step-row">
-                                    <strong>"1"</strong>
-                                    <div>
-                                        <b>{move || t(locale.get(), "发现地点", "Discover places")}</b>
-                                        <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
-                                    </div>
-                                </div>
-                            </article>
-
-                            <article class="hero-slide hero-slide-step">
-                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                                <div class="hero-slide-step-row">
-                                    <strong>"2"</strong>
-                                    <div>
-                                        <b>{move || t(locale.get(), "读懂攻略", "Read the guide")}</b>
-                                        <span>{move || t(locale.get(), "路线 · 亮点 · 避坑", "Routes · highlights · tips")}</span>
-                                    </div>
-                                </div>
-                            </article>
-
-                            <article class="hero-slide hero-slide-step">
-                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                                <div class="hero-slide-step-row">
-                                    <strong>"3"</strong>
-                                    <div>
-                                        <b>{move || t(locale.get(), "分享同行", "Share the trip")}</b>
-                                        <span>{move || t(locale.get(), "链接 / 二维码发给朋友", "Send link or QR to friends")}</span>
-                                    </div>
-                                </div>
-                            </article>
-
-                            <article class="hero-slide hero-slide-story">
-                                <span class="hero-slide-kicker">{move || t(locale.get(), "攻略空间", "Guide space")}</span>
-                                <strong>{move || t(locale.get(), "先到的人写攻略，后来的人直接用", "Early travelers write. Later travelers use.")}</strong>
-                                <em>{move || t(locale.get(), "链接 · 二维码 · 未来 3D 同行", "Link · QR · 3D together soon")}</em>
-                            </article>
-
-                            // duplicate first slide for seamless loop
-                            <article class="hero-slide hero-slide-step" aria-hidden="true">
-                                <span class="hero-slide-kicker">{move || t(locale.get(), "三步开始", "Three steps")}</span>
-                                <div class="hero-slide-step-row">
-                                    <strong>"1"</strong>
-                                    <div>
-                                        <b>{move || t(locale.get(), "发现地点", "Discover places")}</b>
-                                        <span>{move || t(locale.get(), "在全球地图上找空间", "Find spaces on the world map")}</span>
-                                    </div>
-                                </div>
-                            </article>
-                        </div>
-                        <div class="hero-carousel-dots" aria-hidden="true">
-                            <i class="is-a"></i>
-                            <i class="is-b"></i>
-                            <i class="is-c"></i>
-                            <i class="is-d"></i>
-                        </div>
-                    </div>
+                <div class="home-hero-proof" aria-label=move || t(locale.get(), "产品基线", "Product baseline")>
+                    <span class="proof-chip proof-a">{move || t(locale.get(), "地图默认显示 Space", "Map shows Spaces first")}</span>
+                    <span class="proof-chip proof-b">{move || t(locale.get(), "Guide 是空间下的攻略资产", "Guides live under Spaces")}</span>
+                    <span class="proof-chip proof-c">{move || t(locale.get(), "QR / Link 直达空间详情", "QR / Link opens Space detail")}</span>
+                    <span class="proof-chip proof-d">{move || t(locale.get(), "未来接入 3D 共享体验", "3D shared experience next")}</span>
                 </div>
 
+                <div class="home-hero-intents" aria-label=move || t(locale.get(), "快速入口", "Quick entries")>
+                    <button type="button" class="intent-scenic" on:click=move |_| {
+                        selected_type.set(Some(SpaceType::Scenic));
+                        open_explorer();
+                    }>
+                        <span class="intent-icon intent-icon-scenic" aria-hidden="true"></span>
+                        <span class="intent-text"><strong>{move || t(locale.get(), "景点空间", "Scenic Spaces")}</strong><span>{move || t(locale.get(), "路线、拍照点、避坑", "Routes, photo spots, tips")}</span></span>
+                    </button>
+                    <button type="button" class="intent-food" on:click=move |_| {
+                        selected_type.set(Some(SpaceType::Food));
+                        open_explorer();
+                    }>
+                        <span class="intent-icon intent-icon-food" aria-hidden="true"></span>
+                        <span class="intent-text"><strong>{move || t(locale.get(), "美食空间", "Food Spaces")}</strong><span>{move || t(locale.get(), "餐馆、夜市、咖啡馆", "Restaurants, markets, cafes")}</span></span>
+                    </button>
+                    <button type="button" class="intent-city" on:click=move |_| {
+                        selected_type.set(None);
+                        open_explorer();
+                    }>
+                        <span class="intent-icon intent-icon-city" aria-hidden="true"></span>
+                        <span class="intent-text"><strong>{move || t(locale.get(), "城市/街区", "Cities / districts")}</strong><span>{move || t(locale.get(), "从地图进入真实地点", "Enter real places from map")}</span></span>
+                    </button>
+                </div>
 
-                                <section class="home-destination-guide" aria-label=move || t(locale.get(), "你想去哪", "Where do you want to go")>
+                <div class="home-hero-steps" aria-label=move || t(locale.get(), "使用流程", "How it works")>
+                    <article class="home-hero-step step-a">
+                        <strong>"1"</strong>
+                        <div><b>{move || t(locale.get(), "找真实地点", "Find a real place")}</b><span>{move || t(locale.get(), "地图点位代表 Space，不是普通文章。", "Map markers represent Spaces, not generic posts.")}</span></div>
+                    </article>
+                    <article class="home-hero-step step-b">
+                        <strong>"2"</strong>
+                        <div><b>{move || t(locale.get(), "读空间攻略", "Read Space guides")}</b><span>{move || t(locale.get(), "路线、美食、交通、Tips 归在同一空间。", "Routes, food, transit, and tips stay under one Space.")}</span></div>
+                    </article>
+                    <article class="home-hero-step step-c">
+                        <strong>"3"</strong>
+                        <div><b>{move || t(locale.get(), "分享入口", "Share the entry")}</b><span>{move || t(locale.get(), "二维码或链接发给朋友，扫码进入空间详情。", "Send a QR/link so friends land on the Space detail.")}</span></div>
+                    </article>
+                </div>
+
+                <section class="home-destination-guide" aria-label=move || t(locale.get(), "你想去哪", "Where do you want to go")>
                     <div class="home-destination-head">
                         <strong>{move || t(locale.get(), "你想去哪？", "Where do you want to go?")}</strong>
-                        <p>
-                            {move || t(
-                                locale.get(),
-                                "选个国家聚焦地图，不选则全局加载。",
-                                "Pick a country to focus the map, or load the whole world.",
-                            )}
-                        </p>
+                        <p>{move || t(locale.get(), "先选国家聚焦地图；也可以直接浏览全球 Space。", "Pick a country to focus the map, or browse global Spaces directly.")}</p>
                     </div>
-                    // Native GET form: works even when WASM click handlers fail (Safari/iOS).
                     <form
                         class="home-destination-form"
                         method="get"
                         action="/inspace"
                         on:submit=move |ev| {
-                            // If WASM is alive, handle in-page for snappy UX.
-                            // If WASM is dead, browser continues native GET to /inspace?country=...
-                            // and the URL effect applies the same logic.
                             let country = filter_country.get().trim().to_string();
-                            // Update hidden consistency before optional preventDefault SPA path
                             filter_province.set(String::new());
                             filter_city.set(String::new());
-                            // Always set state first
                             dest_confirmed.set(true);
                             explorer_open.set(false);
                             hero_open.set(false);
@@ -594,9 +532,6 @@ fn HomeHero(
                                     instant_map_ui::focus_view("map", center.lng, center.lat, center.zoom);
                                 }
                             });
-                            // Do NOT preventDefault: hard navigation guarantees result on all browsers.
-                            // (Leptos will remount and URL effect will re-apply country focus.)
-                            let _ = country;
                             let _ = ev;
                         }
                     >
@@ -614,9 +549,7 @@ fn HomeHero(
                                         dest_confirmed.set(false);
                                     }
                                 >
-                                    <option value="">
-                                        {move || t(locale.get(), "不限（全局慢慢加载）", "Any (gradual global load)")}
-                                    </option>
+                                    <option value="">{move || t(locale.get(), "不限，浏览全球", "Any, browse global")}</option>
                                     {move || countries
                                         .get()
                                         .into_iter()
@@ -633,56 +566,30 @@ fn HomeHero(
                         </div>
                         <div class="home-destination-actions">
                             <button type="submit" class="button button-primary" id="confirm-destination-btn">
-                                {move || t(locale.get(), "确认并加载地图", "Confirm & load map")}
+                                {move || t(locale.get(), "确认并看地图", "Confirm & open map")}
                             </button>
                             <a class="button button-secondary" href="/inspace?map=1">
-                                {move || t(locale.get(), "浏览全球", "Browse world")}
+                                {move || t(locale.get(), "直接浏览全球", "Browse world")}
                             </a>
                         </div>
                     </form>
                     {move || {
-                        let cn = countries.get().len();
-                        let country = filter_country.get();
-                        if !countries_ready.get() {
-                            view! {
-                                <p class="home-destination-status">
-                                    {format!(
-                                        "{} · {}",
-                                        t(locale.get(), "正在同步全部国家…", "Syncing all countries…"),
-                                        format!("{} {}", cn, t(locale.get(), "个已可用", "ready now"))
-                                    )}
-                                </p>
-                            }.into_any()
-                        } else if country.trim().is_empty() {
-                            view! {
-                                <p class="home-destination-status">
-                                    {format!("{} {}", cn, t(locale.get(), "个国家可选", "countries available"))}
-                                </p>
-                            }.into_any()
+                        let count = countries.get().len();
+                        if countries_ready.get() {
+                            view! { <p class="home-destination-status">{format!("{} {}", count, t(locale.get(), "个国家可选", "countries available"))}</p> }.into_any()
                         } else {
-                            view! {
-                                <p class="home-destination-status">
-                                    {format!(
-                                        "{} · {} {}",
-                                        country,
-                                        cn,
-                                        t(locale.get(), "个国家在列表中", "countries in list")
-                                    )}
-                                </p>
-                            }.into_any()
+                            view! { <p class="home-destination-status">{move || t(locale.get(), "正在同步国家列表…", "Syncing country list…")}</p> }.into_any()
                         }
                     }}
-                    {move || guide_status.get().map(|msg| view! { <p class="home-destination-status">{msg}</p> })}
                 </section>
-
 
                 <div class="home-hero-actions" aria-label=move || t(locale.get(), "首屏操作", "Hero actions")>
                     <button type="button" class="button button-secondary" on:click=move |_| {
-                        explorer_open.set(false);
                         hero_open.set(false);
+                        explorer_open.set(false);
                         instant_map_ui::reveal("map");
                     }>
-                        {move || t(locale.get(), "打开地图", "Open map")}
+                        {move || t(locale.get(), "看地图", "Open map")}
                     </button>
                     <a class="button button-secondary" href="/inspace/guides">
                         {move || t(locale.get(), "浏览攻略", "Browse guides")}
@@ -690,15 +597,35 @@ fn HomeHero(
                     <button
                         type="button"
                         class="button button-ghost-on-map"
-                        on:click=move |_| {
-                            create_modal.open.set(true);
-                        }
+                        on:click=move |_| create_modal.open.set(true)
                     >
-                        {move || t(locale.get(), "创建旅行空间", "Create a travel space")}
+                        {move || t(locale.get(), "创建旅行空间", "Create travel Space")}
                     </button>
                 </div>
             </div>
 
+            <div class="home-hero-visual product-vision-visual" aria-label=move || t(locale.get(), "Space Guide QR 示例", "Space Guide QR example")>
+                <div class="vision-map-card">
+                    <span class="vision-map-grid" aria-hidden="true"></span>
+                    <span class="vision-pin vision-pin-a" aria-hidden="true"></span>
+                    <span class="vision-pin vision-pin-b" aria-hidden="true"></span>
+                    <span class="vision-pin vision-pin-c" aria-hidden="true"></span>
+                    <span class="vision-map-label">{move || t(locale.get(), "地图发现 Space", "Map discovers Spaces")}</span>
+                </div>
+                <article class="vision-space-card">
+                    <small>"SPACE"</small>
+                    <strong>{move || t(locale.get(), "外滩数字攻略空间", "Bund digital guide Space")}</strong>
+                    <p>{move || t(locale.get(), "真实地点入口 · 攻略 · 社群 · 二维码", "Real-place entry · guides · community · QR")}</p>
+                </article>
+                <article class="vision-guide-card">
+                    <small>"GUIDE"</small>
+                    <strong>{move || t(locale.get(), "半日路线 / 拍照机位 / 夜景避坑", "Half-day route / photo spots / night-view tips")}</strong>
+                </article>
+                <div class="vision-qr-card" aria-hidden="true">
+                    <span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <b>{move || t(locale.get(), "扫码进入 Space", "Scan into Space")}</b>
+                </div>
+            </div>
         </section>
     }
 }
@@ -743,7 +670,7 @@ fn SpaceResults(
 }
 
 #[component]
-fn MapMarkerSync(
+pub fn MapMarkerSync(
     spaces: Vec<SpaceMarker>,
     selected_space: RwSignal<Option<SpaceMarker>>,
 ) -> impl IntoView {
@@ -756,7 +683,7 @@ fn MapMarkerSync(
         }
     });
 
-    // Hidden proxy buttons: map markers dispatch a click to `[data-space-open="{id}"]`.
+    // Hidden proxy buttons: map markers dispatch a click to `[data-space-select="{id}"]`.
     // These must exist regardless of whether the explorer panel is open, so a marker
     // tap opens the detail drawer even in the pure-map view.
     view! {
@@ -769,7 +696,7 @@ fn MapMarkerSync(
                     view! {
                         <button
                             type="button"
-                            data-space-open=space.id.clone()
+                            data-space-select=space.id.clone()
                             on:click=move |_| {
                                 instant_map_ui::focus_point("map", for_click.lng, for_click.lat);
                                 selected_space.set(Some(for_click.clone()));
@@ -824,7 +751,7 @@ fn SpaceCard(space: SpaceMarker, on_select: Callback<SpaceMarker>) -> impl IntoV
 }
 
 #[component]
-fn SpaceDetailDrawer(space: SpaceMarker, on_close: Callback<()>) -> impl IntoView {
+pub fn SpaceDetailDrawer(space: SpaceMarker, on_close: Callback<()>) -> impl IntoView {
     let locale = use_i18n().locale;
     let is_public = space.is_public;
     let space_id = space.id.clone();
@@ -919,7 +846,6 @@ fn SpaceDetailDrawer(space: SpaceMarker, on_close: Callback<()>) -> impl IntoVie
     }
 }
 
-
 #[component]
 fn SpaceDetailGuides(space_id: String) -> impl IntoView {
     let locale = use_i18n().locale;
@@ -968,9 +894,8 @@ fn SpaceDetailGuides(space_id: String) -> impl IntoView {
     }
 }
 
-
 #[component]
-fn SpaceListSkeleton() -> impl IntoView {
+pub fn SpaceListSkeleton() -> impl IntoView {
     let locale = use_i18n().locale;
     view! {
         <div class="space-list-skeleton" aria-label=move || t(locale.get(), "正在加载空间", "Loading spaces")>
@@ -1047,10 +972,6 @@ fn location_label(space: &SpaceMarker) -> String {
     }
 }
 
-
-
-
-
 fn query_param(search: &str, key: &str) -> Option<String> {
     let raw = search.trim_start_matches('?');
     for pair in raw.split('&') {
@@ -1121,7 +1042,9 @@ fn country_center_fallback(country: &str) -> Option<(f64, f64, f64)> {
         // Singapore
         "singapore" | "新加坡" => Some((103.8198, 1.3521, 10.5)),
         // London
-        "united kingdom" | "uk" | "英国" | "great britain" | "britain" => Some((-0.12574, 51.50853, 6.0)),
+        "united kingdom" | "uk" | "英国" | "great britain" | "britain" => {
+            Some((-0.12574, 51.50853, 6.0))
+        }
         // Paris
         "france" | "法国" => Some((2.3522, 48.8566, 6.0)),
         // Berlin

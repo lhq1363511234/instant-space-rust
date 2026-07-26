@@ -1,14 +1,10 @@
 use instant_domain::auth::CurrentUser;
-use instant_map_ui::{MapProjection, MapStyle};
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 
 use crate::{
-    app_state::{
-        clear_destination, destination_label, open_explorer, open_hero, refresh_session,
-        use_app_refresh_state,
-    },
-    components::space_form::OpenCreateSpaceButton,
+    app_state::{open_hero, refresh_session, use_app_refresh_state},
+    components::space_form::{provide_create_space_modal, use_create_space_modal},
     i18n::{t, use_i18n, Locale},
     server::auth::{current_session, logout_user},
 };
@@ -19,227 +15,285 @@ pub fn Header() -> impl IntoView {
     let refresh = use_app_refresh_state();
     let location = use_location();
     let pathname = location.pathname;
-    let map_style = RwSignal::new(MapStyle::Road);
-    let map_projection = RwSignal::new(MapProjection::Flat2d);
+    let drawer_open = RwSignal::new(false);
+    let sidebar_collapsed = RwSignal::new(false);
+    let create_modal = use_create_space_modal().unwrap_or_else(provide_create_space_modal);
     let session = Resource::new(
         move || refresh.session.get(),
         |_| async move { current_session().await.ok().flatten() },
     );
 
     view! {
-        <header class="topbar" aria-label="Instant Space navigation">
-            <a href="/inspace" class="brand" aria-label="Instant Space home">
-                <span class="brand-mark" aria-hidden="true"></span>
-                <span>"Instant Space"</span>
-            </a>
-            <nav class="primary-nav" aria-label="Primary">
-                <a
-                    href="/inspace?home=1"
-                    class=move || nav_class(&pathname.get(), &location.search.get(), "home")
-                    aria-label=move || t(locale.get(), "首页介绍", "Home intro")
-                    on:click=move |_| {
-                        open_hero();
-                    }
-                >
-                    {move || t(locale.get(), "首页", "Home")}
+        <a class="shell-skip-link" href="#main-content">
+            {move || t(locale.get(), "跳到主要内容", "Skip to content")}
+        </a>
+
+        <aside
+            class=move || shell_sidebar_class(drawer_open.get(), sidebar_collapsed.get())
+            aria-label=move || t(locale.get(), "inspace 主导航", "inspace primary navigation")
+        >
+            <div class="shell-sidebar-head">
+                <a href="/inspace" class="shell-brand" aria-label="inspace home" on:click=move |_| drawer_open.set(false)>
+                    <span class="shell-brand-mark" aria-hidden="true"><i></i></span>
+                    <span class="shell-brand-copy"><b>"inspace"</b><small>"beyond the map"</small></span>
                 </a>
-                <a
-                    href="/inspace?explore=1"
-                    class=move || nav_class(&pathname.get(), &location.search.get(), "explore")
-                    aria-label=move || t(locale.get(), "探索实时空间", "Explore live spaces")
-                    on:click=move |_| {
-                        open_explorer();
+                <button
+                    type="button"
+                    class="shell-collapse-button"
+                    aria-label=move || if sidebar_collapsed.get() {
+                        t(locale.get(), "展开侧栏", "Expand sidebar")
+                    } else {
+                        t(locale.get(), "收起侧栏", "Collapse sidebar")
                     }
+                    aria-expanded=move || (!sidebar_collapsed.get()).to_string()
+                    on:click=move |_| sidebar_collapsed.update(|value| *value = !*value)
                 >
-                    {move || t(locale.get(), "探索", "Explore")}
-                </a>
-                <details class="nav-menu">
-                    <summary
-                        class="nav-menu-trigger"
-                        aria-label=move || t(locale.get(), "打开导航菜单", "Open navigation menu")
-                    >
-                        <span class="hamburger-lines" aria-hidden="true">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </span>
-                    </summary>
-                    <div class="nav-menu-panel">
-                        <Suspense fallback=move || view! { <a href="/inspace/login" class="nav-menu-item nav-menu-muted">{move || t(locale.get(), "登录", "Sign in")}</a> }>
-                            {move || Suspend::new(async move {
-                                match session.await {
-                                    Some(user) => view! { <UserMenu user=user /> }.into_any(),
-                                    None => view! { <a href="/inspace/login" class="nav-menu-item nav-menu-muted">{move || t(locale.get(), "登录", "Sign in")}</a> }.into_any(),
-                                }
-                            })}
-                        </Suspense>
-                        <div class="nav-menu-divider" aria-hidden="true"></div>
-                        <a
-                            href="/inspace/my-spaces"
-                            class=move || nav_menu_class(&pathname.get(), "my-spaces")
-                        >
-                            {move || t(locale.get(), "我的空间", "My Spaces")}
-                        </a>
-                        <a href="/inspace/guides" class=move || nav_menu_class(&pathname.get(), "guides")>{move || t(locale.get(), "攻略", "Guides")}</a>
-                        <OpenCreateSpaceButton class="nav-menu-item nav-menu-primary" />
-                        <div class="nav-menu-divider" aria-hidden="true"></div>
-                        <div class="nav-menu-section dest-menu-section">
-                            <span class="nav-menu-label">{move || t(locale.get(), "目的地", "Destination")}</span>
-                            {move || {
-                                let st = use_app_refresh_state();
-                                let confirmed = st.dest_confirmed.get();
-                                let label = destination_label(
-                                    &st.dest_country.get(),
-                                    &st.dest_province.get(),
-                                    &st.dest_city.get(),
-                                );
-                                if confirmed && !label.is_empty() {
-                                    view! {
-                                        <div class="dest-menu-active">
-                                            <span class="dest-menu-chip">{label}</span>
-                                            <button
-                                                type="button"
-                                                class="nav-menu-item"
-                                                on:click=move |_| {
-                                                    open_hero();
-                                                }
-                                            >
-                                                {move || t(locale.get(), "修改目的地", "Change destination")}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                class="nav-menu-item"
-                                                on:click=move |_| {
-                                                    clear_destination();
-                                                    open_explorer();
-                                                }
-                                            >
-                                                {move || t(locale.get(), "清除并全局探索", "Clear & explore global")}
-                                            </button>
-                                        </div>
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <button
-                                            type="button"
-                                            class="nav-menu-item"
-                                            on:click=move |_| {
-                                                open_hero();
-                                            }
-                                        >
-                                            {move || t(locale.get(), "选择目的地（你想去哪）", "Pick destination")}
-                                        </button>
-                                    }.into_any()
-                                }
-                            }}
-                        </div>
-                        <div class="nav-menu-divider" aria-hidden="true"></div>
-                        <div class="nav-menu-section">
-                            <span class="nav-menu-label">{move || t(locale.get(), "语言", "Language")}</span>
-                            <div class="language-switcher" aria-label="Language">
-                                <button
-                                    type="button"
-                                    class=move || language_button_class(locale.get() == Locale::Zh)
-                                    aria-pressed=move || aria_pressed(locale.get() == Locale::Zh)
-                                    on:click=move |_| locale.set(Locale::Zh)
-                                >
-                                    "中文"
-                                </button>
-                                <button
-                                    type="button"
-                                    class=move || language_button_class(locale.get() == Locale::En)
-                                    aria-pressed=move || aria_pressed(locale.get() == Locale::En)
-                                    on:click=move |_| locale.set(Locale::En)
-                                >
-                                    "EN"
-                                </button>
-                            </div>
-                        </div>
-                        <div class="nav-menu-divider" aria-hidden="true"></div>
-                        <div class="nav-menu-section map-menu-section">
-                            <span class="nav-menu-label">{move || t(locale.get(), "地图控制", "Map controls")}</span>
-                            <div class="map-style-switcher" aria-label="Map style">
-                                <button
-                                    type="button"
-                                    class=move || map_style_class(map_style.get() == MapStyle::Road)
-                                    aria-label="Switch map to roadmap"
-                                    aria-pressed=move || aria_pressed(map_style.get() == MapStyle::Road)
-                                    on:click=move |_| {
-                                        map_style.set(MapStyle::Road);
-                                        instant_map_ui::set_style("map", MapStyle::Road);
-                                    }
-                                >
-                                    {move || t(locale.get(), "道路", "Road")}
-                                </button>
-                                <button
-                                    type="button"
-                                    class=move || map_style_class(map_style.get() == MapStyle::Dark)
-                                    aria-label="Switch map to dark"
-                                    aria-pressed=move || aria_pressed(map_style.get() == MapStyle::Dark)
-                                    on:click=move |_| {
-                                        map_style.set(MapStyle::Dark);
-                                        instant_map_ui::set_style("map", MapStyle::Dark);
-                                    }
-                                >
-                                    {move || t(locale.get(), "深色", "Dark")}
-                                </button>
-                            </div>
-                            <div class="map-projection-switcher" aria-label="Map projection">
-                                <button
-                                    type="button"
-                                    class=move || map_projection_class(map_projection.get() == MapProjection::Flat2d)
-                                    aria-label="Switch to 2D map"
-                                    aria-pressed=move || aria_pressed(map_projection.get() == MapProjection::Flat2d)
-                                    on:click=move |_| {
-                                        map_projection.set(MapProjection::Flat2d);
-                                        instant_map_ui::set_projection("map", MapProjection::Flat2d);
-                                    }
-                                >
-                                    {move || t(locale.get(), "2D 地图", "2D Map")}
-                                </button>
-                                <button
-                                    type="button"
-                                    class=move || map_projection_class(map_projection.get() == MapProjection::Globe3d)
-                                    aria-label="Switch to 3D globe"
-                                    aria-pressed=move || aria_pressed(map_projection.get() == MapProjection::Globe3d)
-                                    on:click=move |_| {
-                                        map_projection.set(MapProjection::Globe3d);
-                                        instant_map_ui::set_projection("map", MapProjection::Globe3d);
-                                    }
-                                >
-                                    {move || t(locale.get(), "3D 地球", "3D Globe")}
-                                </button>
-                            </div>
-                            <div class="map-zoom-controls" aria-label="Map zoom">
-                                <button
-                                    type="button"
-                                    aria-label="Zoom out"
-                                    on:click=move |_| instant_map_ui::zoom_out("map")
-                                >
-                                    "-"
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="Zoom in"
-                                    on:click=move |_| instant_map_ui::zoom_in("map")
-                                >
-                                    "+"
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </details>
+                    <ShellIcon name="panel" />
+                </button>
+            </div>
+
+            <nav class="shell-primary-nav" aria-label=move || t(locale.get(), "主要功能", "Main features")>
+                <ShellNavLink
+                    href="/inspace"
+                    label_zh="首页"
+                    label_en="Home"
+                    hint_zh="了解 inspace"
+                    hint_en="About inspace"
+                    icon="home"
+                    active=move || shell_nav_active(&pathname.get(), "home")
+                    on_navigate=Callback::new(move |_| { open_hero(); drawer_open.set(false); })
+                />
+                <ShellNavLink
+                    href="/inspace/map"
+                    label_zh="发现地图"
+                    label_en="Discover map"
+                    hint_zh="从地点进入空间"
+                    hint_en="Enter from a place"
+                    icon="map"
+                    active=move || shell_nav_active(&pathname.get(), "map")
+                    on_navigate=Callback::new(move |_| drawer_open.set(false))
+                />
+                <ShellNavLink
+                    href="/inspace/explore"
+                    label_zh="探索空间"
+                    label_en="Explore spaces"
+                    hint_zh="分类、搜索与筛选"
+                    hint_en="Browse and filter"
+                    icon="compass"
+                    active=move || shell_nav_active(&pathname.get(), "explore")
+                    on_navigate=Callback::new(move |_| drawer_open.set(false))
+                />
+                <ShellNavLink
+                    href="/inspace/guides"
+                    label_zh="空间攻略"
+                    label_en="Guides"
+                    hint_zh="路线、玩法与现场经验"
+                    hint_en="Routes and local insight"
+                    icon="book"
+                    active=move || shell_nav_active(&pathname.get(), "guides")
+                    on_navigate=Callback::new(move |_| drawer_open.set(false))
+                />
             </nav>
+
+            <div class="shell-create-zone">
+                <button
+                    type="button"
+                    class="shell-create-button"
+                    on:click=move |_| {
+                        drawer_open.set(false);
+                        create_modal.open.set(true);
+                    }
+                >
+                    <ShellIcon name="plus" />
+                    <span>{move || t(locale.get(), "创建空间", "Create space")}</span>
+                </button>
+            </div>
+
+            <div class="shell-sidebar-spacer"></div>
+
+            <div class="shell-sidebar-bottom">
+                <Suspense fallback=move || view! {
+                    <div class="shell-account-skeleton" aria-hidden="true"><span></span><span></span></div>
+                }>
+                    {move || Suspend::new(async move {
+                        match session.await {
+                            Some(user) => view! {
+                                <SidebarAccount user=user pathname=pathname.get() drawer_open=drawer_open />
+                            }.into_any(),
+                            None => view! {
+                                <a href="/inspace/login" class="shell-login-link" on:click=move |_| drawer_open.set(false)>
+                                    <ShellIcon name="user" />
+                                    <span>{move || t(locale.get(), "登录 / 注册", "Sign in")}</span>
+                                </a>
+                            }.into_any(),
+                        }
+                    })}
+                </Suspense>
+
+                <div class="shell-language-row" aria-label="Language">
+                    <button
+                        type="button"
+                        class=move || language_button_class(locale.get() == Locale::Zh)
+                        aria-pressed=move || aria_pressed(locale.get() == Locale::Zh)
+                        on:click=move |_| locale.set(Locale::Zh)
+                    >"中"</button>
+                    <button
+                        type="button"
+                        class=move || language_button_class(locale.get() == Locale::En)
+                        aria-pressed=move || aria_pressed(locale.get() == Locale::En)
+                        on:click=move |_| locale.set(Locale::En)
+                    >"EN"</button>
+                </div>
+            </div>
+        </aside>
+
+        <div
+            class=move || if drawer_open.get() { "shell-drawer-scrim is-open" } else { "shell-drawer-scrim" }
+            aria-hidden="true"
+            on:click=move |_| drawer_open.set(false)
+        ></div>
+
+        <header class="shell-topbar" aria-label=move || t(locale.get(), "页面工具栏", "Page toolbar")>
+            <button
+                type="button"
+                class="shell-menu-button"
+                aria-label=move || t(locale.get(), "打开导航", "Open navigation")
+                aria-expanded=move || drawer_open.get().to_string()
+                on:click=move |_| drawer_open.set(true)
+            >
+                <ShellIcon name="menu" />
+            </button>
+            <div class="shell-topbar-context">
+                <span class="shell-topbar-title">{move || shell_page_title(&pathname.get(), locale.get())}</span>
+                <span class="shell-topbar-path">{move || shell_page_hint(&pathname.get(), locale.get())}</span>
+            </div>
+            <form class="shell-global-search" role="search" action="/inspace/explore" method="get">
+                <ShellIcon name="search" />
+                <input
+                    type="search"
+                    name="q"
+                    autocomplete="off"
+                    placeholder=move || t(locale.get(), "搜索地点、空间或攻略", "Search places, spaces, or guides")
+                    aria-label=move || t(locale.get(), "全站搜索", "Search")
+                />
+                <kbd aria-hidden="true">"/"</kbd>
+            </form>
+            <div class="shell-topbar-actions">
+                <div class="shell-topbar-language" aria-label="Language">
+                    <button
+                        type="button"
+                        class=move || language_button_class(locale.get() == Locale::Zh)
+                        aria-pressed=move || aria_pressed(locale.get() == Locale::Zh)
+                        on:click=move |_| locale.set(Locale::Zh)
+                    >"中"</button>
+                    <button
+                        type="button"
+                        class=move || language_button_class(locale.get() == Locale::En)
+                        aria-pressed=move || aria_pressed(locale.get() == Locale::En)
+                        on:click=move |_| locale.set(Locale::En)
+                    >"EN"</button>
+                </div>
+                <Suspense fallback=move || view! { <a href="/inspace/login" class="shell-topbar-login">{move || t(locale.get(), "登录", "Sign in")}</a> }>
+                    {move || Suspend::new(async move {
+                        match session.await {
+                            Some(user) => view! { <TopbarAccount user=user /> }.into_any(),
+                            None => view! { <a href="/inspace/login" class="shell-topbar-login">{move || t(locale.get(), "登录", "Sign in")}</a> }.into_any(),
+                        }
+                    })}
+                </Suspense>
+            </div>
         </header>
+
+        <nav
+            class=move || mobile_bottom_class(&pathname.get())
+            aria-label=move || t(locale.get(), "手机主导航", "Mobile primary navigation")
+        >
+            <MobileNavLink href="/inspace" label_zh="首页" label_en="Home" icon="home" active=move || shell_nav_active(&pathname.get(), "home") />
+            <MobileNavLink href="/inspace/map" label_zh="地图" label_en="Map" icon="map" active=move || shell_nav_active(&pathname.get(), "map") />
+            <MobileNavLink href="/inspace/explore" label_zh="探索" label_en="Explore" icon="compass" active=move || shell_nav_active(&pathname.get(), "explore") />
+            <MobileNavLink href="/inspace/guides" label_zh="攻略" label_en="Guides" icon="book" active=move || shell_nav_active(&pathname.get(), "guides") />
+            <MobileNavLink href="/inspace/my-spaces" label_zh="我的" label_en="Me" icon="user" active=move || shell_nav_active(&pathname.get(), "my-spaces") />
+        </nav>
     }
 }
 
 #[component]
-fn UserMenu(user: CurrentUser) -> impl IntoView {
+fn ShellNavLink(
+    href: &'static str,
+    label_zh: &'static str,
+    label_en: &'static str,
+    hint_zh: &'static str,
+    hint_en: &'static str,
+    icon: &'static str,
+    active: impl Fn() -> bool + Copy + Send + 'static,
+    on_navigate: Callback<()>,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <a
+            href=href
+            class=move || if active() { "shell-nav-link is-active" } else { "shell-nav-link" }
+            aria-current=move || active().then_some("page")
+            on:click=move |_| on_navigate.run(())
+        >
+            <span class="shell-nav-icon"><ShellIcon name=icon /></span>
+            <span class="shell-nav-copy">
+                <b>{move || t(locale.get(), label_zh, label_en)}</b>
+                <small>{move || t(locale.get(), hint_zh, hint_en)}</small>
+            </span>
+        </a>
+    }
+}
+
+#[component]
+fn SidebarAccount(
+    user: CurrentUser,
+    pathname: String,
+    drawer_open: RwSignal<bool>,
+) -> impl IntoView {
     let locale = use_i18n().locale;
     let label = user.name.clone().unwrap_or_else(|| user.email.clone());
     let initial = avatar_initial(&label);
-    let title = format!("{} ({})", label, user.email);
+    let is_admin = user.role.is_admin();
+    let workspace_active =
+        pathname.starts_with("/inspace/my-spaces") || pathname.starts_with("/my-spaces");
+    let admin_active = pathname.starts_with("/inspace/admin") || pathname.starts_with("/admin");
+
+    view! {
+        <div class="shell-workspace-links">
+            <a
+                href="/inspace/my-spaces"
+                class=if workspace_active { "shell-utility-link is-active" } else { "shell-utility-link" }
+                aria-current=workspace_active.then_some("page")
+                on:click=move |_| drawer_open.set(false)
+            >
+                <ShellIcon name="grid" />
+                <span><b>{move || t(locale.get(), "用户工作台", "Workspace")}</b><small>{move || t(locale.get(), "空间与内容管理", "Manage your spaces")}</small></span>
+            </a>
+            {is_admin.then(|| view! {
+                <a
+                    href="/inspace/admin"
+                    class=if admin_active { "shell-utility-link is-active" } else { "shell-utility-link" }
+                    aria-current=admin_active.then_some("page")
+                    on:click=move |_| drawer_open.set(false)
+                >
+                    <ShellIcon name="shield" />
+                    <span><b>{move || t(locale.get(), "管理员后台", "Admin console")}</b><small>{move || t(locale.get(), "运营与系统管理", "Operations and system")}</small></span>
+                </a>
+            })}
+        </div>
+        <div class="shell-account-row">
+            <span class="shell-account-avatar" aria-hidden="true">{initial}</span>
+            <span class="shell-account-copy"><b>{label}</b><small>{user.email}</small></span>
+        </div>
+    }
+}
+
+#[component]
+fn TopbarAccount(user: CurrentUser) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let label = user.name.clone().unwrap_or_else(|| user.email.clone());
+    let initial = avatar_initial(&label);
     let logout = Action::new(move |_: &()| async move { logout_user().await });
 
     Effect::new(move |_| {
@@ -249,70 +303,127 @@ fn UserMenu(user: CurrentUser) -> impl IntoView {
     });
 
     view! {
-        <details class="user-menu">
-            <summary class="user-avatar-link" aria-label="My account" title=title>
-                <span class="user-avatar" aria-hidden="true">{initial}</span>
-                <span class="user-avatar-name">{label}</span>
+        <details class="shell-account-menu">
+            <summary aria-label=move || t(locale.get(), "打开账号菜单", "Open account menu") title=label>
+                <span>{initial}</span>
             </summary>
-            <div class="user-menu-panel">
-                <a href="/inspace/my-spaces">{move || t(locale.get(), "我的空间", "My Spaces")}</a>
-                <button
-                    type="button"
-                    on:click=move |_| {
-                        logout.dispatch(());
-                    }
-                >
-                    {move || t(locale.get(), "退出登录", "Sign out")}
+            <div class="shell-account-popover">
+                <a href="/inspace/my-spaces"><ShellIcon name="grid" />{move || t(locale.get(), "用户工作台", "Workspace")}</a>
+                {user.role.is_admin().then(|| view! { <a href="/inspace/admin"><ShellIcon name="shield" />{move || t(locale.get(), "管理员后台", "Admin console")}</a> })}
+                <button type="button" on:click=move |_| { logout.dispatch(()); }>
+                    <ShellIcon name="logout" />{move || t(locale.get(), "退出登录", "Sign out")}
                 </button>
             </div>
         </details>
     }
 }
 
-fn nav_class(pathname: &str, search: &str, section: &str) -> &'static str {
-    let normalized = if pathname == "/" {
-        "/inspace"
-    } else {
-        pathname
-    };
-    let on_home = normalized == "/inspace" || normalized == "/";
-    let wants_explore = search.contains("explore=1") || search.contains("explore=true");
-    let wants_home = search.contains("home=1") || search.contains("home=true");
-    let active = match section {
-        "home" => on_home && wants_home,
-        "explore" => on_home && wants_explore,
-        "guides" => normalized.starts_with("/inspace/guides") || normalized.starts_with("/guides"),
-        "my-spaces" => {
-            normalized.starts_with("/inspace/my-spaces") || normalized.starts_with("/my-spaces")
-        }
-        _ => false,
-    };
-
-    if active {
-        "nav-link is-active"
-    } else {
-        "nav-link"
+#[component]
+fn MobileNavLink(
+    href: &'static str,
+    label_zh: &'static str,
+    label_en: &'static str,
+    icon: &'static str,
+    active: impl Fn() -> bool + Copy + Send + 'static,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <a href=href class=move || if active() { "is-active" } else { "" } aria-current=move || active().then_some("page")>
+            <ShellIcon name=icon />
+            <span>{move || t(locale.get(), label_zh, label_en)}</span>
+        </a>
     }
 }
 
-fn nav_menu_class(pathname: &str, section: &str) -> &'static str {
+#[component]
+fn ShellIcon(name: &'static str) -> impl IntoView {
+    match name {
+        "home" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3l8.5 7.5V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1z"/></svg> }.into_any(),
+        "map" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 6.5 5-2.5 7 2.5 5-2.5v14l-5 2.5-7-2.5-5 2.5zM8.5 4v14M15.5 6.5v14"/></svg> }.into_any(),
+        "compass" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9z"/></svg> }.into_any(),
+        "book" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10.5A2.5 2.5 0 0 1 18 7v13H7.5A2.5 2.5 0 0 1 5 17.5zM5 17.5A2.5 2.5 0 0 1 7.5 15H18M9 8h5M9 11h4"/></svg> }.into_any(),
+        "plus" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> }.into_any(),
+        "user" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6"/></svg> }.into_any(),
+        "grid" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg> }.into_any(),
+        "shield" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.2 8.3-8 10-4.8-1.7-8-5-8-10V6z"/><path d="m9 12 2 2 4-4"/></svg> }.into_any(),
+        "search" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg> }.into_any(),
+        "menu" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg> }.into_any(),
+        "panel" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M14 9l-3 3 3 3"/></svg> }.into_any(),
+        "logout" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg> }.into_any(),
+        _ => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg> }.into_any(),
+    }
+}
+
+fn shell_sidebar_class(drawer_open: bool, collapsed: bool) -> &'static str {
+    match (drawer_open, collapsed) {
+        (true, true) => "shell-sidebar is-open is-collapsed",
+        (true, false) => "shell-sidebar is-open",
+        (false, true) => "shell-sidebar is-collapsed",
+        (false, false) => "shell-sidebar",
+    }
+}
+
+fn shell_nav_active(pathname: &str, section: &str) -> bool {
     let normalized = if pathname == "/" {
         "/inspace"
     } else {
         pathname
     };
-    let active = match section {
+    match section {
+        "home" => normalized == "/inspace",
+        "map" => normalized.starts_with("/inspace/map") || normalized.starts_with("/map"),
+        "explore" => {
+            normalized.starts_with("/inspace/explore") || normalized.starts_with("/explore")
+        }
         "guides" => normalized.starts_with("/inspace/guides") || normalized.starts_with("/guides"),
         "my-spaces" => {
             normalized.starts_with("/inspace/my-spaces") || normalized.starts_with("/my-spaces")
         }
         _ => false,
-    };
+    }
+}
 
-    if active {
-        "nav-menu-item is-active"
+fn mobile_bottom_class(pathname: &str) -> &'static str {
+    if pathname.contains("/admin") || pathname.contains("/spaces/") {
+        "shell-mobile-nav is-hidden"
     } else {
-        "nav-menu-item"
+        "shell-mobile-nav"
+    }
+}
+
+fn shell_page_title(pathname: &str, locale: Locale) -> &'static str {
+    if pathname.contains("/admin") {
+        t(locale, "管理员后台", "Admin console")
+    } else if pathname.contains("/my-spaces") {
+        t(locale, "用户工作台", "Workspace")
+    } else if pathname.contains("/guides") {
+        t(locale, "空间攻略", "Guides")
+    } else if pathname.contains("/explore") {
+        t(locale, "探索空间", "Explore")
+    } else if pathname.contains("/map") {
+        t(locale, "发现地图", "Map")
+    } else if pathname.contains("/spaces/") {
+        t(locale, "空间详情", "Space")
+    } else {
+        "inspace"
+    }
+}
+
+fn shell_page_hint(pathname: &str, locale: Locale) -> &'static str {
+    if pathname.contains("/admin") {
+        t(locale, "运营、内容与系统", "Operations and system")
+    } else if pathname.contains("/my-spaces") {
+        t(locale, "管理你的空间", "Manage your spaces")
+    } else if pathname.contains("/guides") {
+        t(locale, "路线、玩法与经验", "Routes and local insight")
+    } else if pathname.contains("/explore") {
+        t(locale, "按地点和分类发现", "Browse by place and category")
+    } else if pathname.contains("/map") {
+        t(locale, "打开地图才加载瓦片", "Tiles load on map open")
+    } else if pathname.contains("/spaces/") {
+        t(locale, "进入真实地点的数字空间", "Enter the place")
+    } else {
+        t(locale, "走到导航的尽头，体验才开始", "Beyond the map")
     }
 }
 
@@ -338,21 +449,5 @@ fn aria_pressed(is_active: bool) -> &'static str {
         "true"
     } else {
         "false"
-    }
-}
-
-fn map_style_class(is_active: bool) -> &'static str {
-    if is_active {
-        "map-style-button is-active"
-    } else {
-        "map-style-button"
-    }
-}
-
-fn map_projection_class(is_active: bool) -> &'static str {
-    if is_active {
-        "map-projection-button is-active"
-    } else {
-        "map-projection-button"
     }
 }

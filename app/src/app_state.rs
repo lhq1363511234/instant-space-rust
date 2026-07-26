@@ -4,7 +4,7 @@ use leptos::prelude::*;
 pub struct AppRefreshState {
     pub session: RwSignal<u32>,
     pub spaces: RwSignal<u32>,
-    /// Explore live spaces panel (map list / filters).
+    /// Explore travel spaces panel (map list / filters).
     pub explorer_open: RwSignal<bool>,
     /// Product intro / "首页" hero card. Independent from explorer.
     pub hero_open: RwSignal<bool>,

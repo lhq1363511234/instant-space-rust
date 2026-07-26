@@ -120,8 +120,9 @@ async fn create_session_cookie(
 #[cfg(feature = "ssr")]
 fn set_session_cookie(token: &str) -> Result<(), ServerFnError> {
     if let Some(response) = use_context::<ResponseOptions>() {
-        let cookie =
-            format!("instant_session={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800");
+        let cookie = format!(
+            "instant_session={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800"
+        );
         let value =
             HeaderValue::from_str(&cookie).map_err(|err| ServerFnError::new(err.to_string()))?;
         response.insert_header(SET_COOKIE, value);

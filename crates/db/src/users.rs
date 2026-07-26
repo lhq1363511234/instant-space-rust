@@ -77,6 +77,11 @@ pub async fn create_session(
     .execute(pool)
     .await?;
 
+    // Expired rows would otherwise accumulate forever and slow this insert down.
+    sqlx::query("DELETE FROM sessions WHERE expires_at < now()")
+        .execute(pool)
+        .await?;
+
     Ok(())
 }
 

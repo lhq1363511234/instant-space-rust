@@ -28,7 +28,9 @@ fn urlencoding_minimal(value: &str) -> String {
     let mut out = String::with_capacity(value.len() * 3);
     for b in value.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -38,10 +40,8 @@ fn urlencoding_minimal(value: &str) -> String {
 #[component]
 pub fn SpaceSharePanel(
     space_id: String,
-    #[prop(optional)]
-    space_name: Option<String>,
-    #[prop(default = false)]
-    compact: bool,
+    #[prop(optional)] space_name: Option<String>,
+    #[prop(default = false)] compact: bool,
 ) -> impl IntoView {
     let locale = use_i18n().locale;
     let copied = RwSignal::new(false);

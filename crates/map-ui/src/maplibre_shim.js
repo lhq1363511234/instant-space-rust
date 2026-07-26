@@ -32,10 +32,9 @@ function mapStyle(styleKey) {
 }
 
 function openFreeMapBase() {
-  if (globalThis.location?.pathname?.startsWith("/inspace")) {
-    return new URL("/inspace/ofm", globalThis.location.origin).href;
-  }
-
+  // The app does not currently ship a local OpenFreeMap proxy. Keep the
+  // official public style endpoint here so the map also works on /inspace
+  // routes instead of requesting a guaranteed 404 local path.
   return "https://tiles.openfreemap.org";
 }
 
@@ -395,15 +394,47 @@ function easeToPoint(map, point) {
   });
 }
 
+function retryProjectionWhenIdle(map, projectionKey) {
+  if (map.__instantProjectionPending) return;
+  map.__instantProjectionPending = true;
+  map.once("idle", () => {
+    map.__instantProjectionPending = false;
+    applyProjection(map, projectionKey);
+  });
+}
+
 function applyProjection(map, projectionKey) {
   if (!map || typeof map.setProjection !== "function") {
     return;
   }
 
+  // MapLibre can report isStyleLoaded() before setProjection is actually safe.
+  // `idle` is the reliable boundary both after construction and after setStyle.
+  if (
+    (typeof map.loaded === "function" && !map.loaded()) ||
+    (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded())
+  ) {
+    retryProjectionWhenIdle(map, projectionKey);
+    return;
+  }
+
   try {
     map.setProjection(projectionSpec(projectionKey));
-  } catch {
-    map.setProjection(MAP_PROJECTIONS[projectionKey]?.maplibreProjection || "mercator");
+  } catch (error) {
+    if (String(error?.message || error).includes("Style is not done loading")) {
+      retryProjectionWhenIdle(map, projectionKey);
+      return;
+    }
+    // Older MapLibre versions may reject the richer projection object.
+    try {
+      map.setProjection(MAP_PROJECTIONS[projectionKey]?.maplibreProjection || "mercator");
+    } catch (fallbackError) {
+      if (String(fallbackError?.message || fallbackError).includes("Style is not done loading")) {
+        retryProjectionWhenIdle(map, projectionKey);
+      } else {
+        console.warn("[inspace] unable to apply map projection", fallbackError);
+      }
+    }
   }
 }
 
@@ -544,7 +575,21 @@ export function setMapStyle(elementId, styleKey) {
   }
 
   store.styleKey = nextStyle;
-  store.map.setStyle(mapStyle(nextStyle));
+  if (
+    (typeof store.map.loaded === "function" && !store.map.loaded()) ||
+    (typeof store.map.isStyleLoaded === "function" && !store.map.isStyleLoaded())
+  ) {
+    store.map.once("idle", () => setMapStyle(elementId, styleKey));
+    store.styleKey = null;
+    return;
+  }
+  try {
+    store.map.setStyle(mapStyle(nextStyle));
+  } catch (error) {
+    store.styleKey = null;
+    store.map.once("idle", () => setMapStyle(elementId, styleKey));
+    return;
+  }
   store.map.once("styledata", () => {
     applyProjection(store.map, store.projectionKey);
     const latest = LAST_POINTS.get(elementId) || PENDING_POINTS.get(elementId);
