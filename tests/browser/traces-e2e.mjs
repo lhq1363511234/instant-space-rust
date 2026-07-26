@@ -51,10 +51,24 @@ await page.waitForTimeout(3000);
 const shelf = await page.locator('.capsule-list').innerText().catch(()=>'');
 console.log('capsule sealed:', shelf.includes(rec));
 
-// Open with wrong passphrase
+// v15: 扫码不再能开信。胶囊上两把锁，必须先过现场口令那把。
 const card = page.locator('.capsule-card.is-sealed').first();
 await card.locator('button:has-text("这是给我的")').click();
 await page.waitForTimeout(400);
+await card.locator('.capsule-attempt input[type=text]').fill('黄山日出');
+await card.locator('.capsule-attempt button.button-primary').click();
+await page.waitForTimeout(2500);
+console.log('scan-only (must be refused):', (await card.locator('.capsule-result').innerText().catch(()=>'NONE')).trim());
+
+// 过第一把锁
+const codeField = page.locator('.presence-code input');
+await codeField.click();
+await codeField.pressSequentially('481902', { delay: 20 });
+await page.waitForTimeout(200);
+await page.locator('.presence-code button[type=submit]').click();
+await page.waitForTimeout(2500);
+
+// Open with wrong passphrase
 await card.locator('.capsule-attempt input[type=text]').fill('错的口令');
 await card.locator('.capsule-attempt button.button-primary').click();
 await page.waitForTimeout(2500);

@@ -264,7 +264,11 @@ fn PresenceBar(presence: PresenceState, space_id: String) -> impl IntoView {
             </div>
             <Show when=move || !presence.is_confirmed()>
                 <form
-                    class="presence-code"
+                    class=move || if presence.code_state.get() == CodeState::Rejected {
+                        "presence-code is-rejected"
+                    } else {
+                        "presence-code"
+                    }
                     on:submit={
                         let space_id = space_id.clone();
                         move |ev| {
@@ -296,11 +300,13 @@ fn PresenceBar(presence: PresenceState, space_id: String) -> impl IntoView {
                         class="button button-secondary-light"
                         disabled=move || presence.onsite_code.get().trim().is_empty() || check.pending().get()
                     >
-                        {move || if check.pending().get() {
-                            t(locale.get(), "核对中…", "Checking…")
-                        } else {
-                            t(locale.get(), "确认", "Confirm")
-                        }}
+                        <span class=move || if check.pending().get() { "is-checking" } else { "" }>
+                            {move || if check.pending().get() {
+                                t(locale.get(), "核对中", "Checking")
+                            } else {
+                                t(locale.get(), "确认", "Confirm")
+                            }}
+                        </span>
                     </button>
                     <p class="presence-code-hint">
                         {move || match presence.code_state.get() {
@@ -916,48 +922,29 @@ fn PresenceRequirement(presence: PresenceState, radius_m: i32) -> impl IntoView 
     view! {
         <div class="capsule-presence">
             {move || {
-                if presence.scanned.get() {
+                if presence.code_state.get() == CodeState::Accepted {
                     view! {
                         <p class="capsule-presence-ok">
-                            {move || t(locale.get(), "你是扫码进来的，到场已确认。", "You arrived by scanning the code — presence confirmed.")}
-                        </p>
-                    }.into_any()
-                } else if presence.code_state.get() == CodeState::Accepted {
-                    view! {
-                        <p class="capsule-presence-ok">
-                            {move || t(locale.get(), "现场口令已确认，到场成立。", "On-site code confirmed — presence established.")}
-                        </p>
-                    }.into_any()
-                } else if presence.has_fix() {
-                    view! {
-                        <p class="capsule-presence-ok">
-                            {move || t(locale.get(), "已取得你的位置，服务器会核对距离。", "We have your position; the server will check the distance.")}
+                            {move || t(locale.get(), "现场口令已确认。还差他给你的那句话。", "On-site code confirmed. Now the words he gave you.")}
                         </p>
                     }.into_any()
                 } else {
                     view! {
                         <div class="capsule-presence-need">
                             <p>
-                                {move || if locale.get() == Locale::Zh {
-                                    format!("要打开它，你得站在这个地点 {radius_m} 米以内。")
-                                } else {
-                                    format!("To open this you must be within {radius_m} m of the place.")
-                                }}
-                            </p>
-                            <p class="capsule-presence-code">
                                 {move || t(
                                     locale.get(),
-                                    "最稳妥的办法是在上面填现场口令——它写在这儿的 WiFi 名字里。",
-                                    "The surest way is the on-site code above — it is in the WiFi name here.",
+                                    "这封信上着两把锁：一把证明你到了这里，一把证明你是他等的人。",
+                                    "This letter has two locks: one proves you got here, one proves you are the person he waited for.",
                                 )}
                             </p>
-                            <button
-                                type="button"
-                                class="button button-secondary-light"
-                                on:click=move |_| request_location(presence)
-                            >
-                                {move || t(locale.get(), "或者用定位", "Or use my location")}
-                            </button>
+                            <p class="capsule-presence-code">
+                                {move || if locale.get() == Locale::Zh {
+                                    format!("第一把锁是上面的现场口令——它写在这儿的 WiFi 名字里，站在 {radius_m} 米外都读不到。第二把锁是下面这栏，只有他私下告诉过你。")
+                                } else {
+                                    format!("The first lock is the on-site code above — it is in the WiFi name here, unreadable from {radius_m} m away. The second is the field below, told to you privately.")
+                                }}
+                            </p>
                         </div>
                     }.into_any()
                 }
@@ -989,9 +976,9 @@ fn CapsuleOutcome(result: CapsuleOpenResult) -> impl IntoView {
         CapsuleOpenResult::TooFar { distance_m, radius_m } => view! {
             <p class="capsule-result is-far">
                 {move || if locale.get() == Locale::Zh {
-                    format!("口令对了，但你还在 {distance_m:.0} 米外，得走到 {radius_m} 米以内。")
+                    format!("你还在 {distance_m:.0} 米外，得走到 {radius_m} 米以内，才读得到现场口令。")
                 } else {
-                    format!("Right words, but you are {distance_m:.0} m away; you need to be within {radius_m} m.")
+                    format!("You are {distance_m:.0} m away; get within {radius_m} m to read the on-site code.")
                 }}
             </p>
         }
@@ -1011,7 +998,7 @@ fn CapsuleOutcome(result: CapsuleOpenResult) -> impl IntoView {
         .into_any(),
         CapsuleOpenResult::PresenceRequired => view! {
             <p class="capsule-result">
-                {move || t(locale.get(), "得先确认你在这个地点。", "You have to confirm you are at the place first.")}
+                {move || t(locale.get(), "还差现场口令——先在上面把这个地点的口令填对。", "The on-site code is still missing — fill in this place's code above first.")}
             </p>
         }
         .into_any(),

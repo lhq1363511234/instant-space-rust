@@ -3050,3 +3050,569 @@ body .space-chat-page .chat-room .chat-message {
   .presence-code { grid-template-columns: minmax(0, 1fr); }
   .presence-code button { width: 100%; }
 }
+
+/* ============================================================================
+   v15 · MOTION LAYER
+   ----------------------------------------------------------------------------
+   动效在这里不是装饰，是行为。每一条都要能回答「它替用户解释了什么」，
+   答不上来的就删掉。手法取自 uiverse.io（发丝线合拢、scaleX 底线、细弧
+   loader），颜色一律换回纸墨体系；行为规则遵循 Willenskomer 的 UX 动效
+   十二条，其中真正约束了下面每一段的是这五条：
+
+   Easing —— 现实里没有匀速。用户驱动的（实时）必须一触即动、快到近乎
+     没有延迟；系统驱动的（非实时）允许起势，因为用户在等一个结果。
+     所以本文件只有两条曲线：--ease-respond 给实时，--ease-arrive 给非实时。
+   Offset & Delay —— 一组元素同时动，用户读不出主次；错开几十毫秒，
+     先后就成了层级说明。见开信的三段落。
+   Parenting —— 子元素跟着父元素动，才说明它们是一体的。底线跟着输入框、
+     标记线跟着卡片，都不是各动各的。
+   Transformation —— 一个东西变成另一个东西，中间不能断。「核对中」的弧
+     和「确认」按钮是同一个按钮的两种状态，不是替换。
+   Value Change —— 数值/状态变了要被看见，否则用户以为没生效。
+     口令被拒、到场确认，都必须有一次可察觉的变化。
+
+   实时交互（hover/focus/active）一律 ≤180ms，用户手指还在上面，慢一帧
+   就是"卡"。非实时（开信、确认结果）给到 420-620ms，因为那是在讲一件
+   刚发生的事。
+   ========================================================================== */
+
+:root {
+  /* 实时：几乎没有起势，一按就到位，尾部略微收一下 */
+  --ease-respond: cubic-bezier(.2, .9, .3, 1);
+  /* 非实时：允许起势，落点稳，像纸被放下而不是被砸下 */
+  --ease-arrive:  cubic-bezier(.22, .61, .36, 1);
+  --t-respond: 140ms;
+  --t-arrive:  420ms;
+}
+
+/* --- 输入：底线聚焦 -------------------------------------------------------
+   Parenting + Value Change。原来聚焦是套一个 2px 朱红 outline，在这套发丝
+   线体系里等于方框套方框。改成底线：静止是一条发丝线，聚焦时朱红线从中心
+   展开压上去——线属于这个输入框，跟着它一起表达状态，而不是外挂一个框。
+   140ms，因为用户刚点下去，手还在。 */
+.presence-code label.field-label,
+.capsule-attempt label.field-label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.presence-code input,
+.capsule-attempt input[type="text"] {
+  border: 0;
+  border-bottom: 1px solid var(--rule-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 2px;
+}
+.presence-code input:focus,
+.presence-code input:focus-visible,
+.capsule-attempt input[type="text"]:focus,
+.capsule-attempt input[type="text"]:focus-visible {
+  outline: none;
+}
+.presence-code label.field-label::after,
+.capsule-attempt label.field-label::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: var(--vermilion);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--t-respond) var(--ease-respond);
+  pointer-events: none;
+}
+.presence-code label.field-label:focus-within::after,
+.capsule-attempt label.field-label:focus-within::after {
+  transform: scaleX(1);
+}
+/* 标签只换色，不做浮动位移：中文标签上浮会撞到上一行，
+   而颜色变化已经足够完成 Value Change 的告知职责。 */
+.presence-code label.field-label > span,
+.capsule-attempt label.field-label > span {
+  transition: color var(--t-respond) var(--ease-respond);
+}
+.presence-code label.field-label:focus-within > span,
+.capsule-attempt label.field-label:focus-within > span {
+  color: var(--vermilion);
+}
+
+/* --- 口令被拒：一次横向摇头 ----------------------------------------------
+   Value Change 的典型场景：请求发出去又回来了，界面上如果只是换一行小字，
+   用户很容易以为按钮没响应。摇头幅度压到 3px、只摆一个来回——它的职责是
+   "被看见"，不是"被吓到"。 */
+.presence-code.is-rejected input { animation: code-refuse 280ms var(--ease-respond); }
+@keyframes code-refuse {
+  0%, 100% { transform: translateX(0); }
+  30%      { transform: translateX(-3px); }
+  70%      { transform: translateX(3px); }
+}
+
+/* --- 按钮：确认 → 核对中，是同一个按钮的形变 ----------------------------
+   Transformation。文字从「确认」变「核对中」的同时，左边长出一段细弧，
+   弧本身就是"请求正在路上"的可见证据。不是把按钮换成一个 spinner——
+   那会让用户以为按钮消失了。 */
+.presence-code button[type="submit"] {
+  transition: background-color var(--t-respond) var(--ease-respond),
+              border-color var(--t-respond) var(--ease-respond),
+              color var(--t-respond) var(--ease-respond);
+}
+.presence-code button[type="submit"] .is-checking::before {
+  content: "";
+  display: inline-block;
+  width: 11px; height: 11px;
+  margin-right: 7px;
+  vertical-align: -1px;
+  border: 1.5px solid var(--rule-strong);
+  border-left-color: var(--vermilion);
+  border-radius: 50%;
+  animation: survey-spin 720ms linear infinite;
+}
+@keyframes survey-spin { to { transform: rotate(360deg); } }
+
+/* --- 主按钮：hover 时四角裁切线合拢 --------------------------------------
+   取自 uiverse 那款「线在长」的按钮，原作是 3px 黑线画圆角胶囊，这里改
+   1px 发丝线画方角，因为整套图记里所有的边都是这个重量。
+   注意只动线，不动按钮本体：按钮位移/放大属于装饰性反馈，而线的合拢是在
+   说"这里是一个可以落点的目标"，是 Obscuration 之外的边界提示。 */
+body .button-primary,
+body button.button-primary,
+body .button-secondary-light,
+body button.button-secondary-light {
+  position: relative;
+  isolation: isolate;
+}
+body .button-primary::before,
+body .button-primary::after,
+body button.button-primary::before,
+body button.button-primary::after,
+body .button-secondary-light::before,
+body .button-secondary-light::after,
+body button.button-secondary-light::before,
+body button.button-secondary-light::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  background: currentColor;
+  opacity: .5;
+  height: 1px;
+  width: 12px;
+  transition: width var(--t-respond) var(--ease-respond);
+}
+body .button-primary::before,
+body button.button-primary::before,
+body .button-secondary-light::before,
+body button.button-secondary-light::before { top: -3px; left: -3px; }
+body .button-primary::after,
+body button.button-primary::after,
+body .button-secondary-light::after,
+body button.button-secondary-light::after { bottom: -3px; right: -3px; }
+body .button-primary:hover::before,
+body button.button-primary:hover::before,
+body .button-primary:hover::after,
+body button.button-primary:hover::after,
+body .button-secondary-light:hover::before,
+body button.button-secondary-light:hover::before,
+body .button-secondary-light:hover::after,
+body button.button-secondary-light:hover::after {
+  width: calc(100% + 6px);
+}
+/* Easing 的下限案例：按下必须零延迟，任何 transition 都会让它感觉黏。 */
+body .button-primary:active,
+body button.button-primary:active,
+body .button-secondary-light:active,
+body button.button-secondary-light:active {
+  transform: translateY(1px);
+  transition: none;
+}
+
+/* --- 卡片：左缘标记线随指针长出 ------------------------------------------
+   Parenting。线不是独立元素，它长在卡片的左缘、跟着卡片的高度，所以它
+   读作"这一条被选中了"而不是"旁边多了个装饰"。 */
+.trace-item,
+.capsule-card {
+  position: relative;
+  transition: border-color var(--t-respond) var(--ease-respond);
+}
+.trace-item::before,
+.capsule-card::before {
+  content: "";
+  position: absolute;
+  left: -1px; top: 12px; bottom: 12px;
+  width: 2px;
+  background: var(--vermilion);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--t-respond) var(--ease-respond);
+}
+.trace-item:hover::before,
+.capsule-card:hover::before { transform: scaleY(1); }
+
+/* --- 未开启的胶囊：宣纸压在纸上 ------------------------------------------
+   玻璃拟态的纸墨版本。不做霓虹玻璃（那是深色界面才成立的），只做很轻的
+   模糊，让下面的纸色透上来——一封还没读的信应该看起来蒙着一层。
+   hover 时纸变清晰，这是 Value Change：它在说"这一封是可以动的"。 */
+.capsule-card.is-sealed {
+  background: color-mix(in srgb, var(--paper-raised) 72%, transparent);
+  -webkit-backdrop-filter: blur(6px) saturate(104%);
+  backdrop-filter: blur(6px) saturate(104%);
+  transition: background var(--t-respond) var(--ease-respond),
+              border-color var(--t-respond) var(--ease-respond);
+}
+.capsule-card.is-sealed:hover {
+  background: color-mix(in srgb, var(--paper-raised) 94%, transparent);
+  border-color: var(--rule-strong);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  .capsule-card.is-sealed { background: var(--paper-raised); }
+}
+
+/* --- 开信：非实时，三段错开 ----------------------------------------------
+   Offset & Delay 的正题。一封信被打开，纸、字、落款不该同时出现——那样
+   用户读不出先后。这里让它们相隔 140ms 依次到位，顺序即是阅读顺序。
+   用 translateY + opacity，不用 scale：信是从卡片里被取出来的，
+   缩放会让它读作"凭空变大"，说的是错的空间关系。 */
+.capsule-letter {
+  animation: letter-lift var(--t-arrive) var(--ease-arrive) both;
+}
+@keyframes letter-lift {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+.capsule-letter-body {
+  animation: letter-lift 520ms var(--ease-arrive) 140ms both;
+}
+.capsule-letter-sign {
+  animation: letter-lift 520ms var(--ease-arrive) 280ms both;
+}
+
+/* --- 结果行：不是弹出，是落下 --------------------------------------------
+   驳回（口令错/太远/缺现场口令）同样是非实时结果，需要一次可察觉的到达，
+   否则用户分不清"服务器拒了我"和"我根本没点上"。 */
+.capsule-result {
+  animation: letter-lift 320ms var(--ease-arrive) both;
+}
+
+/* --- 到场确认：朱红从左扫过徽章 ------------------------------------------
+   整个流程里最值得庆祝的一步——第一把锁开了。扫一次就停，不循环：
+   循环动画会持续索取注意力，而这件事已经完成了。 */
+.presence-badge.is-strong {
+  position: relative;
+  overflow: hidden;
+}
+.presence-badge.is-strong::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--vermilion-wash);
+  transform-origin: left;
+  animation: badge-confirm 480ms var(--ease-arrive) both;
+  z-index: -1;
+}
+@keyframes badge-confirm {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* --- 兜底：关掉动效不等于关掉状态 ----------------------------------------
+   reduced-motion 下所有位移和循环都停，但每一条动效负责传达的「状态」
+   必须留在终点——底线要在、徽章底色要在、信要可读。 */
+@media (prefers-reduced-motion: reduce) {
+  .capsule-letter,
+  .capsule-letter-body,
+  .capsule-letter-sign,
+  .capsule-result,
+  .presence-code.is-rejected input,
+  .presence-code button[type="submit"] .is-checking::before {
+    animation: none !important;
+  }
+  .presence-badge.is-strong::after {
+    animation: none !important;
+    transform: scaleX(1);
+  }
+  body .button-primary,
+  body button.button-primary,
+  body .button-secondary-light,
+  body button.button-secondary-light,
+  body .button-primary::before,
+  body .button-primary::after,
+  body button.button-primary::before,
+  body button.button-primary::after,
+  .trace-item,
+  .trace-item::before,
+  .capsule-card,
+  .capsule-card::before,
+  .capsule-card.is-sealed,
+  .presence-code label.field-label::after,
+  .capsule-attempt label.field-label::after,
+  .presence-code label.field-label > span {
+    transition: none !important;
+  }
+  body .button-primary:active,
+  body button.button-primary:active { transform: none; }
+}
+
+/* ============================================================================
+   v15 · 全站动效第二层：让不支持 scroll-timeline 的浏览器也活起来
+   ----------------------------------------------------------------------------
+   上面那套滚动联动写得没问题，但它整个锁在 @supports (animation-timeline:
+   view()) 里。这个特性 Safari 全系（含所有 iPhone/iPad）和 Firefox 默认都
+   不支持——也就是说过去只有 Chrome 用户看得到首页在动，其余人打开是一张
+   完全静止的纸。回退分支只做了一件事：把所有元素摆到终点。那不叫降级，
+   那叫没有。
+
+   这一层补的就是这批浏览器。规则：
+   · 只用 animation-delay 编排的入场，不依赖滚动位置——首屏之内准确，
+     首屏之外提前播完也不出错（用户滚到时看到的是完成态，与旧回退一致）。
+   · 交互反馈（hover / focus / active）全部走 transition，所有浏览器通吃，
+     这部分反而是首页过去最缺的：一整页卡片和链接没有任何指针反馈。
+   · 严格遵守实时 ≤180ms、非实时 420-620ms 的分界。
+   ========================================================================== */
+
+/* ---- A. 入场：仅在没有滚动时间线时接管 ---------------------------------- */
+@supports not (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* 标题：与 Chrome 分支同一条 keyframe，同一个节奏，视觉一致 */
+    .survey-hero h1 { animation: home-headline-set 760ms cubic-bezier(.16,.84,.24,1) both 60ms; }
+    .survey-lede    { animation: home-write 620ms cubic-bezier(.16,.84,.24,1) both 300ms; }
+    .survey-actions { animation: home-write 620ms cubic-bezier(.16,.84,.24,1) both 400ms; }
+    .survey-note    { animation: home-write 620ms cubic-bezier(.16,.84,.24,1) both 500ms; }
+
+    /* 基准线：先立左边的竖线，再划横线，顺序即是"先架好坐标系再落笔" */
+    .inspace-home-modules::before {
+      animation: home-rule-advance 900ms cubic-bezier(.22,.61,.36,1) both 120ms;
+    }
+    .survey-lede::before {
+      animation: home-strike 620ms cubic-bezier(.22,.9,.24,1) both 700ms;
+    }
+    .survey-stages::before,
+    .survey-log::before {
+      animation: home-strike 700ms cubic-bezier(.22,.9,.24,1) both 860ms;
+    }
+
+    /* 记录卡：与标题同时落定，构成首屏的第二个平面 */
+    .survey-hero .survey-sheet {
+      animation: survey-settle 620ms cubic-bezier(.16,.84,.24,1) both 90ms;
+    }
+
+    /* 下面各段：按文档顺序错开写入。Offset & Delay——同时出现读不出主次，
+       错开 60-70ms 就有了先后。步长刻意小，因为这是补写不是表演。 */
+    .survey-passage-head { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 620ms; }
+    .survey-plate-copy > *:nth-child(1) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 700ms; }
+    .survey-plate-copy > *:nth-child(2) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 770ms; }
+    .survey-plate-copy > *:nth-child(3) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 840ms; }
+    .survey-plate-copy > *:nth-child(n+4) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 910ms; }
+    .survey-stages > div:nth-child(1) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 960ms; }
+    .survey-stages > div:nth-child(2) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1030ms; }
+    .survey-stages > div:nth-child(3) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1100ms; }
+    .survey-log tbody tr:nth-child(1) { animation: home-write 520ms cubic-bezier(.16,.84,.24,1) both 1120ms; }
+    .survey-log tbody tr:nth-child(2) { animation: home-write 520ms cubic-bezier(.16,.84,.24,1) both 1180ms; }
+    .survey-log tbody tr:nth-child(3) { animation: home-write 520ms cubic-bezier(.16,.84,.24,1) both 1240ms; }
+    .survey-log tbody tr:nth-child(n+4) { animation: home-write 520ms cubic-bezier(.16,.84,.24,1) both 1300ms; }
+    .survey-colophon > *:nth-child(1) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1320ms; }
+    .survey-colophon > *:nth-child(2) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1390ms; }
+    .survey-colophon > *:nth-child(n+3) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1460ms; }
+    .survey-keep-item:nth-child(1) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1080ms; }
+    .survey-keep-item:nth-child(2) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1150ms; }
+    .survey-keep-item:nth-child(3) { animation: home-write 560ms cubic-bezier(.16,.84,.24,1) both 1220ms; }
+  }
+}
+
+/* ---- B. 交互反馈：所有浏览器，首页过去完全没有 -------------------------- */
+
+/* 记录卡 / 图版：指针落上去时纸微微抬起，边缘转深。
+   位移只给 2px——这是"可以点"的告知，不是"卡片飞起来"。 */
+.survey-sheet,
+.survey-plate,
+.survey-field-plate,
+.survey-keep-item {
+  transition: transform var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1)),
+              border-color var(--t-respond, 140ms) ease;
+}
+@media (hover: hover) {
+  .survey-sheet:hover,
+  .survey-plate:hover,
+  .survey-field-plate:hover {
+    transform: translateY(-2px);
+    border-color: var(--rule-strong);
+  }
+}
+
+/* 记录卡上的朱红钤印：hover 时转正。一枚盖歪的印被扶正，
+   这是这张纸上唯一允许出现的俏皮。 */
+.survey-sheet-stamp {
+  transition: transform 220ms cubic-bezier(.22,.61,.36,1), color 220ms ease;
+}
+@media (hover: hover) {
+  .survey-sheet:hover .survey-sheet-stamp { transform: rotate(0deg) scale(1.04); }
+}
+
+/* 三阶段 / 日志行：hover 时左缘长出朱红标记线，与空间页的卡片同一套语言，
+   全站保持一致——同样的手势在任何页面都得到同样的回应。 */
+.survey-stages > div,
+.survey-keep-item {
+  position: relative;
+}
+.survey-stages > div::before,
+.survey-keep-item::before {
+  content: "";
+  position: absolute;
+  left: -10px; top: 2px; bottom: 2px;
+  width: 2px;
+  background: var(--vermilion);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+}
+@media (hover: hover) {
+  .survey-stages > div:hover::before,
+  .survey-keep-item:hover::before { transform: scaleY(1); }
+}
+
+.survey-log tbody tr {
+  transition: background-color var(--t-respond, 140ms) ease;
+}
+@media (hover: hover) {
+  .survey-log tbody tr:hover { background: var(--paper-deep); }
+}
+
+/* 正文里的链接：下划线从左展开，不是常驻一条线。
+   Value Change——线出现的那一刻就是"这里可以去" 。 */
+.survey-passage a:not(.button),
+.survey-colophon a:not(.button),
+.survey-note a:not(.button) {
+  position: relative;
+  text-decoration: none;
+  color: var(--vermilion);
+}
+.survey-passage a:not(.button)::after,
+.survey-colophon a:not(.button)::after,
+.survey-note a:not(.button)::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+}
+.survey-passage a:not(.button):hover::after,
+.survey-passage a:not(.button):focus-visible::after,
+.survey-colophon a:not(.button):hover::after,
+.survey-colophon a:not(.button):focus-visible::after,
+.survey-note a:not(.button):hover::after,
+.survey-note a:not(.button):focus-visible::after { transform: scaleX(1); }
+
+/* 图片版面：hover 时极缓慢地推近。0.6s 而不是 0.2s——
+   照片不是按钮，它的回应应该是"注视"而不是"点击"。 */
+.survey-field-plate img,
+.survey-field-strip img {
+  transition: transform 620ms cubic-bezier(.22,.61,.36,1);
+  will-change: transform;
+}
+@media (hover: hover) {
+  .survey-field-plate:hover img,
+  .survey-field-strip li:hover img { transform: scale(1.03); }
+}
+
+/* 全站焦点环：键盘用户也该拿到同一套朱红语言，而且必须瞬时出现——
+   焦点是位置指示，任何过渡都会让它跟不上 Tab 的节奏。 */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--vermilion);
+  outline-offset: 2px;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-sheet, .survey-plate, .survey-field-plate, .survey-keep-item,
+  .survey-sheet-stamp, .survey-log tbody tr,
+  .survey-stages > div::before, .survey-keep-item::before,
+  .survey-field-plate img, .survey-field-strip img,
+  .survey-passage a::after, .survey-colophon a::after, .survey-note a::after {
+    transition: none !important;
+  }
+  .survey-sheet:hover, .survey-plate:hover, .survey-field-plate:hover { transform: none; }
+  .survey-field-plate:hover img, .survey-field-strip li:hover img { transform: none; }
+}
+
+/* ---- C. 两处冲突的定点修正 ---------------------------------------------
+   实测（tests/browser/home-motion-v15.mjs）打出来的，不是看源码猜的。 */
+
+/* ① 焦点环仍是 ui-system.css:2780 那条 3px 蓝色，带 !important。
+      整站只有一个强调色，焦点环是键盘用户唯一的位置指示，必须同属一套
+      语言。这里按项目惯例定点压制。 */
+body a:focus-visible,
+body button:focus-visible,
+body input:focus-visible,
+body select:focus-visible,
+body textarea:focus-visible,
+body summary:focus-visible,
+body .nav-link:focus-visible,
+body [tabindex]:focus-visible {
+  outline: 2px solid var(--vermilion) !important;
+  outline-offset: 2px !important;
+}
+
+/* ② 首屏记录卡的 transform 被滚动联动的 home-sheet-hold 占着，
+      hover 的 translateY 写了也是白写——一个属性只能有一个主人。
+      所以首屏那张卡改用边框和底色回应指针，位移让给滚动。
+      其余不参与滚动联动的卡片保持位移反馈。 */
+.survey-hero .survey-sheet {
+  transition: border-color var(--t-respond, 140ms) ease,
+              background-color var(--t-respond, 140ms) ease;
+}
+@media (hover: hover) {
+  .survey-hero .survey-sheet:hover {
+    transform: none;
+    border-color: var(--vermilion);
+    background: var(--paper-raised);
+  }
+}
+
+/* ---- D. 输入与胶囊卡的定点压制 -----------------------------------------
+   同样是实测（motion-audit.mjs）打出来的三条，全部来自 ui-system.css
+   末尾那批 !important 的通用兜底。它们给整站输入框统一了 SaaS 灰边框和
+   深蓝标签色——在这套纸墨体系里不成立，也让底线聚焦完全没法工作。 */
+
+/* ① 口令输入：撤掉四面灰边框，只留底线。
+      ui-system.css:3719 用 `border: 1px solid #cbd5e1 !important` 覆盖，
+      所以这里必须同样带 !important 才拿得回来。 */
+body .presence-code input,
+body .capsule-attempt input[type="text"] {
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--ink) !important;
+}
+body .presence-code input:focus,
+body .presence-code input:focus-visible,
+body .capsule-attempt input[type="text"]:focus,
+body .capsule-attempt input[type="text"]:focus-visible {
+  outline: none !important;
+}
+
+/* ② 标签聚焦转朱红：被 ui-system.css:3698 的 `color:#0f172a !important` 压死。
+      标签换色是这个字段唯一的状态提示，必须拿回来。 */
+body .presence-code label.field-label:focus-within > span,
+body .capsule-attempt label.field-label:focus-within > span {
+  color: var(--vermilion) !important;
+}
+
+/* ③ 宣纸玻璃没生效：.capsule-card.is-sealed 的背景被后面的规则覆盖了。
+      未开启的信应该蒙着一层，读者一眼能分出哪封还没拆。 */
+body .capsule-card.is-sealed {
+  background: color-mix(in srgb, var(--paper-raised) 72%, transparent) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(104%);
+  backdrop-filter: blur(6px) saturate(104%);
+}
+body .capsule-card.is-sealed:hover {
+  background: color-mix(in srgb, var(--paper-raised) 94%, transparent) !important;
+}
+@supports not (backdrop-filter: blur(6px)) {
+  body .capsule-card.is-sealed { background: var(--paper-raised) !important; }
+}

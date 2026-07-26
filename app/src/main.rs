@@ -241,7 +241,7 @@ async fn reverse_geo(
 
 fn leptos_options() -> LeptosOptions {
     LeptosOptions::builder()
-        .output_name("instant_space_app_v69")
+        .output_name("instant_space_app_v70")
         .site_addr(SITE_ADDR.parse::<SocketAddr>().expect("valid site address"))
         .hash_files(false)
         .build()
@@ -272,7 +272,7 @@ mod tests {
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.js"));
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.css"));
         assert!(!html.contains("unpkg.com/maplibre-gl"));
-        assert!(html.contains("/pkg/instant_space_app_v69.js"));
+        assert!(html.contains("/pkg/instant_space_app_v70.js"));
     }
 
     #[tokio::test]

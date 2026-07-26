@@ -438,42 +438,46 @@ pub async fn open_capsule(
             }
         }
 
-        // Being there is not optional. A scan proves it outright; otherwise we
-        // need coordinates, and they have to be close enough.
-        let distance = match (lat, lng) {
-            (Some(lat), Some(lng)) if lat.is_finite() && lng.is_finite() => Some(
-                instant_domain::traces::distance_metres(
-                    lat,
-                    lng,
-                    challenge.space_lat,
-                    challenge.space_lng,
-                ),
-            ),
-            _ => None,
-        };
-
-        // The on-site code is the only proof of presence that cannot be forged
-        // by editing the request: the visitor had to read it off something in
-        // the room, and it is checked against a hash they never see. It alone
-        // is enough.
+        // A capsule has two locks and needs both keys.
+        //
+        // The on-site code proves the place: it is posted in the room (the WiFi
+        // name), and checked against a hash the browser never receives. The
+        // author's passphrase proves the person: it was handed over privately
+        // and exists nowhere on this server in readable form.
+        //
+        // Neither substitutes for the other. A scan or a GPS fix is an
+        // assertion the client makes about itself, so they cannot stand in for
+        // the on-site code here — they only decide what a *trace* is labelled,
+        // where being wrong costs a badge rather than somebody's letter.
         let code_ok = verify_onsite_code(&pool, challenge.space_id, onsite_code.as_deref()).await?;
 
         if !code_ok {
-            // A scan is merely asserted, so it cannot outrank coordinates that
-            // contradict it — otherwise appending `?via=qr` would open every
-            // capsule on the site from anywhere in the world.
-            let too_far = distance.is_some_and(|d| d > f64::from(challenge.radius_m));
+            let distance = match (lat, lng) {
+                (Some(lat), Some(lng)) if lat.is_finite() && lng.is_finite() => Some(
+                    instant_domain::traces::distance_metres(
+                        lat,
+                        lng,
+                        challenge.space_lat,
+                        challenge.space_lng,
+                    ),
+                ),
+                _ => None,
+            };
 
-            if too_far {
-                return Ok(CapsuleOpenResult::TooFar {
-                    distance_m: distance.unwrap_or_default().round(),
-                    radius_m: challenge.radius_m,
-                });
+            // Told plainly how far off they are when we can, because somebody
+            // walking towards the place deserves to know they are walking the
+            // right way. Distance alone still never opens anything.
+            if let Some(distance) = distance {
+                if distance > f64::from(challenge.radius_m) {
+                    return Ok(CapsuleOpenResult::TooFar {
+                        distance_m: distance.round(),
+                        radius_m: challenge.radius_m,
+                    });
+                }
             }
 
-            if !scanned && distance.is_none() {
-                return Ok(CapsuleOpenResult::PresenceRequired);
-            }
+            let _ = scanned;
+            return Ok(CapsuleOpenResult::PresenceRequired);
         }
 
         let matches = instant_auth::verify_password(passphrase.trim(), &challenge.passphrase_hash)
