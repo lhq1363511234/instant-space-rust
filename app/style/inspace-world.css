@@ -2222,3 +2222,184 @@ body .space-discussion-entry .button {
   .survey-field-plate { transform: none !important; }
   .survey-field-plate img { transition: none; }
 }
+
+/* ============================================================
+   Map clusters (v13) — 1000+ resident Spaces
+   At world zoom a pin per Space is unreadable noise, so nearby
+   points collapse into a counted bubble that zooms in on tap.
+   ============================================================ */
+body .map-cluster {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--ink, #171512);
+  border-radius: 999px;
+  background: var(--paper, #faf8f4);
+  color: var(--ink, #171512);
+  font-family: var(--font-text, system-ui), sans-serif;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  box-shadow: 0 2px 0 0 var(--ink, #171512);
+  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.3, 1), background-color 160ms ease;
+}
+
+body .map-cluster.is-lg { width: 48px; height: 48px; }
+body .map-cluster.is-xl { width: 56px; height: 56px; }
+
+body .map-cluster-count {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+body .map-cluster.is-xl .map-cluster-count { font-size: 0.92rem; }
+
+body .map-cluster:hover,
+body .map-cluster:focus-visible {
+  background: var(--vermilion, #b23a29);
+  border-color: var(--vermilion, #b23a29);
+  color: #fff;
+  transform: translateY(-2px);
+  outline: none;
+}
+
+body .map-cluster:focus-visible {
+  box-shadow: 0 0 0 3px rgb(178 58 41 / 0.28), 0 2px 0 0 var(--ink, #171512);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body .map-cluster { transition: none; }
+  body .map-cluster:hover,
+  body .map-cluster:focus-visible { transform: none; }
+}
+
+/* ============================================================
+   Guide directory search (v13)
+   The guide index now carries four digits of records, so it gets
+   the same index-bar search affordance as the space directory.
+   ============================================================ */
+body .guide-search-panel {
+  padding: 0 0 22px !important;
+  margin: 0 0 10px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body .guide-search-field { display: block; }
+
+body .guide-search-field > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink-faint);
+  font-size: .82rem;
+}
+
+body .guide-search-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body .guide-search-row input {
+  flex: 1 1 260px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--rule-strong, #c8bfae);
+  border-radius: 2px;
+  background: var(--paper, #faf8f4);
+  color: var(--ink, #171512);
+  font-family: var(--font-text, system-ui), sans-serif;
+  font-size: .95rem;
+}
+
+body .guide-search-row input:focus-visible {
+  outline: none;
+  border-color: var(--vermilion, #b23a29);
+  box-shadow: 0 0 0 3px rgb(178 58 41 / 0.18);
+}
+
+body .guide-search-row .button {
+  min-height: 46px;
+  padding: 0 22px;
+  display: inline-flex;
+  align-items: center;
+}
+
+body .guide-list > li > small {
+  color: var(--ink-faint);
+  font-size: .82rem;
+}
+
+/* ============================================================
+   Guide index row density (v13)
+   The directory now holds four digits of guides. A stacked
+   three-line row makes scanning a page of 24 slow, so the row
+   becomes a single index line: title, then place, then actions.
+   ============================================================ */
+body .guide-browser .guide-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  column-gap: 20px;
+  padding: 14px 8px 14px 0;
+}
+
+body .guide-browser .guide-list > li > .guide-list-link {
+  grid-column: 1;
+  padding: 0 !important;
+  display: block !important;
+  min-width: 0;
+}
+
+body .guide-browser .guide-list > li > .guide-list-link strong {
+  font-size: 1.04rem !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+body .guide-browser .guide-list > li > span {
+  grid-column: 2;
+  color: var(--ink-faint);
+  font-size: .84rem;
+  white-space: nowrap;
+}
+
+body .guide-browser .guide-list > li > small {
+  grid-column: 3;
+  color: var(--ink-faint);
+  font-size: .8rem;
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body .guide-browser .guide-list > li > .guide-list-actions {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+body .guide-browser .guide-list > li:hover {
+  background: color-mix(in srgb, var(--rule) 26%, transparent);
+}
+
+@media (max-width: 760px) {
+  /* On a phone there is no room for three columns; place drops
+     under the title and the spot name is left to the detail page. */
+  body .guide-browser .guide-list > li {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+    padding: 13px 0;
+  }
+  body .guide-browser .guide-list > li > span,
+  body .guide-browser .guide-list > li > small { grid-column: 1; }
+  body .guide-browser .guide-list > li > .guide-list-link strong { white-space: normal; }
+}

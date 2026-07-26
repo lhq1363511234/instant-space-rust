@@ -1,0 +1,825 @@
+{
+ "countries": [
+  {
+   "name_en": "China",
+   "name_zh": "中国",
+   "target": 100,
+   "per_city": 16,
+   "langs": [
+    "zh"
+   ],
+   "cities": [
+    {
+     "name_zh": "北京市",
+     "name_en": "Beijing",
+     "lat": 39.9042,
+     "lng": 116.4074,
+     "province_zh": "北京市",
+     "province_en": "Beijing",
+     "radius": 16000
+    },
+    {
+     "name_zh": "西安市",
+     "name_en": "Xi'an",
+     "lat": 34.3416,
+     "lng": 108.9398,
+     "province_zh": "陕西省",
+     "province_en": "Shaanxi",
+     "radius": 14000
+    },
+    {
+     "name_zh": "上海市",
+     "name_en": "Shanghai",
+     "lat": 31.2304,
+     "lng": 121.4737,
+     "province_zh": "上海市",
+     "province_en": "Shanghai",
+     "radius": 14000
+    },
+    {
+     "name_zh": "苏州市",
+     "name_en": "Suzhou",
+     "lat": 31.2989,
+     "lng": 120.5853,
+     "province_zh": "江苏省",
+     "province_en": "Jiangsu",
+     "radius": 14000
+    },
+    {
+     "name_zh": "杭州市",
+     "name_en": "Hangzhou",
+     "lat": 30.2741,
+     "lng": 120.1551,
+     "province_zh": "浙江省",
+     "province_en": "Zhejiang",
+     "radius": 14000
+    },
+    {
+     "name_zh": "南京市",
+     "name_en": "Nanjing",
+     "lat": 32.0603,
+     "lng": 118.7969,
+     "province_zh": "江苏省",
+     "province_en": "Jiangsu",
+     "radius": 14000
+    },
+    {
+     "name_zh": "成都市",
+     "name_en": "Chengdu",
+     "lat": 30.5728,
+     "lng": 104.0668,
+     "province_zh": "四川省",
+     "province_en": "Sichuan",
+     "radius": 14000
+    },
+    {
+     "name_zh": "桂林市",
+     "name_en": "Guilin",
+     "lat": 25.2736,
+     "lng": 110.29,
+     "province_zh": "广西壮族自治区",
+     "province_en": "Guangxi",
+     "radius": 16000
+    },
+    {
+     "name_zh": "拉萨市",
+     "name_en": "Lhasa",
+     "lat": 29.652,
+     "lng": 91.1721,
+     "province_zh": "西藏自治区",
+     "province_en": "Tibet",
+     "radius": 16000
+    },
+    {
+     "name_zh": "敦煌市",
+     "name_en": "Dunhuang",
+     "lat": 40.1421,
+     "lng": 94.6618,
+     "province_zh": "甘肃省",
+     "province_en": "Gansu",
+     "radius": 25000
+    },
+    {
+     "name_zh": "洛阳市",
+     "name_en": "Luoyang",
+     "lat": 34.6197,
+     "lng": 112.454,
+     "province_zh": "河南省",
+     "province_en": "Henan",
+     "radius": 16000
+    },
+    {
+     "name_zh": "广州市",
+     "name_en": "Guangzhou",
+     "lat": 23.1291,
+     "lng": 113.2644,
+     "province_zh": "广东省",
+     "province_en": "Guangdong",
+     "radius": 14000
+    },
+    {
+     "name_zh": "重庆市",
+     "name_en": "Chongqing",
+     "lat": 29.563,
+     "lng": 106.5516,
+     "province_zh": "重庆市",
+     "province_en": "Chongqing",
+     "radius": 14000
+    },
+    {
+     "name_zh": "丽江市",
+     "name_en": "Lijiang",
+     "lat": 26.8721,
+     "lng": 100.2299,
+     "province_zh": "云南省",
+     "province_en": "Yunnan",
+     "radius": 16000
+    },
+    {
+     "name_zh": "香港",
+     "name_en": "Hong Kong",
+     "lat": 22.3193,
+     "lng": 114.1694,
+     "province_zh": "香港特别行政区",
+     "province_en": "Hong Kong",
+     "radius": 12000
+    },
+    {
+     "name_zh": "泰安市",
+     "name_en": "Tai'an",
+     "lat": 36.2,
+     "lng": 117.087,
+     "province_zh": "山东省",
+     "province_en": "Shandong",
+     "radius": 16000
+    },
+    {
+     "name_zh": "承德市",
+     "name_en": "Chengde",
+     "lat": 40.9515,
+     "lng": 117.9634,
+     "province_zh": "河北省",
+     "province_en": "Hebei",
+     "radius": 16000
+    },
+    {
+     "name_zh": "黄山市",
+     "name_en": "Huangshan",
+     "lat": 29.715,
+     "lng": 118.3376,
+     "province_zh": "安徽省",
+     "province_en": "Anhui",
+     "radius": 22000
+    }
+   ]
+  },
+  {
+   "name_en": "Japan",
+   "name_zh": "日本",
+   "target": 100,
+   "per_city": 22,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "京都",
+     "name_en": "Kyoto",
+     "lat": 35.0116,
+     "lng": 135.7681,
+     "province_zh": "京都府",
+     "province_en": "Kyoto",
+     "radius": 9000
+    },
+    {
+     "name_zh": "东京",
+     "name_en": "Tokyo",
+     "lat": 35.6762,
+     "lng": 139.6503,
+     "province_zh": "东京都",
+     "province_en": "Tokyo",
+     "radius": 12000
+    },
+    {
+     "name_zh": "奈良",
+     "name_en": "Nara",
+     "lat": 34.6851,
+     "lng": 135.8048,
+     "province_zh": "奈良县",
+     "province_en": "Nara",
+     "radius": 9000
+    },
+    {
+     "name_zh": "大阪",
+     "name_en": "Osaka",
+     "lat": 34.6937,
+     "lng": 135.5023,
+     "province_zh": "大阪府",
+     "province_en": "Osaka",
+     "radius": 9000
+    },
+    {
+     "name_zh": "金泽",
+     "name_en": "Kanazawa",
+     "lat": 36.5613,
+     "lng": 136.6562,
+     "province_zh": "石川县",
+     "province_en": "Ishikawa",
+     "radius": 9000
+    },
+    {
+     "name_zh": "广岛",
+     "name_en": "Hiroshima",
+     "lat": 34.3853,
+     "lng": 132.4553,
+     "province_zh": "广岛县",
+     "province_en": "Hiroshima",
+     "radius": 9000
+    },
+    {
+     "name_zh": "日光",
+     "name_en": "Nikko",
+     "lat": 36.7198,
+     "lng": 139.6982,
+     "province_zh": "栃木县",
+     "province_en": "Tochigi",
+     "radius": 14000
+    }
+   ]
+  },
+  {
+   "name_en": "France",
+   "name_zh": "法国",
+   "target": 100,
+   "per_city": 24,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "巴黎",
+     "name_en": "Paris",
+     "lat": 48.8566,
+     "lng": 2.3522,
+     "province_zh": "法兰西岛",
+     "province_en": "Île-de-France",
+     "radius": 7000
+    },
+    {
+     "name_zh": "凡尔赛",
+     "name_en": "Versailles",
+     "lat": 48.8049,
+     "lng": 2.1204,
+     "province_zh": "法兰西岛",
+     "province_en": "Île-de-France",
+     "radius": 9000
+    },
+    {
+     "name_zh": "里昂",
+     "name_en": "Lyon",
+     "lat": 45.764,
+     "lng": 4.8357,
+     "province_zh": "奥弗涅-罗纳-阿尔卑斯",
+     "province_en": "Auvergne-Rhône-Alpes",
+     "radius": 9000
+    },
+    {
+     "name_zh": "阿维尼翁",
+     "name_en": "Avignon",
+     "lat": 43.9493,
+     "lng": 4.8055,
+     "province_zh": "普罗旺斯",
+     "province_en": "Provence",
+     "radius": 9000
+    },
+    {
+     "name_zh": "波尔多",
+     "name_en": "Bordeaux",
+     "lat": 44.8378,
+     "lng": -0.5792,
+     "province_zh": "新阿基坦",
+     "province_en": "Nouvelle-Aquitaine",
+     "radius": 9000
+    },
+    {
+     "name_zh": "尼斯",
+     "name_en": "Nice",
+     "lat": 43.7102,
+     "lng": 7.262,
+     "province_zh": "蓝色海岸",
+     "province_en": "Côte d'Azur",
+     "radius": 9000
+    },
+    {
+     "name_zh": "斯特拉斯堡",
+     "name_en": "Strasbourg",
+     "lat": 48.5734,
+     "lng": 7.7521,
+     "province_zh": "大东部",
+     "province_en": "Grand Est",
+     "radius": 10000
+    }
+   ]
+  },
+  {
+   "name_en": "Italy",
+   "name_zh": "意大利",
+   "target": 100,
+   "per_city": 24,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "罗马",
+     "name_en": "Rome",
+     "lat": 41.9028,
+     "lng": 12.4964,
+     "province_zh": "拉齐奥",
+     "province_en": "Lazio",
+     "radius": 7000
+    },
+    {
+     "name_zh": "佛罗伦萨",
+     "name_en": "Florence",
+     "lat": 43.7696,
+     "lng": 11.2558,
+     "province_zh": "托斯卡纳",
+     "province_en": "Tuscany",
+     "radius": 9000
+    },
+    {
+     "name_zh": "威尼斯",
+     "name_en": "Venice",
+     "lat": 45.4408,
+     "lng": 12.3155,
+     "province_zh": "威尼托",
+     "province_en": "Veneto",
+     "radius": 9000
+    },
+    {
+     "name_zh": "米兰",
+     "name_en": "Milan",
+     "lat": 45.4642,
+     "lng": 9.19,
+     "province_zh": "伦巴第",
+     "province_en": "Lombardy",
+     "radius": 9000
+    },
+    {
+     "name_zh": "那不勒斯",
+     "name_en": "Naples",
+     "lat": 40.8518,
+     "lng": 14.2681,
+     "province_zh": "坎帕尼亚",
+     "province_en": "Campania",
+     "radius": 9000
+    },
+    {
+     "name_zh": "锡耶纳",
+     "name_en": "Siena",
+     "lat": 43.3188,
+     "lng": 11.3308,
+     "province_zh": "托斯卡纳",
+     "province_en": "Tuscany",
+     "radius": 9000
+    }
+   ]
+  },
+  {
+   "name_en": "United Kingdom",
+   "name_zh": "英国",
+   "target": 100,
+   "per_city": 24,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "伦敦",
+     "name_en": "London",
+     "lat": 51.5074,
+     "lng": -0.1278,
+     "province_zh": "英格兰",
+     "province_en": "England",
+     "radius": 8000
+    },
+    {
+     "name_zh": "爱丁堡",
+     "name_en": "Edinburgh",
+     "lat": 55.9533,
+     "lng": -3.1883,
+     "province_zh": "苏格兰",
+     "province_en": "Scotland",
+     "radius": 9000
+    },
+    {
+     "name_zh": "牛津",
+     "name_en": "Oxford",
+     "lat": 51.752,
+     "lng": -1.2577,
+     "province_zh": "英格兰",
+     "province_en": "England",
+     "radius": 9000
+    },
+    {
+     "name_zh": "巴斯",
+     "name_en": "Bath",
+     "lat": 51.3811,
+     "lng": -2.359,
+     "province_zh": "英格兰",
+     "province_en": "England",
+     "radius": 9000
+    },
+    {
+     "name_zh": "约克",
+     "name_en": "York",
+     "lat": 53.96,
+     "lng": -1.0873,
+     "province_zh": "英格兰",
+     "province_en": "England",
+     "radius": 9000
+    },
+    {
+     "name_zh": "剑桥",
+     "name_en": "Cambridge",
+     "lat": 52.2053,
+     "lng": 0.1218,
+     "province_zh": "英格兰",
+     "province_en": "England",
+     "radius": 9000
+    }
+   ]
+  },
+  {
+   "name_en": "United States",
+   "name_zh": "美国",
+   "target": 100,
+   "per_city": 20,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "纽约",
+     "name_en": "New York",
+     "lat": 40.7128,
+     "lng": -74.006,
+     "province_zh": "纽约州",
+     "province_en": "New York",
+     "radius": 10000
+    },
+    {
+     "name_zh": "华盛顿",
+     "name_en": "Washington, D.C.",
+     "lat": 38.9072,
+     "lng": -77.0369,
+     "province_zh": "哥伦比亚特区",
+     "province_en": "District of Columbia",
+     "radius": 9000
+    },
+    {
+     "name_zh": "旧金山",
+     "name_en": "San Francisco",
+     "lat": 37.7749,
+     "lng": -122.4194,
+     "province_zh": "加利福尼亚州",
+     "province_en": "California",
+     "radius": 9000
+    },
+    {
+     "name_zh": "芝加哥",
+     "name_en": "Chicago",
+     "lat": 41.8781,
+     "lng": -87.6298,
+     "province_zh": "伊利诺伊州",
+     "province_en": "Illinois",
+     "radius": 9000
+    },
+    {
+     "name_zh": "波士顿",
+     "name_en": "Boston",
+     "lat": 42.3601,
+     "lng": -71.0589,
+     "province_zh": "马萨诸塞州",
+     "province_en": "Massachusetts",
+     "radius": 9000
+    },
+    {
+     "name_zh": "新奥尔良",
+     "name_en": "New Orleans",
+     "lat": 29.9511,
+     "lng": -90.0715,
+     "province_zh": "路易斯安那州",
+     "province_en": "Louisiana",
+     "radius": 9000
+    },
+    {
+     "name_zh": "洛杉矶",
+     "name_en": "Los Angeles",
+     "lat": 34.0522,
+     "lng": -118.2437,
+     "province_zh": "加利福尼亚州",
+     "province_en": "California",
+     "radius": 14000
+    }
+   ]
+  },
+  {
+   "name_en": "Spain",
+   "name_zh": "西班牙",
+   "target": 100,
+   "per_city": 24,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "巴塞罗那",
+     "name_en": "Barcelona",
+     "lat": 41.3851,
+     "lng": 2.1734,
+     "province_zh": "加泰罗尼亚",
+     "province_en": "Catalonia",
+     "radius": 9000
+    },
+    {
+     "name_zh": "马德里",
+     "name_en": "Madrid",
+     "lat": 40.4168,
+     "lng": -3.7038,
+     "province_zh": "马德里",
+     "province_en": "Madrid",
+     "radius": 9000
+    },
+    {
+     "name_zh": "塞维利亚",
+     "name_en": "Seville",
+     "lat": 37.3891,
+     "lng": -5.9845,
+     "province_zh": "安达卢西亚",
+     "province_en": "Andalusia",
+     "radius": 9000
+    },
+    {
+     "name_zh": "格拉纳达",
+     "name_en": "Granada",
+     "lat": 37.1773,
+     "lng": -3.5986,
+     "province_zh": "安达卢西亚",
+     "province_en": "Andalusia",
+     "radius": 9000
+    },
+    {
+     "name_zh": "托莱多",
+     "name_en": "Toledo",
+     "lat": 39.8628,
+     "lng": -4.0273,
+     "province_zh": "卡斯蒂利亚-拉曼恰",
+     "province_en": "Castilla-La Mancha",
+     "radius": 9000
+    },
+    {
+     "name_zh": "科尔多瓦",
+     "name_en": "Córdoba",
+     "lat": 37.8882,
+     "lng": -4.7794,
+     "province_zh": "安达卢西亚",
+     "province_en": "Andalusia",
+     "radius": 9000
+    }
+   ]
+  },
+  {
+   "name_en": "Türkiye",
+   "name_zh": "土耳其",
+   "target": 100,
+   "per_city": 26,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "伊斯坦布尔",
+     "name_en": "Istanbul",
+     "lat": 41.0082,
+     "lng": 28.9784,
+     "province_zh": "伊斯坦布尔",
+     "province_en": "Istanbul",
+     "radius": 10000
+    },
+    {
+     "name_zh": "卡帕多西亚",
+     "name_en": "Cappadocia",
+     "lat": 38.6431,
+     "lng": 34.8289,
+     "province_zh": "内夫谢希尔",
+     "province_en": "Nevşehir",
+     "radius": 22000
+    },
+    {
+     "name_zh": "以弗所",
+     "name_en": "Ephesus",
+     "lat": 37.9398,
+     "lng": 27.341,
+     "province_zh": "伊兹密尔",
+     "province_en": "İzmir",
+     "radius": 18000
+    },
+    {
+     "name_zh": "安塔利亚",
+     "name_en": "Antalya",
+     "lat": 36.8969,
+     "lng": 30.7133,
+     "province_zh": "安塔利亚",
+     "province_en": "Antalya",
+     "radius": 14000
+    },
+    {
+     "name_zh": "安卡拉",
+     "name_en": "Ankara",
+     "lat": 39.9334,
+     "lng": 32.8597,
+     "province_zh": "安卡拉",
+     "province_en": "Ankara",
+     "radius": 12000
+    },
+    {
+     "name_zh": "布尔萨",
+     "name_en": "Bursa",
+     "lat": 40.1826,
+     "lng": 29.0665,
+     "province_zh": "布尔萨",
+     "province_en": "Bursa",
+     "radius": 12000
+    },
+    {
+     "name_zh": "特拉布宗",
+     "name_en": "Trabzon",
+     "lat": 41.0015,
+     "lng": 39.7178,
+     "province_zh": "特拉布宗",
+     "province_en": "Trabzon",
+     "radius": 14000
+    },
+    {
+     "name_zh": "孔亚",
+     "name_en": "Konya",
+     "lat": 37.8746,
+     "lng": 32.4932,
+     "province_zh": "孔亚",
+     "province_en": "Konya",
+     "radius": 12000
+    },
+    {
+     "name_zh": "伊兹密尔",
+     "name_en": "İzmir",
+     "lat": 38.4237,
+     "lng": 27.1428,
+     "province_zh": "伊兹密尔",
+     "province_en": "İzmir",
+     "radius": 12000
+    }
+   ]
+  },
+  {
+   "name_en": "Thailand",
+   "name_zh": "泰国",
+   "target": 100,
+   "per_city": 26,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "曼谷",
+     "name_en": "Bangkok",
+     "lat": 13.7563,
+     "lng": 100.5018,
+     "province_zh": "曼谷",
+     "province_en": "Bangkok",
+     "radius": 12000
+    },
+    {
+     "name_zh": "清迈",
+     "name_en": "Chiang Mai",
+     "lat": 18.7883,
+     "lng": 98.9853,
+     "province_zh": "清迈府",
+     "province_en": "Chiang Mai",
+     "radius": 14000
+    },
+    {
+     "name_zh": "大城",
+     "name_en": "Ayutthaya",
+     "lat": 14.3532,
+     "lng": 100.5689,
+     "province_zh": "大城府",
+     "province_en": "Ayutthaya",
+     "radius": 12000
+    },
+    {
+     "name_zh": "素可泰",
+     "name_en": "Sukhothai",
+     "lat": 17.0078,
+     "lng": 99.8236,
+     "province_zh": "素可泰府",
+     "province_en": "Sukhothai",
+     "radius": 14000
+    },
+    {
+     "name_zh": "普吉",
+     "name_en": "Phuket",
+     "lat": 7.8804,
+     "lng": 98.3923,
+     "province_zh": "普吉府",
+     "province_en": "Phuket",
+     "radius": 18000
+    },
+    {
+     "name_zh": "清莱",
+     "name_en": "Chiang Rai",
+     "lat": 19.9105,
+     "lng": 99.8406,
+     "province_zh": "清莱府",
+     "province_en": "Chiang Rai",
+     "radius": 14000
+    },
+    {
+     "name_zh": "洛坤",
+     "name_en": "Nakhon Si Thammarat",
+     "lat": 8.4304,
+     "lng": 99.9631,
+     "province_zh": "洛坤府",
+     "province_en": "Nakhon Si Thammarat",
+     "radius": 14000
+    },
+    {
+     "name_zh": "北碧",
+     "name_en": "Kanchanaburi",
+     "lat": 14.0227,
+     "lng": 99.5328,
+     "province_zh": "北碧府",
+     "province_en": "Kanchanaburi",
+     "radius": 16000
+    }
+   ]
+  },
+  {
+   "name_en": "Egypt",
+   "name_zh": "埃及",
+   "target": 100,
+   "per_city": 30,
+   "langs": [
+    "en"
+   ],
+   "cities": [
+    {
+     "name_zh": "开罗",
+     "name_en": "Cairo",
+     "lat": 30.0444,
+     "lng": 31.2357,
+     "province_zh": "开罗省",
+     "province_en": "Cairo",
+     "radius": 14000
+    },
+    {
+     "name_zh": "吉萨",
+     "name_en": "Giza",
+     "lat": 29.9773,
+     "lng": 31.1325,
+     "province_zh": "吉萨省",
+     "province_en": "Giza",
+     "radius": 12000
+    },
+    {
+     "name_zh": "卢克索",
+     "name_en": "Luxor",
+     "lat": 25.6872,
+     "lng": 32.6396,
+     "province_zh": "卢克索省",
+     "province_en": "Luxor",
+     "radius": 16000
+    },
+    {
+     "name_zh": "阿斯旺",
+     "name_en": "Aswan",
+     "lat": 24.0889,
+     "lng": 32.8998,
+     "province_zh": "阿斯旺省",
+     "province_en": "Aswan",
+     "radius": 18000
+    },
+    {
+     "name_zh": "亚历山大",
+     "name_en": "Alexandria",
+     "lat": 31.2001,
+     "lng": 29.9187,
+     "province_zh": "亚历山大省",
+     "province_en": "Alexandria",
+     "radius": 14000
+    }
+   ]
+  }
+ ]
+}

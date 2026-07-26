@@ -124,6 +124,79 @@ pub async fn list_published_guides(
     rows.into_iter().map(row_to_guide_summary).collect()
 }
 
+#[derive(Debug, Clone)]
+pub struct PaginatedGuides {
+    pub items: Vec<GuideSummary>,
+    pub total: i64,
+}
+
+/// Paginated variant of [`list_published_guides`]. The guide directory holds a
+/// four-digit number of published guides, so the browser must never receive the
+/// whole table in one response.
+pub async fn list_published_guides_page(
+    pool: &PgPool,
+    q: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+    district: Option<String>,
+    spot_name: Option<String>,
+    limit: i64,
+    offset: i64,
+) -> Result<PaginatedGuides, sqlx::Error> {
+    const FILTER: &str = r#"
+        WHERE status = 'published'
+          AND ($1::text IS NULL OR province = $1)
+          AND ($2::text IS NULL OR city = $2)
+          AND ($3::text IS NULL OR district = $3)
+          AND ($4::text IS NULL OR spot_name = $4)
+          AND (
+            $5::text IS NULL
+            OR title_zh ILIKE '%' || $5 || '%'
+            OR title_en ILIKE '%' || $5 || '%'
+            OR spot_name ILIKE '%' || $5 || '%'
+            OR city ILIKE '%' || $5 || '%'
+            OR province ILIKE '%' || $5 || '%'
+          )
+    "#;
+
+    let total: i64 = sqlx::query_scalar(&format!("SELECT count(*)::bigint FROM guides {FILTER}"))
+        .bind(province.clone())
+        .bind(city.clone())
+        .bind(district.clone())
+        .bind(spot_name.clone())
+        .bind(q.clone())
+        .fetch_one(pool)
+        .await?;
+
+    let rows = sqlx::query(&format!(
+        r#"
+        SELECT id, title_zh, title_en, province, city, district, spot_name,
+               status::text AS status, featured, author_id, space_id
+        FROM guides
+        {FILTER}
+        ORDER BY featured DESC, updated_at DESC, created_at DESC, id
+        LIMIT $6 OFFSET $7
+        "#
+    ))
+    .bind(province)
+    .bind(city)
+    .bind(district)
+    .bind(spot_name)
+    .bind(q)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(PaginatedGuides {
+        items: rows
+            .into_iter()
+            .map(row_to_guide_summary)
+            .collect::<Result<Vec<_>, _>>()?,
+        total,
+    })
+}
+
 pub async fn get_published_guide(
     pool: &PgPool,
     guide_id: Uuid,

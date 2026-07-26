@@ -15,3 +15,8 @@ playwright-report/
 
 # QA / screenshot artifacts
 /output/
+
+# Seeding pipeline outputs (regenerate with scripts/seed/*.py)
+/scripts/seed/places.json
+/scripts/seed/seed_spaces.sql
+/scripts/seed/__pycache__/

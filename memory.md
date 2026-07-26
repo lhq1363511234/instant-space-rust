@@ -450,3 +450,78 @@ Rust + 新 JS → 完整流程：`cargo check` → release build（7m09s）→ �
 - a11y：无 alt 缺失、装饰图 alt 全空、`ul>li` 语义、6 张全 lazy
 - 回归：地图标记 3/3 + 抽屉可开、聊天 11 条 connected、iPad 1024/1112/1180/1194/1366 全部 `sw==vw` covered=[]
 - `impeccable/detect.mjs` → `[]`
+
+## v12 — 1000 个真实空间 + 1000 篇攻略播种；地图聚类；攻略分页（2026-07-26）
+
+用户要求：10 个著名国家各插 100 个空间、每个空间配一份攻略，中国选 100 个著名景点。
+
+### 1. 采集管线 `scripts/seed/`
+| 文件 | 作用 |
+|---|---|
+| `plan.json` | 10 国 × 城市清单（中英名、坐标、省/州、采样半径） |
+| `fetch_places.py` | Wikipedia GeoSearch + Wikidata 采集器 |
+| `places.json` | 1000 条采集结果（392KB，**已 gitignore**） |
+| `make_seed_sql.py` | 生成空间 + 攻略 SQL |
+| `seed_spaces.sql` | 5.2MB 生成物（**已 gitignore**） |
+
+**关键决策：反向查询。** Wikidata SPARQL 端点对"某国全部知名地点"这类查询稳定 504 超时。改为按城市中心用 Wikipedia GeoSearch 取附近条目，再用 `wbgetentities` 批量水化（50 个一批，秒级）。
+
+**六点环形卫星采样**：GeoSearch 半径上限 10km、单次上限 500，大城市覆盖不足 → `geosearch()` 里超过 `MAX_RADIUS` 时改为围绕中心取六个卫星点分别采样再合并去重。
+
+**排序打分**：`pageviews(30d) + sitelinks*400 + heritage?3000`。
+**分类**：Wikidata P31 → `TYPE_MAP` 映射到 `space_type`；`REJECT_P31` + `BAD_TITLE_BITS` 过滤人物/城市/战役/列表页。
+**手工剔除 5 条**不当条目（中南海、南京人民大会堂、巴黎古监狱、里昂主宫医院、Ulucanlar Prison Museum），从同城补齐。
+
+**确定性 UUID**：`uuid5(NAMESPACE, "inspace:space:{QID}")`，SQL 全部 `ON CONFLICT (id) DO UPDATE`，**重跑安全**。
+
+**攻略正文**：按 `space_type` 选开场白；4 组路线/时段/避坑文案用 `sha256(qid+salt)` 确定性选取；有遗产身份的加"现场规矩"段。**刻意不编造营业时间/票价/电话**。
+
+结果：10 国各 100（China/Japan/France/Italy/UK/US/Spain/Türkiye/Thailand/Egypt），类型 scenic 849 / transit 66 / park 43 / event 39 / food 3；空间 1003、已发布攻略 1001、空间↔攻略配对 1000。
+
+### 2. 标题后缀是索引噪音
+初版标题是 `{地点}·实地攻略` / `{name} — a field guide`。1000 行全带同一后缀，目录页变成一列重复文字。已 `UPDATE` 去掉后缀（标题就是地点名），并同步改了 `make_seed_sql.py` 第 190 行，避免重跑再加回来。
+
+### 3. 地图：1003 个 DOM marker → 视口裁剪 + 网格聚类
+`crates/map-ui/src/maplibre_shim.js` 的 `renderMarkers` 原本是一个 Space 一个 DOM marker。1003 个在 zoom 3 全糊成黑块，主线程也被拖住。
+
+重构为 `renderMarkers`（收数据）+ `paintMarkers`（画当前视口）两层：
+- `visiblePoints()`：按 `map.getBounds()` 裁剪，外扩 15% 便于平移
+- `clusterPoints()`：用 `map.project()` 投到屏幕坐标，按 `CLUSTER_CELL_PX = 78` 网格归并；单点仍是原来的 `.map-marker`，多点变 `.map-cluster` 计数气泡
+- `MAX_PAINTED_MARKERS = 220` 硬上限兜底
+- 气泡点击 `easeTo(zoom + 2.2)` 下钻
+- `moveend` / `zoomend` 重绘，监听器存在 `store.onMoveRepaint`，`cleanupStore` 里 `off` 掉
+
+**同时修了一个隐藏 bug**：`fitMapToPoints` 原本每次 sync 都跑，会跟用户的平移缩放打架。现在用 `store.fitSignature`（点 id 拼接）比对，只有筛选/搜索真的变了才重新取景。
+
+样式在 `inspace-world.css` 末尾（纸底 + 墨色描边，hover 转朱红）；`.is-lg` ≥25、`.is-xl` ≥100 三档尺寸。
+
+实测下钻链路：zoom 3 → 11 个气泡 → 5.2 → 7.4 → 9.6 → 11.8 → 14 出现单点 pin，点开抽屉正常。
+
+### 4. 攻略目录：全量 → 分页
+`/inspace/guides` 原来一次渲染 1001 条，SSR HTML **691KB**。
+
+- `crates/db/src/guides.rs` 新增 `list_published_guides_page`（`PaginatedGuides { items, total }`），带关键词模糊匹配（标题/地点/城市/省份）
+- `app/src/server/guides.rs` 新增 `list_guide_page` server fn + `GuidePageResult`，越界页码回落到最后一页（与 `list_space_page` 行为一致）
+- `guide_browser.rs`：加搜索框、`PAGE_SIZE = 24`、`GuideResults` 组件（复用 explore 的 `directory-pagination` 样式）；任一筛选变化时 Effect 把 `page` 复位到 1
+
+SSR 从 691KB 降到 **57KB**。
+
+**行密度**：24 行堆叠三行文字（标题/地区/地点）在桌面上一行 145px，扫读困难。改成单行索引条（标题 | 地区），桌面 76px。地点名已经在标题里，第三列删掉。
+
+### 5. 踩的最大的坑：Cloudflare 缓存了旧的 wasm glue
+改完 shim、构建、部署之后，浏览器**依旧**跑旧代码：DOM 里 1003 个 pin、`store` 上没有 `allPoints`。排查过程：
+- `curl` 拿 `maplibre_shim.js` → 新代码（有 `paintMarkers`）✅
+- `curl` 拿 `instant_space_app_v64.js` → 引用 `?v=8f996055f235` ✅
+- 但浏览器实际请求的是 `?v=0455aeedb7e8`（24727 字节的旧文件）❌
+
+原因：`instant_space_app_v64.js` 这个 URL 在 CF 边缘的缓存 `age=30051`（8 小时前），`cache-control: immutable` 一年。**页面里 `?v=craft-vNN` 只作用于 `<script>` 那一次请求，wasm glue 内部 import 的 snippet URL hash 不受它影响**；而 CF 命中的是没有 query 的那份旧 glue。`Network.setCacheDisabled` 也没用，因为问题在边缘不在本地。
+
+解法：`scripts/build-wasm.mjs` 的 `OUTPUT_NAME` 和 `app/src/main.rs` 的 `.output_name()` 一起 **v64 → v65**，换文件名绕开。
+
+**教训：改了 `crates/map-ui/src/*.js`（会被 wasm-bindgen 打成 snippet）必须 bump `OUTPUT_NAME`，只 bump CSS 版本号不够。**
+
+### 6. 发布
+版本链：nginx `sub_filter '20260729-craft-v17' '20260729-craft-v20'`（v18/v19 已被覆盖）。`OUTPUT_NAME` = `instant_space_app_v65`。
+
+### 7. 保留脚本
+`tests/browser/seed-verify.mjs`（地图聚类 + 攻略分页 + 探索页一次跑完）、`tests/browser/cluster-drill.mjs`（逐级下钻到单点并开抽屉）、`tests/browser/guides-shot.mjs`（桌面/手机行高与溢出）。

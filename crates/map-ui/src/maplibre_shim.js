@@ -71,6 +71,12 @@ function cleanupStore(elementId) {
 
   removePicker(store);
 
+  if (store.onMoveRepaint) {
+    store.map?.off?.("moveend", store.onMoveRepaint);
+    store.map?.off?.("zoomend", store.onMoveRepaint);
+    store.onMoveRepaint = null;
+  }
+
   for (const marker of store.markers || []) {
     marker.remove();
   }
@@ -288,6 +294,13 @@ function parsePoints(pointsJson) {
   }
 }
 
+// Marker rendering is viewport-culled and grid-clustered. With ~1000 resident
+// Spaces a naive "one DOM marker per Space" render piles every label on top of
+// each other at low zoom and drags the main thread. We keep the DOM bounded by
+// only painting what is on screen and merging nearby points into count bubbles.
+const CLUSTER_CELL_PX = 78;
+const MAX_PAINTED_MARKERS = 220;
+
 function renderMarkers(elementId, points) {
   LAST_POINTS.set(elementId, points);
   const store = getStore(elementId);
@@ -305,45 +318,186 @@ function renderMarkers(elementId, points) {
     return;
   }
 
-  for (const marker of store.markers || []) {
-    marker.remove();
-  }
-
   const validPoints = (points || []).filter(
     (point) => Number.isFinite(Number(point.lng)) && Number.isFinite(Number(point.lat)),
   );
+  store.allPoints = validPoints;
 
-  store.markers = validPoints.map((point) => {
+  if (!store.onMoveRepaint) {
+    store.onMoveRepaint = () => paintMarkers(elementId);
+    store.map.on("moveend", store.onMoveRepaint);
+    store.map.on("zoomend", store.onMoveRepaint);
+  }
+
+  paintMarkers(elementId);
+
+  // Auto-framing should react to filter/search changes, not to every re-sync.
+  // Refitting on identical data would fight the user's own pan/zoom.
+  const signature = validPoints.map((point) => point.id).join(",");
+  if (store.fitSignature !== signature) {
+    store.fitSignature = signature;
+    fitMapToPoints(store.map, validPoints);
+  }
+}
+
+function clearPaintedMarkers(store) {
+  for (const marker of store.markers || []) {
+    marker.remove();
+  }
+  store.markers = [];
+}
+
+function visiblePoints(map, points) {
+  let bounds;
+  try {
+    bounds = map.getBounds();
+  } catch {
+    return points;
+  }
+  if (!bounds) return points;
+
+  // Pad the viewport so markers just outside the edge are ready when panning.
+  const padLng = Math.abs(bounds.getEast() - bounds.getWest()) * 0.15;
+  const padLat = Math.abs(bounds.getNorth() - bounds.getSouth()) * 0.15;
+  const west = bounds.getWest() - padLng;
+  const east = bounds.getEast() + padLng;
+  const south = bounds.getSouth() - padLat;
+  const north = bounds.getNorth() + padLat;
+
+  return points.filter((point) => {
     const lng = Number(point.lng);
     const lat = Number(point.lat);
-    const label = point.name_zh || point.name_en || "Space";
-    const markerElement = document.createElement("button");
-    markerElement.type = "button";
-    markerElement.className = `map-marker ${point.is_public ? "is-public" : "is-private"}`;
-    markerElement.dataset.spaceMarker = point.id;
-    markerElement.setAttribute("aria-label", `Open ${label}`);
-    markerElement.innerHTML = `
+    return lat >= south && lat <= north && lng >= west && lng <= east;
+  });
+}
+
+function clusterPoints(map, points) {
+  const cells = new globalThis.Map();
+  for (const point of points) {
+    let projected;
+    try {
+      projected = map.project([Number(point.lng), Number(point.lat)]);
+    } catch {
+      projected = null;
+    }
+    if (!projected || !Number.isFinite(projected.x) || !Number.isFinite(projected.y)) {
+      continue;
+    }
+    const key = `${Math.floor(projected.x / CLUSTER_CELL_PX)}:${Math.floor(projected.y / CLUSTER_CELL_PX)}`;
+    const cell = cells.get(key);
+    if (cell) {
+      cell.points.push(point);
+    } else {
+      cells.set(key, { points: [point] });
+    }
+  }
+
+  return [...cells.values()].map((cell) => {
+    if (cell.points.length === 1) {
+      return { kind: "single", point: cell.points[0], size: 1 };
+    }
+    let sumLng = 0;
+    let sumLat = 0;
+    for (const point of cell.points) {
+      sumLng += Number(point.lng);
+      sumLat += Number(point.lat);
+    }
+    return {
+      kind: "cluster",
+      size: cell.points.length,
+      lng: sumLng / cell.points.length,
+      lat: sumLat / cell.points.length,
+      points: cell.points,
+    };
+  });
+}
+
+function makeSingleMarkerElement(elementId, point) {
+  const lng = Number(point.lng);
+  const lat = Number(point.lat);
+  const label = point.name_zh || point.name_en || "Space";
+  const markerElement = document.createElement("button");
+  markerElement.type = "button";
+  markerElement.className = `map-marker ${point.is_public ? "is-public" : "is-private"}`;
+  markerElement.dataset.spaceMarker = point.id;
+  markerElement.setAttribute("aria-label", `Open ${label}`);
+  markerElement.innerHTML = `
       <span class="map-marker-pin" aria-hidden="true"></span>
       <span class="map-marker-label">${escapeHtml(label)}</span>
     `;
 
-    markerElement.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      focusMapPoint(elementId, lng, lat);
-      const selector = `[data-space-select="${escapeSelectorValue(point.id)}"]`;
-      document.querySelector(selector)?.click();
-    });
-
-    return new globalThis.maplibregl.Marker({
-      element: markerElement,
-      anchor: "bottom",
-    })
-      .setLngLat([lng, lat])
-      .addTo(store.map);
+  markerElement.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    focusMapPoint(elementId, lng, lat);
+    const selector = `[data-space-select="${escapeSelectorValue(point.id)}"]`;
+    document.querySelector(selector)?.click();
   });
 
-  fitMapToPoints(store.map, validPoints);
+  return markerElement;
+}
+
+function makeClusterMarkerElement(map, cluster) {
+  const element = document.createElement("button");
+  element.type = "button";
+  element.className = "map-cluster";
+  if (cluster.size >= 100) element.classList.add("is-xl");
+  else if (cluster.size >= 25) element.classList.add("is-lg");
+  element.dataset.clusterSize = String(cluster.size);
+  element.setAttribute("aria-label", `${cluster.size} spaces here, zoom in`);
+  element.innerHTML = `<span class="map-cluster-count">${cluster.size}</span>`;
+
+  element.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    // Zoom toward the cluster so it splits into smaller groups / single pins.
+    const currentZoom = map.getZoom();
+    map.easeTo({
+      center: [cluster.lng, cluster.lat],
+      zoom: Math.min(currentZoom + 2.2, 17),
+      duration: 520,
+      essential: false,
+    });
+  });
+
+  return element;
+}
+
+function paintMarkers(elementId) {
+  const store = getStore(elementId);
+  if (!store?.map || !globalThis.maplibregl) return;
+
+  const all = store.allPoints || [];
+  clearPaintedMarkers(store);
+  if (!all.length) return;
+
+  const inView = visiblePoints(store.map, all);
+  let groups = clusterPoints(store.map, inView);
+
+  // Hard safety cap: keep the biggest groups if a dense style still overflows.
+  if (groups.length > MAX_PAINTED_MARKERS) {
+    groups.sort((a, b) => b.size - a.size);
+    groups = groups.slice(0, MAX_PAINTED_MARKERS);
+  }
+
+  store.markers = groups.map((group) => {
+    if (group.kind === "single") {
+      const point = group.point;
+      return new globalThis.maplibregl.Marker({
+        element: makeSingleMarkerElement(elementId, point),
+        anchor: "bottom",
+      })
+        .setLngLat([Number(point.lng), Number(point.lat)])
+        .addTo(store.map);
+    }
+
+    return new globalThis.maplibregl.Marker({
+      element: makeClusterMarkerElement(store.map, group),
+      anchor: "center",
+    })
+      .setLngLat([group.lng, group.lat])
+      .addTo(store.map);
+  });
 }
 
 function fitMapToPoints(map, points) {

@@ -5,6 +5,92 @@ use instant_domain::{
     locations::LocationNode,
 };
 use leptos::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuidePageResult {
+    pub items: Vec<GuideSummary>,
+    pub total: i64,
+    pub page: i32,
+    pub page_size: i32,
+    pub total_pages: i32,
+}
+
+#[server(ListGuidePage, "/inspace/api")]
+pub async fn list_guide_page(
+    q: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+    district: Option<String>,
+    spot_name: Option<String>,
+    page: i32,
+    page_size: i32,
+) -> Result<GuidePageResult, ServerFnError> {
+    let page_size = page_size.clamp(10, 50);
+    let requested_page = page.max(1);
+    let pool = crate::server::db_pool().await?;
+    let user = crate::server::auth::current_session().await.ok().flatten();
+
+    let clean = |value: Option<String>| {
+        value
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    let q = clean(q);
+    let province = clean(province);
+    let city = clean(city);
+    let district = clean(district);
+    let spot_name = clean(spot_name);
+
+    let fetch = |page: i32| {
+        let pool = pool.clone();
+        let (q, province, city, district, spot_name) = (
+            q.clone(),
+            province.clone(),
+            city.clone(),
+            district.clone(),
+            spot_name.clone(),
+        );
+        async move {
+            instant_db::guides::list_published_guides_page(
+                &pool,
+                q,
+                province,
+                city,
+                district,
+                spot_name,
+                i64::from(page_size),
+                i64::from((page - 1) * page_size),
+            )
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+        }
+    };
+
+    let mut result = fetch(requested_page).await?;
+    let total_pages = if result.total == 0 {
+        1
+    } else {
+        ((result.total + i64::from(page_size) - 1) / i64::from(page_size)) as i32
+    };
+    // A stale deep link past the last page should land on the last real page
+    // rather than an empty list.
+    let page = requested_page.min(total_pages);
+    if result.items.is_empty() && result.total > 0 {
+        result = fetch(page).await?;
+    }
+
+    let mut items = result.items;
+    mark_summaries_editable(&pool, &mut items, user.as_ref()).await?;
+
+    Ok(GuidePageResult {
+        items,
+        total: result.total,
+        page,
+        page_size,
+        total_pages,
+    })
+}
 
 #[server(ListGuides, "/inspace/api")]
 pub async fn list_guides(
