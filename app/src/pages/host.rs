@@ -613,18 +613,21 @@ fn RelatedSpaceGuides(space_id: String) -> impl IntoView {
         },
     );
 
-    let archive_action = Action::new(move |guide_id: &String| {
+    // Deleting is destructive, so the first click only arms the row.
+    let pending_delete = RwSignal::new(None::<String>);
+    let delete_action = Action::new(move |guide_id: &String| {
         let guide_id = guide_id.clone();
         async move { delete_guide(guide_id).await }
     });
 
     Effect::new(move |_| {
-        if let Some(result) = archive_action.value().get() {
+        if let Some(result) = delete_action.value().get() {
             match result {
                 Ok(_) => {
                     guide_error.set(None);
+                    pending_delete.set(None);
                     guide_message.set(Some(
-                        t(locale.get(), "攻略已归档", "Guide archived").to_string(),
+                        t(locale.get(), "攻略已删除", "Guide deleted").to_string(),
                     ));
                     refresh_guides.update(|value| *value += 1);
                 }
@@ -682,7 +685,7 @@ fn RelatedSpaceGuides(space_id: String) -> impl IntoView {
                                         let view_href = format!("/inspace/guides/{}", guide.id);
                                         let edit_href = format!("/inspace/guides/{}/edit", guide.id);
                                         let guide_id = guide.id.to_string();
-                                        let archive = archive_action;
+                                        let delete = delete_action;
                                         view! {
                                             <li class="related-guide-item">
                                                 <div class="related-guide-main">
@@ -701,13 +704,34 @@ fn RelatedSpaceGuides(space_id: String) -> impl IntoView {
                                                                 <a class="button button-secondary-light" href=edit_href>
                                                                     {move || t(locale.get(), "编辑", "Edit")}
                                                                 </a>
-                                                                <button
-                                                                    type="button"
-                                                                    class="button button-danger-light"
-                                                                    on:click=move |_| { archive.dispatch(guide_id.clone()); }
-                                                                >
-                                                                    {move || t(locale.get(), "删除/归档", "Archive")}
-                                                                </button>
+                                                                {
+                                                                    let arm_id = guide_id.clone();
+                                                                    let confirm_id = guide_id.clone();
+                                                                    let is_armed = {
+                                                                        let armed_id = guide_id.clone();
+                                                                        move || pending_delete.get().as_deref() == Some(armed_id.as_str())
+                                                                    };
+                                                                    let is_armed_label = is_armed.clone();
+                                                                    view! {
+                                                                        <button
+                                                                            type="button"
+                                                                            class="button button-danger-light"
+                                                                            on:click=move |_| {
+                                                                                if pending_delete.get().as_deref() == Some(confirm_id.as_str()) {
+                                                                                    delete.dispatch(confirm_id.clone());
+                                                                                } else {
+                                                                                    pending_delete.set(Some(arm_id.clone()));
+                                                                                }
+                                                                            }
+                                                                        >
+                                                                            {move || if is_armed_label() {
+                                                                                t(locale.get(), "确认删除", "Confirm delete")
+                                                                            } else {
+                                                                                t(locale.get(), "删除", "Delete")
+                                                                            }}
+                                                                        </button>
+                                                                    }
+                                                                }
                                                             </div>
                                                         }.into_any()
                                                     } else {

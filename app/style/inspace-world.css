@@ -265,8 +265,11 @@ main.page.inspace-home { max-width: none !important; padding: 0 !important; back
   margin: 0 auto !important;
   padding: 0 !important;
 }
+/* Rhythm is authored, not uniform: the hero breathes, the argument tightens,
+   the closing note sits low on the page. A uniform 96px band on every section
+   is what made this read like a template. */
 .inspace-home-modules > section {
-  padding: 96px 0 !important;
+  padding: 104px 0 96px !important;
   border: 0 !important;
   border-bottom: 1px solid var(--rule) !important;
   border-radius: 0 !important;
@@ -299,44 +302,68 @@ main.page.inspace-home { max-width: none !important; padding: 0 !important; back
 /* --- hero --- */
 .survey-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.06fr) minmax(0, .82fr);
-  gap: 72px;
-  align-items: start;
-  padding-top: 104px !important;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .8fr);
+  gap: 76px;
+  align-items: center;
+  min-height: min(72vh, 620px);
+  padding-top: 92px !important;
+  padding-bottom: 108px !important;
 }
+.survey-hero-copy { min-width: 0; }
 .survey-hero h1 {
   margin: 0;
-  max-width: 15ch;
-  font-size: clamp(2.6rem, 4.6vw, 4rem) !important;
-  line-height: 1.14 !important;
-  letter-spacing: -.02em !important;
+  max-width: 13ch;
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 5.1vw, 4.5rem) !important;
+  font-weight: 600;
+  line-height: 1.08 !important;
+  letter-spacing: -.03em !important;
+  text-wrap: balance;
 }
 .survey-lede {
-  margin: 26px 0 0;
+  margin: 28px 0 0;
+  max-width: 30ch;
+  color: var(--ink-soft) !important;
+  font-size: 1.08rem;
+  line-height: 1.78;
+}
+.survey-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 38px; }
+.survey-actions .button {
+  min-height: 48px;
+  padding: 0 26px;
+  display: inline-flex;
+  align-items: center;
+  transition: transform 170ms cubic-bezier(.22,.9,.24,1), background-color 170ms ease, color 170ms ease, border-color 170ms ease;
+}
+.survey-actions .button:hover { transform: translateY(-1px); }
+.survey-actions .button:active { transform: translateY(0); }
+/* The slogan is a signature, not a footnote: set it in the display face and
+   hang it off a registration rule instead of greying it out. */
+.survey-note {
+  margin: 46px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--ink);
   max-width: 34em;
   color: var(--ink-soft) !important;
-  font-size: 1.06rem;
-  line-height: 1.75;
-}
-.survey-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
-.survey-actions .button { min-height: 46px; padding: 0 24px; display: inline-flex; align-items: center; }
-.survey-note {
-  margin: 30px 0 0;
-  padding-top: 18px;
-  border-top: 1px solid var(--rule);
-  max-width: 34em;
-  color: var(--ink-faint) !important;
-  font-size: .9rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-style: italic;
+  letter-spacing: .01em;
   line-height: 1.6;
 }
 
 /* --- the sheet: a record card, the only card on the page --- */
+/* The sheet is the one object on the page, so it gets real elevation and a
+   slight lift off the paper — a physical record card, not a ghost card. */
 .survey-sheet {
-  margin: 6px 0 0;
+  margin: 0;
   background: var(--paper-raised);
-  border: 1px solid var(--rule-strong);
+  border: 0;
   border-radius: 3px;
-  box-shadow: 0 18px 44px -34px rgb(23 21 18 / .5);
+  box-shadow:
+    0 1px 0 var(--rule-strong),
+    0 22px 48px -28px rgb(23 21 18 / .34),
+    0 3px 10px -6px rgb(23 21 18 / .16);
 }
 .survey-sheet-head {
   display: flex;
@@ -390,6 +417,40 @@ main.page.inspace-home { max-width: none !important; padding: 0 !important; back
   color: var(--ink);
   font-size: .93rem;
   line-height: 1.6;
+}
+
+/* --- the one authored moment: the sheet settles onto the paper on arrival.
+   Everything else on the page is already visible; nothing waits on scroll. --- */
+@keyframes survey-settle {
+  from { opacity: 0; transform: translateY(14px) scale(.994); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes survey-rule-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.survey-hero .survey-sheet {
+  animation: survey-settle 620ms cubic-bezier(.16,.84,.24,1) both;
+  animation-delay: 90ms;
+}
+/* Only the rule is drawn; the row text never scales. */
+.survey-hero .survey-record > div { position: relative; border-top-color: transparent; }
+.survey-hero .survey-record > div::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--rule);
+  transform-origin: left;
+  animation: survey-rule-draw 460ms cubic-bezier(.22,.9,.24,1) both;
+}
+.survey-hero .survey-record > div:nth-child(1)::before { animation-delay: 360ms; }
+.survey-hero .survey-record > div:nth-child(2)::before { animation-delay: 440ms; }
+.survey-hero .survey-record > div:nth-child(3)::before { animation-delay: 520ms; }
+@media (prefers-reduced-motion: reduce) {
+  .survey-hero .survey-sheet { animation: none !important; }
+  .survey-hero .survey-record > div { border-top-color: var(--rule); }
+  .survey-hero .survey-record > div::before { animation: none !important; }
 }
 
 /* --- passage: ruled stages, no numerals --- */
@@ -516,11 +577,38 @@ main.page.inspace-home { max-width: none !important; padding: 0 !important; back
   align-items: center;
 }
 
+/* iPad landscape band: the sidebar is still there, so the hero column is much
+   narrower than the viewport suggests. Keep two columns but rebalance them and
+   pull the display size down before the headline can collide with the sheet. */
+@media (min-width: 1100px) and (max-width: 1339px) {
+  .inspace-home-modules { width: calc(100% - 64px) !important; }
+  .survey-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .78fr);
+    gap: 44px;
+    min-height: 0;
+    padding-top: 68px !important;
+    padding-bottom: 76px !important;
+  }
+  .survey-hero-copy { max-width: none; }
+  .survey-hero h1 { max-width: 12ch; font-size: clamp(2.2rem, 3.5vw, 2.9rem) !important; }
+  .survey-lede { font-size: 1rem; }
+  .survey-note { margin-top: 34px; }
+  .survey-plate { gap: 44px; }
+}
+
 @media (max-width: 1099px) {
   .inspace-home-modules { width: calc(100% - 40px) !important; }
   .inspace-home-modules > section { padding: 60px 0 !important; }
-  .survey-hero { grid-template-columns: minmax(0, 1fr); gap: 44px; padding-top: 46px !important; }
-  .survey-hero h1 { max-width: 18ch; font-size: clamp(2.05rem, 8vw, 2.7rem) !important; }
+  .survey-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 44px;
+    min-height: 0;
+    padding-top: 52px !important;
+    padding-bottom: 60px !important;
+  }
+  .survey-hero-copy { max-width: none; }
+  .survey-hero h1 { max-width: 16ch; font-size: clamp(2.15rem, 7.4vw, 3rem) !important; }
+  .survey-note { margin-top: 34px; }
   .survey-plate { grid-template-columns: minmax(0, 1fr); gap: 40px; }
   .survey-stages { grid-template-columns: minmax(0, 1fr); }
   .survey-stages > div { border-right: 0; border-bottom: 1px solid var(--rule); padding: 22px 0 20px !important; }
@@ -770,8 +858,6 @@ main.page.inspace-home { max-width: none !important; padding: 0 !important; back
   box-shadow: none !important;
 }
 .chat-message:nth-child(even) { background: transparent !important; }
-.chat-message strong { color: var(--vermilion-ink) !important; font-size: .84rem !important; font-weight: 600 !important; }
-.chat-message:nth-child(even) strong { color: var(--survey-blue) !important; }
 .chat-message p { color: var(--ink) !important; font-size: .95rem !important; line-height: 1.65 !important; }
 .chat-message time { color: var(--ink-faint) !important; font-size: .76rem !important; }
 .chat-compose { padding: 18px 0 0 !important; border: 0 !important; background: transparent !important; }
@@ -905,12 +991,6 @@ body .shell-account-button, body .shell-login-button {
 }
 body .shell-account-button:hover, body .shell-login-button:hover { background: var(--ink-soft) !important; border-color: var(--ink-soft) !important; }
 
-/* --- hero rhythm: tighter measure, no lonely third line --- */
-.survey-hero h1 { max-width: 11ch; text-wrap: balance; }
-.survey-hero { gap: 64px; }
-.survey-lede { margin-top: 22px; max-width: 30em; }
-.survey-note { margin-top: 26px; }
-
 /* --- colophon: the closing line reads as one block --- */
 .survey-colophon { gap: 40px; align-items: start; }
 .survey-colophon h2 { max-width: 14ch; }
@@ -934,8 +1014,8 @@ body .space-detail-header {
   margin-bottom: 28px !important;
 }
 body .space-detail-visibility,
-body .chat-online-count,
-body .chat-realtime-status,
+body .chat-shell:not(.chat-room) .chat-online-count,
+body .chat-shell:not(.chat-room) .chat-realtime-status,
 body .space-detail-status > * {
   border-radius: 2px !important;
   border: 1px solid var(--rule-strong) !important;
@@ -945,7 +1025,7 @@ body .space-detail-status > * {
   font-size: .76rem !important;
   font-weight: 500 !important;
 }
-body .chat-realtime-status[data-realtime-status="connected"] { color: #3f6b4a !important; border-color: #b6c9ba !important; }
+body .chat-shell:not(.chat-room) .chat-realtime-status[data-realtime-status="connected"] { color: #3f6b4a !important; border-color: #b6c9ba !important; }
 body .space-share-panel,
 body .space-share-panel.is-compact,
 body .community-links,
@@ -1053,7 +1133,6 @@ body .community-links a:hover { background: var(--ink) !important; color: var(--
 
 /* --- mobile composition fixes --- */
 @media (max-width: 1099px) {
-  .survey-hero h1 { max-width: none !important; font-size: clamp(1.95rem, 7.4vw, 2.5rem) !important; }
   .survey-passage-head h2,
   .survey-plate-copy h2,
   .survey-colophon h2 { max-width: none !important; }
@@ -1066,28 +1145,6 @@ body .community-links a:hover { background: var(--ink) !important; color: var(--
 }
 body .chat-message-list { box-shadow: none !important; }
 
-/* --- hero final rhythm: fewer, longer lines; sheet aligned to the type --- */
-@media (min-width: 1100px) {
-  .survey-hero {
-    grid-template-columns: minmax(0, 1.18fr) minmax(0, .86fr);
-    gap: 56px;
-    padding-top: 84px !important;
-    padding-bottom: 76px !important;
-  }
-  .survey-hero h1 {
-    max-width: none;
-    font-size: clamp(2.5rem, 3.5vw, 3.35rem) !important;
-    line-height: 1.2 !important;
-  }
-  .survey-lede { max-width: 26em; font-size: 1.02rem; }
-  .survey-sheet { margin-top: 4px; }
-}
-
-/* --- close the hero's trailing void; keep headings from breaking mid-word --- */
-@media (min-width: 1100px) {
-  .survey-hero { padding-bottom: 64px !important; align-items: center; }
-  .survey-hero-copy { padding-bottom: 4px; }
-}
 .survey-passage-head h2,
 .survey-plate-copy h2,
 .survey-colophon h2,
@@ -1101,72 +1158,206 @@ body .chat-message-list { box-shadow: none !important; }
    ========================================================================= */
 
 /* --- the discussion room: full-height transcript, compose pinned --- */
+/* --- discussion room: a live transcript, not a bubble chat -----------------
+   Header pinned, transcript owns the scroll, composer docked at the bottom.
+   One column of ruled entries; the monogram carries identity so we do not
+   need coloured bubbles or alternating alignment. */
 .chat-room {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
-  min-height: calc(100dvh - 210px);
+  /* A transcript is read line by line, so it keeps a reading measure instead of
+     stretching to the full shell width. */
+  width: min(100%, 780px);
+  margin-inline: auto;
+  height: calc(100dvh - var(--shell-topbar-height, 58px) - 56px);
+  min-height: 460px;
 }
 .chat-room-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 0 0 18px;
-  border-bottom: 1px solid var(--rule);
+  gap: 14px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--ink);
 }
 .chat-room-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  margin-left: -10px;
+  border-radius: 3px;
   color: var(--ink-faint);
-  font-size: .86rem;
   text-decoration: none;
+  transition: color 160ms ease, background-color 160ms ease;
 }
-.chat-room-back:hover { color: var(--vermilion-ink); }
+.chat-room-back svg {
+  width: 20px; height: 20px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+}
+.chat-room-back:hover { color: var(--ink); background: var(--paper-deep); }
+.chat-room-title { min-width: 0; }
 .chat-room-title h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+  line-height: 1.25;
   letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.chat-room-title p { margin: 2px 0 0; color: var(--ink-faint); font-size: .82rem; }
-.chat-room-status {
+/* Status is a quiet caption under the name, not two floating badges. */
+.chat-room-sub {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  font-size: .76rem;
+  align-items: center;
+  gap: 14px;
+  margin: 3px 0 0;
   color: var(--ink-faint);
+  font-size: .78rem;
 }
-.chat-room-status .chat-online-count { color: var(--vermilion-ink); font-weight: 600; }
+.chat-room-sub .chat-realtime-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-room-sub .chat-realtime-status::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+.chat-room-sub .chat-realtime-status[data-realtime-status="connected"] { color: #3f6b4a; }
+.chat-room-sub .chat-realtime-status[data-realtime-status="connected"]::before { background: #4a8259; }
+.chat-room-sub .chat-realtime-status[data-realtime-status="reconnecting"],
+.chat-room-sub .chat-realtime-status[data-realtime-status="error"],
+.chat-room-sub .chat-realtime-status[data-realtime-status="access-required"] { color: var(--vermilion-ink); }
+.chat-room-sub .chat-realtime-status[data-realtime-status="reconnecting"]::before,
+.chat-room-sub .chat-realtime-status[data-realtime-status="error"]::before,
+.chat-room-sub .chat-realtime-status[data-realtime-status="access-required"]::before { background: var(--vermilion); }
+.chat-room-sub .chat-online-count { color: var(--ink-faint); }
+
 .chat-room .chat-message-list {
-  flex: 1 1 auto;
-  min-height: 240px;
+  min-height: 0;
   max-height: none !important;
+  padding: 4px 0 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
+.chat-room .chat-message {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 2px;
+  border-bottom: 1px solid var(--rule);
+}
+.chat-room .chat-message:last-child { border-bottom: 0; }
+.chat-avatar {
+  width: 30px; height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  color: var(--ink-soft);
+  font-size: .78rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.chat-message-body { min-width: 0; }
+.chat-message-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+.chat-message-meta strong {
+  color: var(--ink) !important;
+  font-size: .84rem !important;
+  font-weight: 600 !important;
+}
+.chat-message-meta time {
+  color: var(--ink-faint) !important;
+  font-size: .74rem !important;
+  font-variant-numeric: tabular-nums;
+}
+.chat-message-text {
+  margin: 0 !important;
+  color: var(--ink) !important;
+  font-size: .95rem !important;
+  line-height: 1.68 !important;
+  overflow-wrap: anywhere;
+}
+.chat-empty {
+  display: grid;
+  gap: 8px;
+  max-width: 40ch;
+  padding: 56px 2px;
+}
+.chat-empty strong { color: var(--ink); font-family: var(--font-display); font-size: 1.1rem; }
+.chat-empty span { color: var(--ink-faint); font-size: .92rem; line-height: 1.7; }
+
 .chat-room .chat-compose {
   position: sticky;
   bottom: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  gap: 12px;
-  padding: 16px 0 calc(8px + env(safe-area-inset-bottom)) !important;
-  border-top: 1px solid var(--rule) !important;
-  background: var(--paper) !important;
-  box-shadow: none !important;
+  gap: 10px;
+  padding: 14px 0 calc(10px + env(safe-area-inset-bottom)) !important;
+  border-top: 1px solid var(--ink) !important;
   border-left: 0 !important;
   border-right: 0 !important;
   border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--paper) !important;
+  box-shadow: none !important;
 }
 .chat-room .chat-compose .field-label { margin: 0; }
-.chat-room .chat-compose textarea { min-height: 46px; resize: vertical; }
+.chat-room .chat-compose textarea {
+  min-height: 46px;
+  max-height: 148px;
+  padding: 12px 14px !important;
+  border: 1px solid var(--rule-strong) !important;
+  border-radius: 3px !important;
+  background: var(--paper-raised) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-text);
+  font-size: max(16px, .95rem) !important;
+  line-height: 1.6;
+  resize: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.chat-room .chat-compose textarea:focus {
+  outline: 0;
+  border-color: var(--vermilion) !important;
+  box-shadow: 0 0 0 3px var(--vermilion-wash) !important;
+}
+.chat-room .chat-compose .chat-send {
+  min-width: 46px;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+}
+.chat-room .chat-compose .chat-send svg {
+  width: 17px; height: 17px;
+  fill: currentColor;
+  stroke: none;
+}
+.chat-room .chat-compose .chat-send[disabled] {
+  border-color: var(--rule-strong) !important;
+  background: var(--paper-deep) !important;
+  color: var(--ink-faint) !important;
+  cursor: not-allowed;
+}
 .chat-room .chat-compose .error { grid-column: 1 / -1; margin: 0; }
+
 .visually-hidden {
   position: absolute; width: 1px; height: 1px;
   margin: -1px; padding: 0; overflow: hidden;
@@ -1263,11 +1454,16 @@ body .chat-message-list { box-shadow: none !important; }
 }
 
 @media (max-width: 719px) {
-  .chat-room-header { grid-template-columns: auto minmax(0, 1fr); row-gap: 8px; }
-  .chat-room-status { grid-column: 1 / -1; align-items: flex-start; flex-direction: row; gap: 10px; }
-  .chat-room { min-height: calc(100dvh - 168px); }
-  .chat-room .chat-compose { grid-template-columns: minmax(0, 1fr); }
-  .chat-room .chat-compose .button { width: 100%; min-height: 46px; }
+  /* Phone: the room is the screen. Header and composer stay put, only the
+     transcript scrolls, and the send button collapses to its icon. */
+  .chat-room { height: calc(100dvh - 56px - env(safe-area-inset-bottom)); min-height: 0; }
+  .chat-room-header { padding-bottom: 12px; }
+  .chat-room .chat-message { grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 12px 0; }
+  .chat-avatar { width: 26px; height: 26px; font-size: .72rem; }
+  .chat-empty { padding: 40px 0; }
+  .chat-room .chat-compose { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .chat-room .chat-compose .chat-send { min-width: 46px; padding: 0 14px; }
+  .chat-room .chat-compose .chat-send .chat-send-label { display: none; }
   .my-space-card-actions .button { flex: 1 1 calc(50% - 4px); justify-content: center; }
 }
 
@@ -1296,15 +1492,42 @@ body .space-guide-list .guide-list-actions a.button {
   min-width: 44px !important;
 }
 
-/* v8 QA: force the independent discussion room to read as a ruled field log,
-   overriding several legacy mobile bubble rules in ui-system.css. */
+/* The v7/v8 legacy sheets still style .chat-message as a bubble and cap the
+   list height; the room owns its own layout now, so neutralise those rules
+   instead of letting them re-enter through specificity. */
+body .space-chat-page { display: flex; flex-direction: column; }
+body .space-chat-page .chat-shell,
+body .space-chat-page .chat-room {
+  /* ui-system.css switches the shell back to flex under 900px, which collapsed
+     the header to its content width and dropped the row clamp. */
+  display: grid !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0 !important;
+  /* ui-system.css sets align-items:start and a named `messages` grid area on
+     the legacy room, which let the transcript grow past its own track and
+     slide under the docked composer. */
+  align-items: stretch !important;
+  align-content: stretch !important;
+  grid-template-areas: none !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+}
+body .space-chat-page .chat-room > .chat-room-header { grid-area: 1 / 1 !important; align-self: start !important; }
+body .space-chat-page .chat-room > .chat-message-list {
+  grid-area: 2 / 1 !important;
+  align-self: stretch !important;
+  min-height: 0 !important;
+}
+body .space-chat-page .chat-room > .chat-compose { grid-area: 3 / 1 !important; align-self: end !important; }
 body .space-chat-page .chat-room .chat-message-list {
-  min-height: 240px !important;
+  /* ui-system.css pins this list to a fixed dvh height at several breakpoints,
+     which pushed the transcript straight through the docked composer. */
   height: auto !important;
+  min-height: 0 !important;
   max-height: none !important;
-  padding: 0 !important;
+  padding: 4px 0 8px !important;
   border: 0 !important;
-  border-top: 1px solid var(--rule) !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -1315,30 +1538,87 @@ body .space-chat-page .chat-room .chat-message:nth-child(even) {
   width: 100% !important;
   max-width: none !important;
   margin: 0 !important;
-  padding: 14px 4px !important;
-  gap: 4px !important;
   border: 0 !important;
   border-bottom: 1px solid var(--rule) !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
-body .space-chat-page .chat-room .chat-message p {
-  margin: 0 !important;
-  color: var(--ink) !important;
-  font-size: .95rem !important;
-  line-height: 1.6 !important;
-}
-body .space-chat-page .chat-room .chat-message time {
-  color: var(--ink-faint) !important;
-  font-size: .72rem !important;
-}
-body .space-chat-page .chat-room .chat-compose {
-  bottom: 0 !important;
-  padding: 14px 0 calc(8px + env(safe-area-inset-bottom)) !important;
+body .space-chat-page .chat-room .chat-message:last-child { border-bottom: 0 !important; }
+
+/* The room's status is a caption line; ui-system.css still renders every
+   .chat-realtime-status / .chat-online-count as a 34px pill. */
+body .chat-room .chat-room-sub .chat-realtime-status,
+body .chat-room .chat-room-sub .chat-online-count {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
   border-radius: 0 !important;
-  background: var(--paper) !important;
-  box-shadow: none !important;
+  background: transparent !important;
+  font-size: .78rem !important;
+  font-weight: 500 !important;
+}
+body .chat-room .chat-room-sub .chat-realtime-status[data-realtime-status="connected"] {
+  color: #3f6b4a !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+body .chat-room .chat-room-sub .chat-online-count { color: var(--ink-faint) !important; }
+
+/* Dark-theme leftovers in main.css: these guide links were white-on-slate and
+   render as unreadable grey slabs on paper. Set them as ruled list entries. */
+body .space-detail-guide-list { gap: 0 !important; }
+body .space-detail-guide-list a,
+body .related-guide-main .guide-list-link {
+  display: block;
+  padding: 12px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--ink) !important;
+  font-weight: 600 !important;
+  transition: color 160ms ease;
+}
+body .space-detail-guide-list li:last-child a { border-bottom: 0 !important; }
+body .space-detail-guide-list a:hover,
+body .related-guide-main .guide-list-link:hover { color: var(--vermilion-ink) !important; }
+body .related-guide-item {
+  padding: 12px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* Guide rows in the manage modal: title + status on one line, actions on the
+   right. Legacy CSS stacked every part, so three guides filled the viewport. */
+body .related-guide-item {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 14px 0 !important;
+}
+body .related-guide-main {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: baseline !important;
+  gap: 6px 12px !important;
+}
+body .related-guide-main .guide-list-link {
+  padding: 0 !important;
+  border-bottom: 0 !important;
+}
+body .related-guide-item .guide-list-actions {
+  display: flex !important;
+  flex: 0 0 auto;
+  gap: 8px !important;
+}
+body .related-guide-item .space-badge {
+  min-height: 0 !important;
+  padding: 2px 8px !important;
+  font-size: .72rem !important;
 }
 
 /* The management modal is one working surface, not a stack of nested cards. */
@@ -1406,4 +1686,420 @@ body .map-workspace-count {
   font-size: 0.85rem;
   letter-spacing: 0.02em;
   color: var(--ink-soft, #4a453d);
+}
+
+/* =========================================================================
+   v10 — SPACE DETAIL: one record, read top to bottom
+   iPad landscape was the failure case: the sidebar takes 260px, so a
+   504px main column had to carry a heading, a head-inline button, an empty
+   state and a discussion block, while a 320px rail carried a monospace URL
+   and six buttons. Two of those columns are not columns — they are a header
+   and a footer of the same record.
+   ========================================================================= */
+/* Header: title and actions stop competing for the same row under 1340px. */
+@media (max-width: 1339px) {
+  body .space-detail-heading-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: 20px !important;
+    padding: 0 !important;
+  }
+  body .space-detail-header .space-app-action-row {
+    display: flex !important;
+    flex-wrap: wrap;
+    min-width: 0 !important;
+    gap: 10px !important;
+  }
+  body .space-detail-header .space-app-action-row .button {
+    flex: 0 0 auto;
+    min-height: 46px;
+    padding: 0 22px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* Layout: single column below 1340px. A 320px rail beside a 504px column is
+   two gutters pretending to be a grid. */
+@media (max-width: 1339px) {
+  body .space-detail-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+  }
+  body .space-detail-side {
+    position: static !important;
+    padding-top: 34px !important;
+    border-top: 1px solid var(--ink) !important;
+  }
+  /* At full width the share block and the community block sit side by side
+     instead of stacking into a column of buttons. */
+  body .space-detail-side {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 44px !important;
+    align-items: start;
+  }
+  body .space-detail-side > section { border-bottom: 0 !important; padding-bottom: 0 !important; }
+}
+@media (max-width: 720px) {
+  body .space-detail-side {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 32px !important;
+  }
+}
+
+/* The guides head: the "write one" control belongs on the baseline of the
+   heading, not stretched down the side of a three-line paragraph. */
+body .space-guides-card .card-head-inline {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end !important;
+  gap: 16px 24px !important;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ink);
+}
+body .space-guides-card .card-head-inline > div { min-width: 0; }
+body .space-guides-card .card-head-inline > .button {
+  align-self: end;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+body .space-guides-card .card-head-inline p:last-child { max-width: 46ch; }
+@media (max-width: 560px) {
+  body .space-guides-card .card-head-inline {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+  body .space-guides-card .card-head-inline > .button { justify-self: start; }
+}
+
+/* Empty state: a dashed box inside a bordered column was a card in a card.
+   It becomes a written note with one action. */
+body .space-guides-card .empty-state,
+body .space-guides-card .compact-empty {
+  display: grid !important;
+  justify-items: start !important;
+  gap: 10px !important;
+  margin: 26px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+body .space-guides-card .empty-state strong {
+  font-family: var(--font-display) !important;
+  font-size: 1.16rem !important;
+  color: var(--ink) !important;
+}
+body .space-guides-card .empty-state span {
+  max-width: 48ch;
+  color: var(--ink-soft) !important;
+  font-size: .95rem !important;
+  line-height: 1.7 !important;
+}
+body .space-guides-card .empty-state .button {
+  margin-top: 8px;
+  min-height: 46px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Share panel: the URL is a field to copy, and the raw path underneath was
+   the same information printed twice — once in a box, once in vermilion. */
+body .space-share-url-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px !important;
+  align-items: stretch;
+}
+body .space-share-url-row input {
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 12px;
+  text-overflow: ellipsis;
+}
+body .space-share-url-row .button {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 0 20px;
+  white-space: nowrap;
+}
+body .space-share-path-hint { display: none !important; }
+body .space-share-qr-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 10px !important;
+  margin-top: 16px;
+}
+body .space-share-qr-actions .button { min-height: 44px; padding: 0 18px; display: inline-flex; align-items: center; }
+body .space-share-qr img {
+  margin-top: 18px;
+  border: 1px solid var(--rule);
+  background: var(--paper-raised);
+}
+body .community-link-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 10px !important;
+  margin-top: 14px;
+}
+body .community-link-actions .button { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; }
+body .community-links-note { margin-top: 14px !important; color: var(--ink-faint) !important; font-size: .86rem !important; }
+
+/* The discussion entry is the closing paragraph of the record. */
+body .space-discussion-entry h2 { font-size: 1.32rem !important; }
+body .space-discussion-entry > p { max-width: 56ch !important; }
+body .space-discussion-entry .button {
+  margin-top: 22px;
+  min-height: 46px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* =========================================================================
+   v10 — HOME: the sheet is drawn while you read it
+   The page was correct and inert: everything arrived at once, nothing was
+   authored past the first 600ms. A field survey is not a finished poster —
+   it is drawn. So the page now draws itself against the scroll: the margin
+   rule advances with progress, the hero separates into two planes, each
+   band's ink rule is struck before its rows are written, and the argument
+   column is held while its evidence passes.
+   All of it is scroll-linked (no timers, no autoplay), gated behind
+   @supports, and fully reverted under prefers-reduced-motion.
+   ========================================================================= */
+
+/* ---- 1. the margin: a registration rule that advances with the read ---- */
+.inspace-home-modules { position: relative; }
+.inspace-home-modules::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: -26px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--vermilion) 0 34%, var(--rule-strong) 34% 100%);
+  transform: scaleY(0);
+  transform-origin: top;
+  opacity: .9;
+}
+@media (max-width: 1099px) { .inspace-home-modules::before { display: none; } }
+
+/* ---- 2. hero: bigger type, two planes, one struck line ---- */
+.survey-hero {
+  align-items: center;
+  gap: 84px;
+  min-height: min(78vh, 660px);
+  padding-top: 104px !important;
+  padding-bottom: 116px !important;
+}
+/* CJK display type: `ch` is measured on "0", which is roughly half a Han
+   glyph, so a ch-based measure silently truncated the headline once it was
+   clipped for the wipe. Size the line to the column instead. */
+.survey-hero h1 {
+  max-width: none;
+  font-size: clamp(2.6rem, 4.5vw, 4.1rem) !important;
+  line-height: 1.06 !important;
+  letter-spacing: -.035em !important;
+}
+/* The one thing the eye should land on: the last clause carries the point,
+   so the headline is struck through by a vermilion rule that is drawn, once,
+   as the page opens — the way a surveyor marks the datum line. */
+.survey-lede { position: relative; }
+.survey-lede::before {
+  content: "";
+  position: absolute;
+  left: 0; top: -15px;
+  width: 92px; height: 2px;
+  background: var(--vermilion);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+/* Han glyphs are full-width, so a ch-based measure sets half the line it
+   claims. Measure the lede in em — ~20 characters, the same as the display. */
+.survey-lede { max-width: 20em; font-size: 1.08rem; margin-top: 40px !important; }
+
+/* ---- 3. the sheet: real elevation, and it holds itself against the read -- */
+.survey-sheet { will-change: transform; }
+.survey-sheet-stamp { position: relative; overflow: hidden; }
+
+/* ---- 4. bands: the ink rule is struck before the rows are written ------- */
+.survey-stages,
+.survey-log { position: relative; }
+.survey-stages { border-top-color: transparent !important; }
+.survey-log { border-top-color: transparent !important; }
+.survey-stages::before,
+.survey-log::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--ink);
+  transform-origin: left;
+}
+
+/* ---- 5. the argument is held while its evidence passes ----------------- */
+@media (min-width: 1100px) {
+  .survey-plate { align-items: start; }
+  .survey-plate-copy {
+    position: sticky;
+    top: calc(var(--shell-topbar-height, 58px) + 56px);
+  }
+}
+
+/* ---- 6. controls: ink fills from the edge you came from ---------------- */
+.survey-actions .button,
+.survey-plate-copy .button,
+.survey-colophon .button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.survey-actions .button-secondary::before,
+.survey-colophon .button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 260ms cubic-bezier(.22,.9,.24,1);
+}
+.survey-actions .button-secondary:hover,
+.survey-colophon .button:hover {
+  color: var(--paper) !important;
+  border-color: var(--ink) !important;
+  background: transparent !important;
+}
+.survey-actions .button-secondary:hover::before,
+.survey-colophon .button:hover::before { transform: scaleX(1); }
+.survey-actions .button-primary { transition: background-color 200ms ease, border-color 200ms ease, transform 170ms cubic-bezier(.22,.9,.24,1); }
+
+/* ---- 7. table rows read as a log being filled in ----------------------- */
+.survey-log tbody tr { will-change: opacity, transform; }
+.survey-stages > div { will-change: opacity, transform; }
+
+/* =========================================================================
+   The motion itself. Scroll-linked only. Browsers without scroll timelines
+   get the finished sheet, which is the same page, already correct.
+   ========================================================================= */
+@keyframes home-rule-advance { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes home-strike       { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes home-write        { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: none; } }
+@keyframes home-hero-recede  { to { opacity: .12; transform: translateY(-46px); } }
+@keyframes home-sheet-hold   { from { transform: translateY(26px) rotate(.5deg); } to { transform: translateY(-34px) rotate(-.35deg); } }
+/* The wipe clips vertically only; horizontal insets stay negative so no
+   glyph, ascender or italic overhang is ever cut by the animation. */
+@keyframes home-headline-set {
+  from { opacity: 0; clip-path: inset(-12% -20% 104% -6%); transform: translateY(10px); }
+  to   { opacity: 1; clip-path: inset(-12% -20% -14% -6%); transform: none; }
+}
+
+@supports (animation-timeline: view()) {
+  /* the margin rule tracks document progress */
+  .inspace-home-modules::before {
+    animation: home-rule-advance linear both;
+    animation-timeline: scroll(root block);
+  }
+
+  /* opening: the headline is set line-by-line under a wipe, then the datum
+     line is struck. This is the page's one entrance; nothing below repeats it. */
+  .survey-hero h1 { animation: home-headline-set 760ms cubic-bezier(.16,.84,.24,1) both 60ms; }
+  .survey-lede    { animation: home-write 620ms cubic-bezier(.16,.84,.24,1) both 300ms; }
+  .survey-actions { animation: home-write 620ms cubic-bezier(.16,.84,.24,1) both 400ms; }
+  .survey-note    { animation: home-write 620ms cubic-bezier(.16,.84,.24,1) both 500ms; }
+  .survey-lede::before { animation: home-strike 620ms cubic-bezier(.22,.9,.24,1) both 700ms; }
+
+  /* the two hero planes separate as you leave: copy recedes into the paper,
+     the record card holds longer and settles the other way. */
+  .survey-hero-copy {
+    animation: home-hero-recede linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0 62vh;
+  }
+  .survey-hero .survey-sheet {
+    animation: survey-settle 620ms cubic-bezier(.16,.84,.24,1) both 90ms,
+               home-sheet-hold linear both;
+    animation-timeline: auto, scroll(root block);
+    animation-range: normal, 0 88vh;
+  }
+
+  /* each band: strike the rule first, then write the rows into it */
+  .survey-stages::before,
+  .survey-log::before {
+    animation: home-strike linear both;
+    animation-timeline: view();
+    animation-range: entry 22% entry 74%;
+  }
+  .survey-stages > div,
+  .survey-log tbody tr,
+  .survey-passage-head,
+  .survey-plate-copy > *,
+  .survey-colophon > * {
+    animation: home-write linear both;
+    animation-timeline: view();
+  }
+  .survey-passage-head      { animation-range: entry 6%  entry 46%; }
+  .survey-stages > div:nth-child(1) { animation-range: entry 26% entry 62%; }
+  .survey-stages > div:nth-child(2) { animation-range: entry 31% entry 67%; }
+  .survey-stages > div:nth-child(3) { animation-range: entry 36% entry 72%; }
+  .survey-plate-copy > *    { animation-range: entry 8%  entry 48%; }
+  .survey-log tbody tr:nth-child(1) { animation-range: entry 28% entry 60%; }
+  .survey-log tbody tr:nth-child(2) { animation-range: entry 33% entry 65%; }
+  .survey-log tbody tr:nth-child(3) { animation-range: entry 38% entry 70%; }
+  .survey-colophon > *      { animation-range: entry 10% entry 52%; }
+}
+
+/* Without scroll timelines (and under reduced motion) the sheet is simply
+   finished: every rule struck, every row written. */
+@supports not (animation-timeline: view()) {
+  .inspace-home-modules::before { transform: scaleY(1); }
+  .survey-lede::before { transform: scaleX(1); }
+  .survey-stages::before, .survey-log::before { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inspace-home-modules::before { animation: none !important; transform: scaleY(1); }
+  .survey-lede::before { animation: none !important; transform: scaleX(1); }
+  .survey-stages::before,
+  .survey-log::before { animation: none !important; transform: scaleX(1); }
+  .survey-hero h1,
+  .survey-lede,
+  .survey-actions,
+  .survey-note,
+  .survey-hero-copy,
+  .survey-hero .survey-sheet,
+  .survey-stages > div,
+  .survey-log tbody tr,
+  .survey-passage-head,
+  .survey-plate-copy > *,
+  .survey-colophon > * { animation: none !important; opacity: 1 !important; transform: none !important; clip-path: none !important; }
+  .survey-actions .button-secondary::before,
+  .survey-colophon .button::before { transition: none; }
+}
+
+/* iPad landscape: the 260px sidebar leaves the hero column ~575px, so the
+   display size has to come down before the headline meets the record card.
+   Restated here because the earlier band rule now loses on source order. */
+@media (min-width: 1100px) and (max-width: 1339px) {
+  .survey-hero { gap: 48px; padding-top: 76px !important; padding-bottom: 82px !important; min-height: 0; }
+  .survey-hero h1 { max-width: none; font-size: clamp(2.2rem, 3.6vw, 2.9rem) !important; }
+  .survey-lede { max-width: none; font-size: 1rem; }
+}
+
+@media (max-width: 1099px) {
+  .survey-hero { padding-top: 64px !important; padding-bottom: 68px !important; }
+  .survey-hero h1 { max-width: none; font-size: clamp(2.05rem, 7.6vw, 3rem) !important; }
+  .survey-lede { max-width: none; font-size: 1rem; }
+  /* On a phone the hero is the whole screen; recede would blank it under the
+     thumb. Keep the opening, drop the parallax. */
+  .survey-hero-copy,
+  .survey-hero .survey-sheet { animation-timeline: auto !important; }
+  .survey-hero .survey-sheet { animation: survey-settle 620ms cubic-bezier(.16,.84,.24,1) both 90ms; }
+  .survey-hero-copy { animation: none; opacity: 1; transform: none; }
 }

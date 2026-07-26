@@ -8,24 +8,32 @@ use crate::server::chat::{check_space_access, list_chat_messages, send_chat_mess
 use crate::server::guides::list_space_guides;
 use crate::server::spaces::{get_space_for_guide, SpaceMarker};
 
-fn format_chat_time(created_at: impl ToString) -> String {
+/// `2026-07-08 18:36:17.568978000 +00:00:00` -> `("2026-07-08", "18:36")`.
+fn split_chat_stamp(created_at: impl ToString) -> (String, String) {
     let raw = created_at.to_string();
-    // OffsetDateTime Display examples:
-    // "2026-07-08 18:36:17.568978000 +00:00:00"
-    // "2026-07-07 2:11:34.793986000 +00:00:00"
     let mut parts = raw.split_whitespace();
-    let date = parts.next().unwrap_or("");
+    let date = parts.next().unwrap_or("").to_string();
     let time = parts.next().unwrap_or("");
-    if date.is_empty() || time.is_empty() {
-        return raw;
-    }
     let mut hm = time.split(':');
     let hour = hm.next().unwrap_or("0");
     let minute = hm.next().unwrap_or("0");
-    match (hour.parse::<u8>(), minute.parse::<u8>()) {
-        (Ok(h), Ok(m)) => format!("{date} {h:02}:{m:02}"),
-        _ => format!("{date} {hour}:{minute}"),
+    let clock = match (hour.parse::<u8>(), minute.parse::<u8>()) {
+        (Ok(h), Ok(m)) => format!("{h:02}:{m:02}"),
+        _ => format!("{hour}:{minute}"),
+    };
+    if date.is_empty() {
+        return (raw, clock);
     }
+    (date, clock)
+}
+
+/// First character of a sender name, used as the transcript monogram.
+fn sender_monogram(sender: &str) -> String {
+    sender
+        .chars()
+        .find(|c| !c.is_whitespace())
+        .map(|c| c.to_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_string())
 }
 
 #[component]
@@ -239,19 +247,19 @@ pub fn SpaceChatPage() -> impl IntoView {
                             view! {
                                 <section class="chat-shell chat-room" aria-label="Space discussion">
                                     <header class="chat-room-header">
-                                        <a class="chat-room-back" href=back_href.clone()>
-                                            <span aria-hidden="true">"←"</span>
-                                            {move || t(locale.get(), "返回空间", "Back to Space")}
+                                        <a class="chat-room-back" href=back_href.clone() aria-label=move || t(locale.get(), "返回空间", "Back to Space")>
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
                                         </a>
                                         <div class="chat-room-title">
                                             <h1>{space_name}</h1>
-                                            <p>{move || t(locale.get(), "现场讨论", "On-site discussion")}</p>
-                                        </div>
-                                        <div class="chat-room-status">
-                                            <span class="chat-online-count" data-realtime-online="0">"0 online"</span>
-                                            <span class="chat-realtime-status" data-realtime-status="connecting" aria-live="polite">
-                                                {move || t(locale.get(), "连接中…", "Connecting…")}
-                                            </span>
+                                            <p class="chat-room-sub">
+                                                <span class="chat-realtime-status" data-realtime-status="connecting" aria-live="polite">
+                                                    {move || t(locale.get(), "连接中", "Connecting")}
+                                                </span>
+                                                <span class="chat-online-count" data-realtime-online="0">
+                                                    {move || t(locale.get(), "0 人在场", "0 here")}
+                                                </span>
+                                            </p>
                                         </div>
                                     </header>
 
@@ -268,18 +276,32 @@ pub fn SpaceChatPage() -> impl IntoView {
                                                         data-space-id=realtime_space_id
                                                     >
                                                         {if items.is_empty() {
-                                                            view! { <p class="empty-state"><span>{move || t(locale.get(), "还没有讨论。可以先问一个与这个地点有关的具体问题。", "No discussion yet. Ask a specific question about this place.")}</span></p> }.into_any()
+                                                            view! {
+                                                                <div class="chat-empty">
+                                                                    <strong>{move || t(locale.get(), "这里还没有人说话", "Nobody has spoken here yet")}</strong>
+                                                                    <span>{move || t(locale.get(), "问一个只有现场的人答得上来的问题：入口、排队、光线、末班车。", "Ask something only people on site can answer: entrances, queues, light, last train.")}</span>
+                                                                </div>
+                                                            }.into_any()
                                                         } else {
                                                             view! {
                                                                 <For
                                                                     each=move || items.clone()
                                                                     key=|message| message.id
-                                                                    children=move |message| view! {
-                                                                        <article class="chat-message" data-message-id=message.id.to_string()>
-                                                                            <strong>{message.sender}</strong>
-                                                                            <p>{message.body}</p>
-                                                                            <time>{format_chat_time(message.created_at)}</time>
-                                                                        </article>
+                                                                    children=move |message| {
+                                                                        let (day, clock) = split_chat_stamp(message.created_at);
+                                                                        let monogram = sender_monogram(&message.sender);
+                                                                        view! {
+                                                                            <article class="chat-message" data-message-id=message.id.to_string()>
+                                                                                <span class="chat-avatar" aria-hidden="true">{monogram}</span>
+                                                                                <div class="chat-message-body">
+                                                                                    <p class="chat-message-meta">
+                                                                                        <strong>{message.sender}</strong>
+                                                                                        <time datetime=day.clone()>{clock}</time>
+                                                                                    </p>
+                                                                                    <p class="chat-message-text">{message.body}</p>
+                                                                                </div>
+                                                                            </article>
+                                                                        }
                                                                     }
                                                                 />
                                                             }.into_any()
@@ -302,15 +324,24 @@ pub fn SpaceChatPage() -> impl IntoView {
                                         <label class="field-label">
                                             <span class="visually-hidden">{move || t(locale.get(), "提出问题或补充现场信息", "Ask or add an on-site update")}</span>
                                             <textarea
-                                                rows="2"
+                                                rows="1"
                                                 aria-label=move || t(locale.get(), "聊天消息", "Chat message")
                                                 data-chat-input="true"
-                                                placeholder=move || t(locale.get(), "例如：今天哪个入口开放？傍晚几点人比较少？", "e.g. Which entrance is open today? When is it less crowded?")
+                                                data-chat-autogrow="true"
+                                                placeholder=move || t(locale.get(), "问点现场的事…", "Ask about right now…")
                                                 prop:value=move || message_body.get()
                                                 on:input=move |ev| message_body.set(event_target_value(&ev))
                                             ></textarea>
                                         </label>
-                                        <button class="button button-primary" type="submit">{move || t(locale.get(), "发送", "Send")}</button>
+                                        <button
+                                            class="button button-primary chat-send"
+                                            type="submit"
+                                            aria-label=move || t(locale.get(), "发送", "Send")
+                                            disabled=move || message_body.get().trim().is_empty()
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 20.4L21 12 3.6 3.6l3 8.4-3 8.4z" /></svg>
+                                            <span class="chat-send-label">{move || t(locale.get(), "发送", "Send")}</span>
+                                        </button>
                                         {move || send_error.get().map(|message| view! { <p class="error">{message}</p> })}
                                     </form>
 

@@ -16,21 +16,43 @@
     return `${protocol}//${location.host}${prefix}/ws/spaces/${encodeURIComponent(spaceId)}`;
   }
 
+  function monogram(name) {
+    const trimmed = String(name || '').trim();
+    return trimmed ? Array.from(trimmed)[0].toUpperCase() : '?';
+  }
+
+  // Only auto-scroll when the reader is already following the live edge, so
+  // scrolling back through history is not yanked forward by every new message.
+  function isPinnedToBottom(list) {
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 90;
+  }
+
   function appendMessage(list, message) {
     if (!list || !message || !message.id) return;
     if (list.querySelector(`[data-message-id="${CSS.escape(String(message.id))}"]`)) return;
 
-    const empty = list.querySelector('.empty-state');
-    if (empty) empty.remove();
+    const pinned = isPinnedToBottom(list);
+    list.querySelector('.chat-empty')?.remove();
+    list.querySelector('.empty-state')?.remove();
 
     const article = document.createElement('article');
     article.className = 'chat-message';
     article.dataset.messageId = String(message.id);
 
+    const senderName = message.sender || text('访客', 'Guest');
+    const avatar = document.createElement('span');
+    avatar.className = 'chat-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = monogram(senderName);
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'chat-message-body';
+
+    const meta = document.createElement('p');
+    meta.className = 'chat-message-meta';
     const sender = document.createElement('strong');
-    sender.textContent = message.sender || text('访客', 'Guest');
-    const body = document.createElement('p');
-    body.textContent = message.body || '';
+    sender.textContent = senderName;
+
     const time = document.createElement('time');
     let parsed;
     if (Array.isArray(message.created_at) && message.created_at.length >= 5) {
@@ -41,14 +63,17 @@
     }
     time.textContent = Number.isNaN(parsed.getTime())
       ? ''
-      : parsed.toLocaleString([], {
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit',
-        });
+      : `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+    meta.append(sender, time);
 
-    article.append(sender, body, time);
+    const body = document.createElement('p');
+    body.className = 'chat-message-text';
+    body.textContent = message.body || '';
+
+    bodyWrap.append(meta, body);
+    article.append(avatar, bodyWrap);
     list.appendChild(article);
-    list.scrollTop = list.scrollHeight;
+    if (pinned) list.scrollTop = list.scrollHeight;
   }
 
   function mount(root) {
@@ -90,13 +115,13 @@
 
     const connect = () => {
       if (!document.body.contains(root) || closedForAccess) return;
-      setStatus('connecting', text('正在连接实时房间…', 'Connecting to realtime room…'));
+      setStatus('connecting', text('连接中', 'Connecting'));
       ws = new WebSocket(socketUrl(spaceId));
 
       ws.addEventListener('open', () => {
         attempts = 0;
         clearError();
-        setStatus('connected', text('实时连接已建立', 'Realtime connected'));
+        setStatus('connected', text('实时在线', 'Live'));
       });
 
       ws.addEventListener('message', (event) => {
@@ -105,19 +130,20 @@
         if (payload.type === 'history') {
           (payload.messages || []).forEach((message) => appendMessage(root, message));
           root.scrollTop = root.scrollHeight;
+          root.dataset.chatReady = 'true';
         } else if (payload.type === 'message') {
           appendMessage(root, payload.message);
         } else if (payload.type === 'presence') {
           const count = Number(payload.online_count || 0);
           if (online) {
             online.dataset.realtimeOnline = String(count);
-            online.textContent = localeIsZh() ? `${count} 人在线` : `${count} online`;
+            online.textContent = localeIsZh() ? `${count} 人在场` : `${count} here`;
           }
         } else if (payload.type === 'error') {
           showError(payload.message || text('实时消息发送失败', 'Realtime message failed'));
           if (payload.code === 'password_changed' || payload.code === 'access_expired') {
             closedForAccess = true;
-            setStatus('access-required', text('需要重新验证密码', 'Password verification required'));
+            setStatus('access-required', text('需重新验证', 'Verify again'));
             if (reverify) reverify.style.display = '';
           }
         }
@@ -127,12 +153,12 @@
         if (!document.body.contains(root) || closedForAccess) return;
         attempts += 1;
         const delay = Math.min(1000 * (2 ** Math.min(attempts, 4)), 15000);
-        setStatus('reconnecting', text('连接中断，正在重连…', 'Disconnected, reconnecting…'));
+        setStatus('reconnecting', text('重新连接中', 'Reconnecting'));
         reconnectTimer = window.setTimeout(connect, delay);
       });
 
       ws.addEventListener('error', () => {
-        setStatus('error', text('实时连接暂时不可用', 'Realtime connection unavailable'));
+        setStatus('error', text('连接不可用', 'Offline'));
       });
     };
 
@@ -153,15 +179,36 @@
       ws.send(JSON.stringify({ type: 'message', body }));
       input.value = '';
       input.dispatchEvent(new Event('input', { bubbles: true }));
+      root.scrollTop = root.scrollHeight;
       clearError();
     };
 
+    // Enter sends, Shift+Enter breaks the line; the composer grows with content.
+    const autogrow = () => {
+      if (input.dataset.chatAutogrow !== 'true') return;
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 148)}px`;
+    };
+    const onKeydown = (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        if (String(input.value || '').trim()) {
+          form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+      }
+    };
+
+    input.addEventListener('input', autogrow);
+    input.addEventListener('keydown', onKeydown);
     form.addEventListener('submit', submit, true);
     connect();
+    autogrow();
 
     controllers.set(root, {
       close() {
         form.removeEventListener('submit', submit, true);
+        input.removeEventListener('input', autogrow);
+        input.removeEventListener('keydown', onKeydown);
         if (reconnectTimer) window.clearTimeout(reconnectTimer);
         if (ws && ws.readyState < WebSocket.CLOSING) ws.close(1000, 'route changed');
       },

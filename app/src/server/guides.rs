@@ -423,7 +423,7 @@ pub async fn delete_guide(guide_id: String) -> Result<GuideSummary, ServerFnErro
     };
     ensure_guide_editor(&pool, &existing, &user).await?;
 
-    instant_db::guides::archive_guide(&pool, guide_uuid)
+    instant_db::guides::delete_guide_row(&pool, guide_uuid)
         .await
         .map_err(|err| ServerFnError::new(err.to_string()))
 }

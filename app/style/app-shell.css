@@ -303,11 +303,13 @@ body {
   transition: left var(--is-duration-normal) cubic-bezier(.2,.8,.2,1);
 }
 .shell-menu-button { display: none; }
-.shell-topbar-context { display: grid; min-width: 150px; line-height: 1.15; }
-.shell-topbar-title { color: var(--is-text); font-size: .86rem; font-weight: 730; }
-.shell-topbar-path { margin-top: 3px; color: var(--is-text-muted); font-size: .66rem; }
+.shell-topbar-context { display: grid; flex: 0 1 auto; min-width: 0; max-width: 210px; line-height: 1.15; }
+.shell-topbar-title { color: var(--is-text); font-size: .86rem; font-weight: 730; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shell-topbar-path { margin-top: 3px; color: var(--is-text-muted); font-size: .66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shell-global-search {
   width: min(48vw, 580px);
+  min-width: 0;
+  flex: 0 1 auto;
   height: 40px;
   display: flex;
   align-items: center;
@@ -324,9 +326,11 @@ body {
 .shell-global-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--is-text); font-size: max(16px, .85rem); }
 .shell-global-search input:focus { outline: 0; }
 .shell-global-search kbd { min-width: 22px; padding: 2px 6px; border: 1px solid var(--is-border); border-bottom-width: 2px; border-radius: 6px; background: #fff; color: var(--is-text-muted); text-align: center; font: 600 .68rem/1.2 system-ui; }
-.shell-topbar-actions { display: flex; align-items: center; gap: var(--is-space-2); }
-.shell-topbar-language { display: flex; gap: 4px; }
-.shell-topbar-login { min-height: 38px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 9px; background: var(--is-neutral-900); color: #fff; text-decoration: none; font-size: .78rem; font-weight: 720; }
+.shell-topbar-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--is-space-2); }
+.shell-topbar-language { display: flex; flex: 0 0 auto; gap: 4px; }
+/* iPad landscape used to wrap this label into two stacked characters. */
+.shell-topbar-login { flex: 0 0 auto; min-height: 38px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 9px; background: var(--is-neutral-900); color: #fff; text-decoration: none; font-size: .78rem; font-weight: 720; white-space: nowrap; }
+.shell-topbar-language .language-button { flex: 0 0 auto; white-space: nowrap; }
 .shell-account-menu { position: relative; }
 .shell-account-menu summary { min-width: 40px; min-height: 40px; display: grid; place-items: center; list-style: none; border-radius: 9px; cursor: pointer; }
 .shell-account-menu summary::-webkit-details-marker { display: none; }
@@ -382,7 +386,19 @@ body:has(.shell-sidebar.is-collapsed) .shell-topbar { left: var(--shell-sidebar-
 .shell-sidebar.is-collapsed .shell-create-button { padding-inline: 0; }
 .shell-sidebar.is-collapsed .shell-account-row { justify-content: center; padding-inline: 4px; background: transparent; border-color: transparent; }
 
+/* iPad landscape (1024-1280): sidebar stays, so the topbar has ~760-1020px.
+   Drop the secondary context line before anything is allowed to wrap. */
+@media (min-width: 1100px) and (max-width: 1279px) {
+  .shell-topbar { gap: var(--is-space-3); padding-inline: 18px; }
+  .shell-topbar-path { display: none; }
+  .shell-global-search { width: auto; flex: 1 1 auto; margin-inline: 0 auto; }
+}
+
 @media (max-width: 1099px) {
+  /* The closed drawer sits off-canvas; without this it widens the document.
+     Both html and body need it, otherwise the viewport still scrolls. */
+  html:has(.shell-sidebar:not(.is-open)),
+  html:has(.shell-sidebar:not(.is-open)) body { overflow-x: clip; }
   .shell-sidebar { width: min(86vw, 292px); transform: translateX(-102%); box-shadow: 18px 0 50px rgb(16 24 40 / .14); }
   .shell-sidebar.is-collapsed { width: min(86vw, 292px); }
   .shell-sidebar.is-open { transform: translateX(0); }

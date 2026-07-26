@@ -96,13 +96,13 @@ pub fn App() -> impl IntoView {
   ]
 }"#
         </Script>
-        <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260728-map-v6" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260728-map-v6" />
-        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260728-map-v6" />
-        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260728-map-v6" />
-        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260728-map-v6" />
-        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260728-map-v6" />
-        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260728-map-v6" />
+        <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v12" />
+        <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v12" />
+        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v12" />
+        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260729-craft-v12" />
+        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v12" />
+        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260729-craft-v12" />
+        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260729-craft-v12" />
         <Router>
             <Header />
             <div class="app-main">

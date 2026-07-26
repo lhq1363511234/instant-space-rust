@@ -1,0 +1,23 @@
+import { chromium } from "playwright";
+const base = process.env.BASE_URL || "https://opctoai.com";
+const SPACE = "10000000-0000-0000-0000-000000000001";
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport:{width:1440,height:900} });
+await ctx.addCookies([{ name:"instant_session", value:"qa-token-fullstack-1", domain:"opctoai.com", path:"/" }]);
+const page = await ctx.newPage();
+const errors=[]; page.on("console",m=>{if(m.type()==="error")errors.push(m.text());});
+await page.goto(`${base}/inspace/spaces/${SPACE}/chat`,{waitUntil:"networkidle"}).catch(()=>{});
+await page.waitForTimeout(3500);
+await page.screenshot({path:"output/playwright/chat-1440.png"});
+const info = await page.evaluate(()=>{
+  const b=(s)=>{const e=document.querySelector(s); if(!e) return null; const r=e.getBoundingClientRect(); const cs=getComputedStyle(e); return {x:~~r.x,y:~~r.y,w:~~r.width,h:~~r.height,overflow:cs.overflowY,disp:cs.display,pos:cs.position};};
+  return { shell:b(".chat-shell"), header:b(".chat-room-header"), list:b(".chat-message-list"), compose:b(".chat-compose"), msgs:document.querySelectorAll(".chat-message").length, status:document.querySelector("[data-realtime-status]")?.getAttribute("data-realtime-status"), sw:document.documentElement.scrollWidth, vw:innerWidth };
+});
+console.log(JSON.stringify({info,errors:errors.slice(0,5)},null,1));
+const ctx2 = await browser.newContext({ viewport:{width:390,height:844}, isMobile:true, hasTouch:true });
+await ctx2.addCookies([{ name:"instant_session", value:"qa-token-fullstack-1", domain:"opctoai.com", path:"/" }]);
+const p2 = await ctx2.newPage();
+await p2.goto(`${base}/inspace/spaces/${SPACE}/chat`,{waitUntil:"networkidle"}).catch(()=>{});
+await p2.waitForTimeout(3000);
+await p2.screenshot({path:"output/playwright/chat-390.png"});
+await browser.close();

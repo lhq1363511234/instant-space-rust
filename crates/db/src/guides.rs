@@ -422,12 +422,13 @@ pub async fn update_guide(
     row_to_guide_summary(row)
 }
 
-pub async fn archive_guide(pool: &PgPool, guide_id: Uuid) -> Result<GuideSummary, sqlx::Error> {
+/// Permanently remove a guide. Archiving only hides a guide from public lists,
+/// so owners kept seeing "deleted" guides in their own management view. Nothing
+/// references `guides`, so the row can go.
+pub async fn delete_guide_row(pool: &PgPool, guide_id: Uuid) -> Result<GuideSummary, sqlx::Error> {
     let row = sqlx::query(
         r#"
-        UPDATE guides
-        SET status = 'archived',
-            updated_at = now()
+        DELETE FROM guides
         WHERE id = $1
         RETURNING id, title_zh, title_en, province, city, district, spot_name,
                   status::text AS status, featured, author_id, space_id

@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-const base = process.env.BASE_URL || "http://127.0.0.1:3001";
+const base = process.env.BASE_URL || 'https://opctoai.com';
 const browser = await chromium.launch();
 const page = await browser.newContext({ viewport: { width: 1360, height: 900 } }).then((c) => c.newPage());
 const errors = [];

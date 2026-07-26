@@ -320,3 +320,74 @@ systemctl restart instant-space-rust
 **注意**：本地 127.0.0.1:3001 直接访问 `/inspace/map` 会因 `assetBase()` 走 `/inspace` 前缀而 404 加载不到 maplibre，**地图标记验证必须走线上域名**。
 
 **版本号**：二进制 CSS 版本已 bump 到 `20260728-map-v6`；因随后有纯 CSS 改动，nginx sub_filter 追加 `'20260728-map-v6' -> '20260728-map-v7'`。WASM sub_filter 版本同步为 `20260728-map-v6`。nginx 备份 `/etc/nginx/conf.d/opctoai.com.conf.bak-map-v6`。
+
+## v10 — 首页质感 / iPad 横屏遮挡 / 攻略删除 / 聊天页重做（2026-07-26）
+
+### 1. 攻略删不掉（真 bug）
+**根因**：`delete_guide` 服务端实际调用的是 `archive_guide`（仅 `status='archived'`），而管理列表 `list_guides_by_space(include_unpublished=true)` 会把 archived 一并列出 → 用户点删除后条目仍在，只是变「已归档」。`guides` 表无外键被引用，可以物理删除。
+
+**修复**：
+- `crates/db/src/guides.rs`：移除 `archive_guide`，新增 `delete_guide_row()`（`DELETE FROM guides ... RETURNING`）
+- `app/src/server/guides.rs`：`delete_guide` 改调 `delete_guide_row`
+- `app/src/pages/host.rs` `RelatedSpaceGuides`：`archive_action` → `delete_action`，新增 `pending_delete` 两步确认（首次点击变「确认删除」，再点才执行），成功提示「攻略已删除」
+- `app/style/inspace-world.css`：`body .related-guide-item` 改 grid 布局（标题+状态同行、操作靠右），原来三段垂直堆叠占满屏
+
+**验证**：`tests/browser/delete-guide-test.mjs` 真实浏览器点击 → DB 行数 3 → 2，无 console error。
+
+### 2. iPad 横屏文字被遮挡
+**根因**：1180×820 下右上角「登录」被压成竖排两行；`.shell-topbar-login` 缺 `white-space:nowrap` 与 `flex:0 0 auto`。另有关闭态抽屉侧栏留在画布外导致 390px 文档横向溢出（sw=394）。
+
+**修复**（`app/style/app-shell.css`）：topbar 各元素加 `flex:0 0 auto` + `nowrap`；`.shell-topbar-context` 限宽 210px + ellipsis；`.shell-global-search` 加 `min-width:0`；新增 `@media (min-width:1100px) and (max-width:1279px)` 隐藏 `.shell-topbar-path`；`html:has(.shell-sidebar:not(.is-open)), body { overflow-x: clip }`。
+
+**验证**：1024 / 1112 / 1180 / 1194 / 1366 横屏全部 `sw == vw`、遮挡元素 0。
+
+### 3. 聊天页重做
+- `app/src/pages/space.rs`：新增 `split_chat_stamp()` / `sender_monogram()`；header 改「返回箭头 + 空间名 + 单行 caption（状态点 + 在场人数）」；消息改两列（首字母头像 + 正文块）；空态换 `.chat-empty`；发送按钮加纸飞机 SVG 且输入为空时 disabled；textarea `rows=1` 自动增高。
+- `app/src/chat_realtime.js`：`appendMessage` 适配新 DOM；`isPinnedToBottom()` 仅在贴底时自动滚动（往上翻历史不再被拽回）；Enter 发送 / Shift+Enter 换行；状态文案精简；时间统一 24 小时制（`getHours/getMinutes` 补零，替代 `toLocaleTimeString` 的 `07:09 AM`）。
+- `app/style/inspace-world.css`：`.chat-room` 重写为三行 grid（header / 滚动区 / 吸底 composer），`width: min(100%, 780px)`，`height: calc(100dvh - topbar - 56px)`。
+
+**踩坑（重要）**：`ui-system.css` 有多处高特异性规则打架 —— 给 `.chat-message-list` 写死 `height: min(52dvh,620px)`、给 shell 设 `align-items:start` 与命名 grid-area、900px 以下把 shell 切回 flex、把状态文案强制成 34px 药丸。全部在 `inspace-world.css` 末尾用 `body .xxx { ... !important }` 定点压制并注明原因。
+
+**验证**：`chat-send-test.mjs` → 消息 10→11、status connected、errors []；390px `sw==vw==390`。
+
+### 4. 首页质感
+- hero 标题 `clamp(2.75rem,5.1vw,4.5rem)` + display 衬线 + `letter-spacing:-.03em` + `max-width:13ch`；hero 改 `align-items:center`、`min-height:min(72vh,620px)`；移除勒死正文的 `.survey-hero-copy{max-width:20ch}`。
+- slogan `.survey-note` 改 display 斜体 + 墨色实线上边框（签名感）；`.survey-sheet` 去掉 1px 幽灵边框，改分层阴影。
+- 唯一一处编排动效：`survey-settle`（sheet 落纸 620ms）+ `survey-rule-draw`（三条横线依次画出，用 `::before` 画线避免文字被 scaleX 压扁），含 `prefers-reduced-motion` 兜底。
+- 清理三处 v7 时期互相打架的旧 patch 块，hero cascade 现在是干净的。
+- 修 `main.css` 深色主题遗留：`.space-detail-guide-list a` / `.related-guide-main .guide-list-link` 白字深块 → 纸底可读的下划线列表项。
+
+**版本号**：二进制 CSS 版本 `20260729-craft-v1` → `20260729-craft-v12`；nginx 里针对 v1 的 `sub_filter '20260729-craft-v1' '20260729-craft-v11';` 已随之移除（两处 location）。
+
+## v10 — 首页：随滚动被"绘制"的测绘图记（2026-07-26）
+
+**问题**：首页正确但静止 —— 所有内容一次到位，600ms 之后不再有任何编排。用户明确否掉了上一版"深色墨版 hero"（纯静态换色），要求「得奖作品级 + 可动效果」。
+
+**方案**：不换配色、不加装饰，改为让整页**随滚动被绘制出来**（scroll-driven，纯 CSS，无 JS、无定时器）。
+
+改动全部在 `app/style/inspace-world.css` 末尾（`v10 — HOME: the sheet is drawn while you read it`）：
+
+1. **左侧页边基准线**：`.inspace-home-modules::before`，`animation-timeline: scroll(root block)`，`scaleY` 随文档进度推进；顶部 34% 朱红、其后发丝灰。<1100px 隐藏。
+2. **开场编排**：h1 用 `clip-path` 竖向擦除（`inset(-12% -20% 104% -6%)` → `inset(-12% -20% -14% -6%)`，横向留负值，绝不切字），lede / actions / note 依次 `home-write` 入场，最后在 lede 上方划出 92px 朱红基准线。
+3. **hero 两平面分离**：`.survey-hero-copy` 随滚动 recede（opacity→.12，Y→-46px，range `0 62vh`）；`.survey-sheet` 反向 hold（Y 26px→-34px，微旋 .5deg→-.35deg，range `0 88vh`），双 timeline 写法：`animation-timeline: auto, scroll(root block)`。
+4. **每段"先划墨线，再写行"**：`.survey-stages::before` / `.survey-log::before` 用 `animation-timeline: view()` + `animation-range: entry 22% entry 74%` 划线；三个 stage / 三行 log 各自错开 5% range 写入。
+5. **论点被证据挟持**：≥1100px 时 `.survey-plate-copy` `position: sticky`（top = topbar + 56px），左栏文字停住，右侧 log 表滚过。
+6. **按钮**：secondary / colophon 按钮改成墨色从左侧填充（`::before` scaleX + `isolation`），不再只是变色。
+
+**排版修正（CJK 关键）**：
+- `max-width: 12ch` 让 h1 被截断 —— `ch` 按 "0" 字宽计，汉字是它的两倍。display 改 `max-width: none` + `clamp(2.6rem, 4.5vw, 4.1rem)`；lede 改 `max-width: 20em`。
+- 新增 `@media (min-width:1100px) and (max-width:1339px)` 重述 iPad 横屏 hero 尺寸（原来那条 band 规则因源顺序已失效）。
+
+**兜底**：`@supports not (animation-timeline: view())` → 所有线 scaleX/scaleY = 1，页面即"已完成的图记"；`prefers-reduced-motion: reduce` 全部 `animation:none` + opacity/transform/clip-path 复位（已实测）。<1099px 关掉 hero 视差（手机上 hero 就是整屏，recede 会在拇指下变空白）。
+
+**验证**（全部走线上 https://opctoai.com/inspace）：
+- 1440 / 1180 / 390 三档 `sw == vw`，console errors = 0
+- `CSS.supports('animation-timeline','view()')` = true；滚到底实测 rule scaleY=1、heroCopy opacity=.12 translateY(-46)、sheet translateY(-34) 微旋、stages rule scaleX=1
+- 八个滚动位置逐一采样：passage/stages/plate/log/colophon 的 opacity 最终都达 1（不存在"滚过去还是空的"）
+- reducedMotion=reduce：h1/log 行/按钮 transform=none opacity=1，两条线 scale=1
+- 回归：地图标记 3/3 + 抽屉可开（`BASE_URL=https://opctoai.com`）、聊天 11 条消息 connected、iPad 1024/1112/1180/1194/1366 全部 `sw==vw` 且 covered=[]
+- `impeccable/scripts/detect.mjs` → `[]`
+
+**发布**：纯 CSS，未重建二进制。nginx `sub_filter '20260729-craft-v12' '20260729-craft-v15';`（两处 location）+ reload。二进制里仍写 v12，nginx 负责改写到 v15；下次纯 CSS 改动继续 bump 这条 sub_filter 的右值。
+
+**注意**：`map-marker-check.mjs` 的 `BASE_URL` 默认值已改为 `https://opctoai.com`（本地 3001 因 assetBase 前缀会 404，误报 markerCount=0）。
