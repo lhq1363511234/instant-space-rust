@@ -454,7 +454,7 @@ main.page.inspace-home { max-width: none !important; padding: 0 !important; back
 }
 
 /* --- passage: ruled stages, no numerals --- */
-.survey-passage-head { max-width: 44ch; }
+.survey-passage-head { max-width: 34em; }
 .survey-passage-head h2 {
   margin: 0;
   font-size: clamp(1.75rem, 2.7vw, 2.5rem) !important;
@@ -993,14 +993,14 @@ body .shell-account-button:hover, body .shell-login-button:hover { background: v
 
 /* --- colophon: the closing line reads as one block --- */
 .survey-colophon { gap: 40px; align-items: start; }
-.survey-colophon h2 { max-width: 14ch; }
+.survey-colophon h2 { max-width: 13em; }
 .survey-colophon p { margin-top: 14px; max-width: 40em; }
 .survey-colophon .button { grid-row: 1 / span 2; align-self: start; margin-top: 6px; }
 
 /* --- passage measure --- */
-.survey-passage-head h2 { max-width: 16ch; text-wrap: balance; }
-.survey-passage-head p { max-width: 42ch; }
-.survey-plate-copy h2 { max-width: 13ch; text-wrap: balance; }
+.survey-passage-head h2 { max-width: 15em; text-wrap: balance; }
+.survey-passage-head p { max-width: 30em; }
+.survey-plate-copy h2 { max-width: 12em; text-wrap: balance; }
 .survey-plate-copy > p { max-width: 36em; }
 
 /* --- residual legacy containers on the space page --- */
@@ -1145,12 +1145,17 @@ body .community-links a:hover { background: var(--ink) !important; color: var(--
 }
 body .chat-message-list { box-shadow: none !important; }
 
+/* `word-break: keep-all` was added to stop Latin words breaking mid-word, but
+   CJK has no spaces: the whole sentence became one unbreakable word, so these
+   headlines never wrapped and ran straight under the column beside them. CJK
+   already breaks between any two glyphs — leave the default alone and only
+   keep Latin/numeric runs intact. */
 .survey-passage-head h2,
 .survey-plate-copy h2,
 .survey-colophon h2,
-.survey-hero h1 { word-break: keep-all; overflow-wrap: normal; }
+.survey-hero h1 { word-break: normal; overflow-wrap: normal; line-break: strict; }
 @media (min-width: 1100px) {
-  .survey-passage-head h2 { max-width: 22ch; }
+  .survey-passage-head h2 { max-width: 16em; }
 }
 
 /* =========================================================================
@@ -2102,4 +2107,118 @@ body .space-discussion-entry .button {
   .survey-hero .survey-sheet { animation-timeline: auto !important; }
   .survey-hero .survey-sheet { animation: survey-settle 620ms cubic-bezier(.16,.84,.24,1) both 90ms; }
   .survey-hero-copy { animation: none; opacity: 1; transform: none; }
+}
+
+/* =========================================================================
+   v11 — HOME: the field strip
+   The page argued about places without ever showing one. Six photographs,
+   all CC0/PDM and self-hosted (app/vendor/img/CREDITS.md), sit between the
+   argument and the log. They are not cards: no border, no radius beyond the
+   sheet's own 3px, no shadow stack — a photograph printed onto the paper,
+   with its reference line underneath.
+   Depth comes from field_parallax.js: each plate drifts by its own
+   data-depth and keeps settling after the scroll stops.
+   ========================================================================= */
+.survey-field { padding-top: 96px !important; padding-bottom: 104px !important; }
+.survey-field-head { max-width: 34em; }
+.survey-field-head h2 {
+  margin: 0;
+  max-width: 15em;
+  font-size: clamp(1.7rem, 2.6vw, 2.4rem) !important;
+  text-wrap: balance;
+}
+.survey-field-lede {
+  margin: 16px 0 0;
+  max-width: 30em;
+  color: var(--ink-soft) !important;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.survey-field-strip {
+  margin: 54px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 34px 28px;
+}
+.survey-field-plate {
+  margin: 0;
+  /* The script writes translate3d here; keep the box out of its way. */
+  will-change: transform;
+}
+/* The plates do not sit on one baseline: a strip of photographs pinned to a
+   sheet never does, and the stagger is what lets the parallax read at all. */
+.survey-field-plate:nth-child(2) { margin-top: 42px; }
+.survey-field-plate:nth-child(3) { margin-top: 14px; }
+.survey-field-plate:nth-child(5) { margin-top: 30px; }
+.survey-field-plate:nth-child(6) { margin-top: 8px; }
+
+.survey-field-plate figure {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+/* The width/height attributes are there so the browser reserves the box before
+   the file lands; without `height: auto` that attribute wins and the crop is
+   locked to 480px tall regardless of the column. */
+.survey-field-plate img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: 2px;
+  background: var(--paper-deep);
+  /* The photograph is printed, not floated: one contact edge, no soft stack. */
+  box-shadow: 0 1px 0 var(--rule-strong);
+  transition: filter 420ms ease, transform 420ms cubic-bezier(.22,.9,.24,1);
+  /* Warm the photographs into the paper so they stop reading as stock. */
+  filter: saturate(.86) contrast(1.03);
+}
+.survey-field-plate figcaption {
+  padding-top: 9px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: .84rem;
+  letter-spacing: .02em;
+}
+.survey-field-plate:hover img { filter: saturate(1) contrast(1.03); }
+
+/* Each plate is written in as it enters, on the same scroll timeline as the
+   rest of the page — the photographs do not get their own entrance idiom. */
+@supports (animation-timeline: view()) {
+  .survey-field-head { animation: home-write linear both; animation-timeline: view(); animation-range: entry 6% entry 46%; }
+  .survey-field-plate figure { animation: home-write linear both; animation-timeline: view(); }
+  .survey-field-plate:nth-child(1) figure { animation-range: entry 14% entry 52%; }
+  .survey-field-plate:nth-child(2) figure { animation-range: entry 17% entry 55%; }
+  .survey-field-plate:nth-child(3) figure { animation-range: entry 20% entry 58%; }
+  .survey-field-plate:nth-child(4) figure { animation-range: entry 23% entry 61%; }
+  .survey-field-plate:nth-child(5) figure { animation-range: entry 26% entry 64%; }
+  .survey-field-plate:nth-child(6) figure { animation-range: entry 29% entry 67%; }
+}
+
+@media (max-width: 1099px) {
+  .survey-field { padding-top: 60px !important; padding-bottom: 64px !important; }
+  .survey-field-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 18px; margin-top: 40px; }
+  .survey-field-plate:nth-child(2) { margin-top: 28px; }
+  .survey-field-plate:nth-child(3) { margin-top: 0; }
+  .survey-field-plate:nth-child(4) { margin-top: 28px; }
+  .survey-field-plate:nth-child(5) { margin-top: 0; }
+  .survey-field-plate:nth-child(6) { margin-top: 28px; }
+}
+@media (max-width: 560px) {
+  /* On a phone a 2-up grid makes each photograph too small to be a place.
+     One column, and the stagger goes away because there is nothing to stagger
+     against. */
+  .survey-field-strip { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .survey-field-plate { margin-top: 0 !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-field-head,
+  .survey-field-plate figure { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .survey-field-plate { transform: none !important; }
+  .survey-field-plate img { transition: none; }
 }

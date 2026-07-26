@@ -391,3 +391,62 @@ systemctl restart instant-space-rust
 **发布**：纯 CSS，未重建二进制。nginx `sub_filter '20260729-craft-v12' '20260729-craft-v15';`（两处 location）+ reload。二进制里仍写 v12，nginx 负责改写到 v15；下次纯 CSS 改动继续 bump 这条 sub_filter 的右值。
 
 **注意**：`map-marker-check.mjs` 的 `BASE_URL` 默认值已改为 `https://opctoai.com`（本地 3001 因 assetBase 前缀会 404，误报 markerCount=0）。
+
+## v11 — 首页：实拍图片带 + JS 视差；`keep-all` 遮挡 bug（2026-07-26）
+
+### 1. 「文字被挡住」的真因：`word-break: keep-all`
+用户 iPad 截图里 `.survey-plate-copy h2` / `.survey-colophon h2` 压在右侧日志栏底下。实测（1194/1366/1440）文字比自身盒子宽出 133–219px。
+
+根因在 `inspace-world.css` 原第 1148-1151 行：给四个标题加了 `word-break: keep-all`，本意是防英文单词断行——但**中文没有空格，整句被当成一个不可断的"词"**，永远不换行，直接溢出。
+
+改为 `word-break: normal; overflow-wrap: normal; line-break: strict;`。同时把这一带所有 CJK 度量从 `ch` 换成 `em`（`ch` 按 "0" 字宽算，汉字是两倍）：
+- `.survey-passage-head` 44ch→34em、`h2` 16ch→15em（≥1100px 那条 22ch→16em）、`p` 42ch→30em
+- `.survey-plate-copy h2` 13ch→12em
+- `.survey-colophon h2` 14ch→13em
+
+实测溢出全部转负（-34 ~ -251px）。
+
+### 2. 图片：六张 CC0/PDM 实拍，自托管
+- 来源：Openverse API（`license=cc0,pdm`），逐张目视筛选后下载
+- 处理：PIL 居中裁 3:2 → WebP q74，两档宽度 720/1080，共 12 个文件 872KB
+- 位置：`app/vendor/img/`，授权清单 `app/vendor/img/CREDITS.md`（记录标题/许可/作者/原始链接，CC0 不强制署名，但保留可审计链路）
+- 选图：外滩、里斯本电车坡道、首尔北村巷、威尼斯水巷、港湾夜灯、山口观景点
+
+### 3. 新 section `.survey-field`（order 25，插在 passage 与 plate 之间）
+`app/src/pages/home.rs` 新增 `FieldPlate` 组件（`slug` / `zh` / `en` / `depth`）。要点：
+- `srcset` 两档 + `sizes="(max-width:720px) 78vw, (max-width:1099px) 42vw, 27vw"`
+- `alt=""`（装饰性，语义由 figcaption 承担）、`loading="lazy"` `decoding="async"`
+- `ul > li` 真列表语义
+- **不是卡片**：无边框、无圆角堆叠、无阴影层；只有 `box-shadow: 0 1px 0 var(--rule-strong)` 一条接触边 + `filter: saturate(.86)` 压进纸色，hover 才回饱和
+- 三列错落（2/3/5/6 各有不同 `margin-top`），错落是视差能被看见的前提
+
+### 4. JS 视差 `app/src/field_parallax.js`（新增，`include_str!` 进二进制）
+为什么要 JS 而不是继续用 scroll timeline：每块图深度不同，且**手指离开后要继续缓动一拍**（scroll timeline 精确贴合滚动位置，观感机械）。
+- 契约：`[data-parallax-strip]` + 每块 `[data-depth]`
+- 进度 = `(vh - box.top) / (vh + box.height)` 映射到 ±78px，再乘各自 depth
+- 缓动 `y += (target-y)*0.085`，差值 <0.05 时停 rAF（不空转）
+- `IntersectionObserver` 只在可见时算；`prefers-reduced-motion` 监听 change 事件，切到 reduce 立即 `clear()`
+- WASM hydration 会重建 DOM，所以 `popstate` + 捕获阶段 click 之后延时 re-attach
+
+### 5. nginx：srcset 不会被自动加前缀
+原来只重写 `src="/vendor/` 和 `href="/vendor/`。新增两条（两处 location 各一份）：
+```
+sub_filter 'srcset="/vendor/' 'srcset="/inspace/vendor/';
+sub_filter 'w, /vendor/'      'w, /inspace/vendor/';
+```
+第二条处理 srcset 里第二个候选（`... 720w, /vendor/...`）。
+
+### 6. 踩坑：`height="480"` 属性锁死高度
+`<img width="720" height="480">` 是为了预留盒子防抖动，但没写 `height: auto` 时该属性胜过 `aspect-ratio`，图被固定成 480px 高（实测 343×480，严重变形）。加 `height: auto` 后恢复 343×228。
+
+### 7. 发布
+Rust + 新 JS → 完整流程：`cargo check` → release build（7m09s）→ 原子替换 `/usr/local/bin/instant-space-app` → `build-wasm.mjs`（2m08s）→ restart service。版本号 `app.rs` bump 到 **20260729-craft-v17**，nginx 两处 sub_filter 同步改成 v17，并**删掉了旧的 v12→v16 那条链**。后续纯 CSS 改动：加 `sub_filter '20260729-craft-v17' '20260729-craft-v18';`。
+
+### 8. 验证（全部线上）
+- 1440/1194/390：`sw==vw`，console errors 0，`/vendor/img/` 无 4xx
+- 视差实测有值且会衰减：1440 下 6 块从 -5.36/-10.05/-3.01/-8.04/-4.02/-9.04 收敛到 ~-0.3
+- `currentSrc` 全部命中 720w（列宽 343/322/304，符合 sizes 计算）
+- reducedMotion=reduce：6 块 `transform: none`，figure opacity 全 1
+- a11y：无 alt 缺失、装饰图 alt 全空、`ul>li` 语义、6 张全 lazy
+- 回归：地图标记 3/3 + 抽屉可开、聊天 11 条 connected、iPad 1024/1112/1180/1194/1366 全部 `sw==vw` covered=[]
+- `impeccable/detect.mjs` → `[]`

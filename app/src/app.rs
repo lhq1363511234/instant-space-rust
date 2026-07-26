@@ -96,13 +96,13 @@ pub fn App() -> impl IntoView {
   ]
 }"#
         </Script>
-        <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v12" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v12" />
-        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v12" />
-        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260729-craft-v12" />
-        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v12" />
-        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260729-craft-v12" />
-        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260729-craft-v12" />
+        <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v17" />
+        <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v17" />
+        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v17" />
+        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260729-craft-v17" />
+        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v17" />
+        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260729-craft-v17" />
+        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260729-craft-v17" />
         <Router>
             <Header />
             <div class="app-main">
@@ -158,6 +158,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     let map_boot = include_str!("map_boot.js");
     let capitals_boot = include_str!("geo_capitals_boot.js");
     let chat_realtime = include_str!("chat_realtime.js");
+    let field_parallax = include_str!("field_parallax.js");
 
     view! {
         <!DOCTYPE html>
@@ -170,6 +171,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <AutoReload options=options.clone() />
                 <HydrationScripts options=options.clone() />
                 <script>{chat_realtime}</script>
+                <script>{field_parallax}</script>
                 <MetaTags />
             </head>
             <body>

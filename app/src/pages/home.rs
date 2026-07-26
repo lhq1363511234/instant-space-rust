@@ -135,6 +135,25 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                     }
                 })}
 
+                <section class="survey-field" style="order:25" aria-labelledby="inspace-field-title">
+                    <header class="survey-field-head">
+                        <p class="survey-kicker"><span class="survey-kicker-mark" aria-hidden="true"></span>{move || match locale.get() { Locale::Zh => "地点，不是分类", Locale::En => "Places, not categories" }}</p>
+                        <h2 id="inspace-field-title">{move || match locale.get() { Locale::Zh => "一个空间，对应地面上的一处。", Locale::En => "One space, one place on the ground." }}</h2>
+                        <p class="survey-field-lede">{move || match locale.get() {
+                            Locale::Zh => "外滩的江风、里斯本的坡道、北村的巷口——每一处都值得有一份自己的长期记录。",
+                            Locale::En => "A riverfront, a hill tram, a lane between old houses — each deserves a record that keeps getting better.",
+                        }}</p>
+                    </header>
+                    <ul class="survey-field-strip" data-parallax-strip>
+                        <FieldPlate slug="place-bund" zh="上海 · 外滩" en="Shanghai · The Bund" depth="0.16" />
+                        <FieldPlate slug="place-alley" zh="里斯本 · 电车坡道" en="Lisbon · Tram hill" depth="0.30" />
+                        <FieldPlate slug="place-lane" zh="首尔 · 北村巷" en="Seoul · Bukchon lane" depth="0.09" />
+                        <FieldPlate slug="place-canal" zh="威尼斯 · 水巷" en="Venice · Canal" depth="0.24" />
+                        <FieldPlate slug="place-harbour" zh="港湾 · 夜灯" en="Harbour · Night lights" depth="0.12" />
+                        <FieldPlate slug="place-lake" zh="山口 · 观景点" en="Pass · Viewpoint" depth="0.27" />
+                    </ul>
+                </section>
+
                 {guide.visible.then(|| {
                     let eyebrow = guide.eyebrow.clone();
                     let title = guide.title.clone();
@@ -178,6 +197,37 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                 })}
             </div>
         </main>
+    }
+}
+
+/// One photograph in the field strip. `depth` is read by the parallax script:
+/// larger values drift further, so the strip reads as ground rather than as a
+/// flat row of cards. The image itself is decorative — the caption carries the
+/// meaning, so `alt` stays empty and the figcaption is the accessible label.
+#[component]
+fn FieldPlate(
+    slug: &'static str,
+    zh: &'static str,
+    en: &'static str,
+    depth: &'static str,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <li class="survey-field-plate" data-depth=depth>
+            <figure>
+                <img
+                    src=format!("/vendor/img/{slug}-720.webp")
+                    srcset=format!("/vendor/img/{slug}-720.webp 720w, /vendor/img/{slug}-1080.webp 1080w")
+                    sizes="(max-width: 720px) 78vw, (max-width: 1099px) 42vw, 27vw"
+                    width="720"
+                    height="480"
+                    loading="lazy"
+                    decoding="async"
+                    alt=""
+                />
+                <figcaption>{move || match locale.get() { Locale::Zh => zh, Locale::En => en }}</figcaption>
+            </figure>
+        </li>
     }
 }
 
