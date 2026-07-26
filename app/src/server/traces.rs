@@ -19,6 +19,10 @@ pub struct PresenceClaim {
     pub lat: Option<f64>,
     pub lng: Option<f64>,
     pub discord_member: bool,
+    /// The access code printed at the place — on the WiFi card, the hotspot
+    /// SSID, the sign by the till. Checked against the Space's password hash,
+    /// which is why this is the only claim here a visitor cannot fake.
+    pub onsite_code: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,6 +48,31 @@ fn clean(value: String, max: usize) -> Result<String, ServerFnError> {
         return Err(ServerFnError::new("too long"));
     }
     Ok(trimmed.to_string())
+}
+
+/// Checks the code a visitor read off something physical in the room.
+///
+/// This deliberately reuses the Space access code that already exists: every
+/// Space has a six-digit code, and the host is already told to broadcast it as
+/// the hotspot name `InstantSpace_<code>`. Somebody in the room sees it in
+/// their WiFi list; somebody at home does not. Verified with Argon2 against the
+/// stored hash, so the answer never travels to the browser.
+#[cfg(feature = "ssr")]
+async fn verify_onsite_code(
+    pool: &sqlx::PgPool,
+    space_id: uuid::Uuid,
+    code: Option<&str>,
+) -> Result<bool, ServerFnError> {
+    let Some(code) = code.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(false);
+    };
+    let Some((hash, _version)) = instant_db::spaces::space_password_hash(pool, space_id)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?
+    else {
+        return Ok(false);
+    };
+    Ok(instant_auth::verify_password(code, &hash).unwrap_or(false))
 }
 
 /// Decides which badge a claim earns, and how far off the writer was.
@@ -74,7 +103,18 @@ async fn judge_presence(
         _ => None,
     };
 
-    if claim.scanned {
+    // Checked first, because it is the only claim here the server can actually
+    // verify: the visitor had to read it off something in the room, and we
+    // compare it against a hash the browser never receives.
+    if verify_onsite_code(pool, space_id, claim.onsite_code.as_deref()).await? {
+        return Ok((PresenceProof::OnSite, distance));
+    }
+
+    // A scan is only an assertion — `?via=qr` is a string anyone can append.
+    // We honour it, but not against contradicting evidence: if the browser also
+    // handed us coordinates a thousand kilometres away, the scan is a lie and
+    // the coordinates are the more embarrassing thing to have volunteered.
+    if claim.scanned && !distance.is_some_and(|d| d > radius_m) {
         return Ok((PresenceProof::Scan, distance));
     }
 
@@ -93,6 +133,29 @@ async fn judge_presence(
     }
 
     Ok((PresenceProof::Remote, distance))
+}
+
+/// Confirms a visitor is holding the code that is posted at the place.
+///
+/// Deliberately says nothing except yes or no: a wrong guess must not reveal
+/// how wrong it was. Rate limiting is not applied here because the code is
+/// already six digits behind Argon2, and the honest failure mode — a guest
+/// mistyping the WiFi password — has to stay forgiving.
+#[server(CheckOnsiteCode, "/inspace/api")]
+pub async fn check_onsite_code(space_id: String, code: String) -> Result<bool, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let id =
+            uuid::Uuid::parse_str(&space_id).map_err(|_| ServerFnError::new("invalid space id"))?;
+        let pool = crate::server::db_pool().await?;
+        verify_onsite_code(&pool, id, Some(code.as_str())).await
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (space_id, code);
+        Err(ServerFnError::new("server only"))
+    }
 }
 
 #[server(ListTraces, "/inspace/api")]
@@ -149,6 +212,7 @@ pub async fn leave_trace(
     lat: Option<f64>,
     lng: Option<f64>,
     discord_member: bool,
+    onsite_code: Option<String>,
     source_message_id: Option<String>,
 ) -> Result<Trace, ServerFnError> {
     #[cfg(feature = "ssr")]
@@ -166,6 +230,7 @@ pub async fn leave_trace(
             lat,
             lng,
             discord_member,
+            onsite_code,
         };
         let (proof, distance) =
             judge_presence(&pool, id, &claim, TRACE_ON_SITE_RADIUS_M).await?;
@@ -210,6 +275,7 @@ pub async fn leave_trace(
             lat,
             lng,
             discord_member,
+            onsite_code,
             source_message_id,
         );
         Err(ServerFnError::new("server only"))
@@ -339,6 +405,7 @@ pub async fn open_capsule(
     lat: Option<f64>,
     lng: Option<f64>,
     scanned: bool,
+    onsite_code: Option<String>,
 ) -> Result<CapsuleOpenResult, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
@@ -385,15 +452,27 @@ pub async fn open_capsule(
             _ => None,
         };
 
-        if !scanned {
-            let Some(distance) = distance else {
-                return Ok(CapsuleOpenResult::PresenceRequired);
-            };
-            if distance > f64::from(challenge.radius_m) {
+        // The on-site code is the only proof of presence that cannot be forged
+        // by editing the request: the visitor had to read it off something in
+        // the room, and it is checked against a hash they never see. It alone
+        // is enough.
+        let code_ok = verify_onsite_code(&pool, challenge.space_id, onsite_code.as_deref()).await?;
+
+        if !code_ok {
+            // A scan is merely asserted, so it cannot outrank coordinates that
+            // contradict it — otherwise appending `?via=qr` would open every
+            // capsule on the site from anywhere in the world.
+            let too_far = distance.is_some_and(|d| d > f64::from(challenge.radius_m));
+
+            if too_far {
                 return Ok(CapsuleOpenResult::TooFar {
-                    distance_m: distance.round(),
+                    distance_m: distance.unwrap_or_default().round(),
                     radius_m: challenge.radius_m,
                 });
+            }
+
+            if !scanned && distance.is_none() {
+                return Ok(CapsuleOpenResult::PresenceRequired);
             }
         }
 
@@ -443,7 +522,7 @@ pub async fn open_capsule(
 
     #[cfg(not(feature = "ssr"))]
     {
-        let _ = (capsule_id, passphrase, lat, lng, scanned);
+        let _ = (capsule_id, passphrase, lat, lng, scanned, onsite_code);
         Err(ServerFnError::new("server only"))
     }
 }

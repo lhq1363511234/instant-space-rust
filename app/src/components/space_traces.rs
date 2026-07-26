@@ -4,11 +4,12 @@ use instant_domain::traces::{
 use leptos::prelude::*;
 
 use crate::components::presence::{
-    detect_scan, request_location, PresenceState, PresenceStatus,
+    detect_scan, request_location, CodeState, PresenceState, PresenceStatus,
 };
 use crate::i18n::{t, use_i18n, Locale};
 use crate::server::traces::{
-    leave_trace, list_capsules, list_traces, open_capsule, seal_capsule, TracePage,
+    check_onsite_code, leave_trace, list_capsules, list_traces, open_capsule, seal_capsule,
+    TracePage,
 };
 
 const PAGE_SIZE: i32 = 12;
@@ -78,7 +79,7 @@ pub fn SpaceTraces(space_id: String, space_name: String) -> impl IntoView {
                 })}
             </Suspense>
 
-            <PresenceBar presence=presence />
+            <PresenceBar presence=presence space_id=space_id.clone() />
 
             <TraceComposer
                 space_id=space_id.clone()
@@ -184,9 +185,35 @@ fn Chronicle(chronicle: SpaceChronicle) -> impl IntoView {
 }
 
 /// Shows what we know about the visitor's position, and lets them improve it.
+///
+/// The strongest thing a visitor can offer is the code posted at the place, so
+/// that is the field they see, and geolocation becomes the fallback rather than
+/// the headline. A coordinate is asserted by the browser; the code is checked
+/// against a hash the browser never sees.
 #[component]
-fn PresenceBar(presence: PresenceState) -> impl IntoView {
+fn PresenceBar(presence: PresenceState, space_id: String) -> impl IntoView {
     let locale = use_i18n().locale;
+
+    let check = Action::new(move |input: &(String, String)| {
+        let (space_id, code) = input.clone();
+        async move { check_onsite_code(space_id, code).await }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = check.value().get() {
+            presence.code_state.set(match result {
+                Ok(true) => CodeState::Accepted,
+                Ok(false) => CodeState::Rejected,
+                Err(_) => CodeState::Rejected,
+            });
+        }
+    });
+
+    Effect::new(move |_| {
+        if check.pending().get() {
+            presence.code_state.set(CodeState::Checking);
+        }
+    });
 
     view! {
         <div class="presence-bar" aria-live="polite">
@@ -196,6 +223,12 @@ fn PresenceBar(presence: PresenceState) -> impl IntoView {
                         view! {
                             <span class="presence-badge is-strong">
                                 {move || t(locale.get(), "扫码到场", "Scanned on site")}
+                            </span>
+                        }.into_any()
+                    } else if presence.code_state.get() == CodeState::Accepted {
+                        view! {
+                            <span class="presence-badge is-strong">
+                                {move || t(locale.get(), "现场口令已确认", "On-site code confirmed")}
                             </span>
                         }.into_any()
                     } else {
@@ -229,14 +262,71 @@ fn PresenceBar(presence: PresenceState) -> impl IntoView {
                     }
                 }}
             </div>
+            <Show when=move || !presence.is_confirmed()>
+                <form
+                    class="presence-code"
+                    on:submit={
+                        let space_id = space_id.clone();
+                        move |ev| {
+                            ev.prevent_default();
+                            let code = presence.onsite_code.get().trim().to_string();
+                            if !code.is_empty() {
+                                check.dispatch((space_id.clone(), code));
+                            }
+                        }
+                    }
+                >
+                    <label class="field-label">
+                        <span>{move || t(locale.get(), "现场口令", "On-site code")}</span>
+                        <input
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            maxlength="12"
+                            prop:value=move || presence.onsite_code.get()
+                            placeholder=move || t(locale.get(), "WiFi 名里的 6 位数字", "6 digits from the WiFi name")
+                            on:input=move |ev| {
+                                presence.onsite_code.set(event_target_value(&ev));
+                                presence.code_state.set(CodeState::Untried);
+                            }
+                        />
+                    </label>
+                    <button
+                        type="submit"
+                        class="button button-secondary-light"
+                        disabled=move || presence.onsite_code.get().trim().is_empty() || check.pending().get()
+                    >
+                        {move || if check.pending().get() {
+                            t(locale.get(), "核对中…", "Checking…")
+                        } else {
+                            t(locale.get(), "确认", "Confirm")
+                        }}
+                    </button>
+                    <p class="presence-code-hint">
+                        {move || match presence.code_state.get() {
+                            CodeState::Rejected => t(
+                                locale.get(),
+                                "这个口令不对。它就写在这儿的 WiFi 名字里（InstantSpace_ 后面那六位）。",
+                                "That code is wrong. It is in the WiFi name here — the six digits after InstantSpace_.",
+                            ),
+                            _ => t(
+                                locale.get(),
+                                "打开 WiFi 列表，找到 InstantSpace_ 开头的名字，后面六位就是。人不在这儿是看不到的。",
+                                "Open your WiFi list and find the name starting with InstantSpace_ — the six digits are the code. You cannot see it from anywhere else.",
+                            ),
+                        }}
+                    </p>
+                </form>
+            </Show>
+
             <div class="presence-actions">
-                <Show when=move || !presence.scanned.get() && presence.status.get() != PresenceStatus::Located>
+                <Show when=move || !presence.is_confirmed() && presence.status.get() != PresenceStatus::Located>
                     <button
                         type="button"
                         class="button button-secondary-light"
                         on:click=move |_| request_location(presence)
                     >
-                        {move || t(locale.get(), "我就在这儿", "I’m here right now")}
+                        {move || t(locale.get(), "或者用定位", "Or use my location")}
                     </button>
                 </Show>
                 <label class="presence-discord">
@@ -263,8 +353,9 @@ fn TraceComposer(
     let weather = RwSignal::new(String::new());
     let error = RwSignal::new(None::<String>);
 
-    let write = Action::new(move |input: &(String, String, String, bool, Option<f64>, Option<f64>, bool)| {
-        let (space_id, body, weather, scanned, lat, lng, discord) = input.clone();
+    #[allow(clippy::type_complexity)]
+    let write = Action::new(move |input: &(String, String, String, bool, Option<f64>, Option<f64>, bool, Option<String>)| {
+        let (space_id, body, weather, scanned, lat, lng, discord, code) = input.clone();
         async move {
             leave_trace(
                 space_id,
@@ -274,6 +365,7 @@ fn TraceComposer(
                 lat,
                 lng,
                 discord,
+                code,
                 None,
             )
             .await
@@ -322,6 +414,7 @@ fn TraceComposer(
                     presence.lat.get(),
                     presence.lng.get(),
                     presence.discord_member.get(),
+                    presence.code_claim(),
                 ));
             }
         >
@@ -701,9 +794,9 @@ fn CapsuleCard(
     let attempting = RwSignal::new(false);
     let outcome = RwSignal::new(None::<CapsuleOpenResult>);
 
-    let open = Action::new(move |input: &(String, String, Option<f64>, Option<f64>, bool)| {
-        let (capsule_id, passphrase, lat, lng, scanned) = input.clone();
-        async move { open_capsule(capsule_id, passphrase, lat, lng, scanned).await }
+    let open = Action::new(move |input: &(String, String, Option<f64>, Option<f64>, bool, Option<String>)| {
+        let (capsule_id, passphrase, lat, lng, scanned, code) = input.clone();
+        async move { open_capsule(capsule_id, passphrase, lat, lng, scanned, code).await }
     });
 
     // Deliberately does not refresh the shelf. Reloading the list would rebuild
@@ -783,6 +876,7 @@ fn CapsuleCard(
                                             presence.lat.get(),
                                             presence.lng.get(),
                                             presence.scanned.get(),
+                                            presence.code_claim(),
                                         ));
                                     }
                                 }
@@ -828,6 +922,12 @@ fn PresenceRequirement(presence: PresenceState, radius_m: i32) -> impl IntoView 
                             {move || t(locale.get(), "你是扫码进来的，到场已确认。", "You arrived by scanning the code — presence confirmed.")}
                         </p>
                     }.into_any()
+                } else if presence.code_state.get() == CodeState::Accepted {
+                    view! {
+                        <p class="capsule-presence-ok">
+                            {move || t(locale.get(), "现场口令已确认，到场成立。", "On-site code confirmed — presence established.")}
+                        </p>
+                    }.into_any()
                 } else if presence.has_fix() {
                     view! {
                         <p class="capsule-presence-ok">
@@ -844,12 +944,19 @@ fn PresenceRequirement(presence: PresenceState, radius_m: i32) -> impl IntoView 
                                     format!("To open this you must be within {radius_m} m of the place.")
                                 }}
                             </p>
+                            <p class="capsule-presence-code">
+                                {move || t(
+                                    locale.get(),
+                                    "最稳妥的办法是在上面填现场口令——它写在这儿的 WiFi 名字里。",
+                                    "The surest way is the on-site code above — it is in the WiFi name here.",
+                                )}
+                            </p>
                             <button
                                 type="button"
                                 class="button button-secondary-light"
                                 on:click=move |_| request_location(presence)
                             >
-                                {move || t(locale.get(), "确认我在这里", "Confirm I’m here")}
+                                {move || t(locale.get(), "或者用定位", "Or use my location")}
                             </button>
                         </div>
                     }.into_any()
@@ -948,6 +1055,7 @@ pub fn CarveButton(space_id: String, message_id: String, body: String) -> impl I
                 None,
                 None,
                 false,
+                None,
                 Some(message_id),
             )
             .await

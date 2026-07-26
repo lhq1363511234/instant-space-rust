@@ -1,0 +1,13 @@
+-- no-transaction
+-- Presence proved by the on-site access code.
+--
+-- The code lives where the place is: printed on the WiFi card, taped beside the
+-- till, written on the hotspot SSID (InstantSpace_<six digits>). Reading it
+-- requires standing in the room, which is exactly the property we want and the
+-- one thing browser geolocation cannot give us — a coordinate is a number the
+-- client asserts, whereas this code is verified server-side against an Argon2
+-- hash the visitor cannot see.
+--
+-- Postgres 12 cannot ALTER TYPE ... ADD VALUE inside a transaction block, hence
+-- the no-transaction header above.
+ALTER TYPE presence_proof ADD VALUE IF NOT EXISTS 'onsite' AFTER 'scan';

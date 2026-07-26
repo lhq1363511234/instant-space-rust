@@ -12,6 +12,10 @@ use uuid::Uuid;
 pub enum PresenceProof {
     /// Arrived through the Space QR code, which only exists at the location.
     Scan,
+    /// Read the access code off something physical in the room — the WiFi card,
+    /// the hotspot SSID, the sign by the till. Verified server-side against a
+    /// hash, so unlike a coordinate this one cannot simply be asserted.
+    OnSite,
     /// Browser geolocation put them inside the Space radius.
     Geo,
     /// Vouched for by the Space's Discord community.
@@ -24,6 +28,7 @@ impl PresenceProof {
     pub fn as_db(self) -> &'static str {
         match self {
             Self::Scan => "scan",
+            Self::OnSite => "onsite",
             Self::Geo => "geo",
             Self::Discord => "discord",
             Self::Remote => "remote",
@@ -33,6 +38,7 @@ impl PresenceProof {
     pub fn from_db(value: &str) -> Self {
         match value {
             "scan" => Self::Scan,
+            "onsite" => Self::OnSite,
             "geo" => Self::Geo,
             "discord" => Self::Discord,
             _ => Self::Remote,
@@ -42,13 +48,15 @@ impl PresenceProof {
     /// Whether this counts as having been there. Used to gate capsule opening
     /// and to mark a trace as on-site.
     pub fn is_on_site(self) -> bool {
-        matches!(self, Self::Scan | Self::Geo | Self::Discord)
+        matches!(self, Self::Scan | Self::OnSite | Self::Geo | Self::Discord)
     }
 
     pub fn label(self, zh: bool) -> &'static str {
         match (self, zh) {
             (Self::Scan, true) => "扫码到场",
             (Self::Scan, false) => "Scanned on site",
+            (Self::OnSite, true) => "现场口令",
+            (Self::OnSite, false) => "On-site code",
             (Self::Geo, true) => "定位到场",
             (Self::Geo, false) => "Located on site",
             (Self::Discord, true) => "社群确认",
@@ -170,8 +178,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn on_site_proofs_are_the_three_verified_kinds() {
+    fn on_site_proofs_are_the_verified_kinds() {
         assert!(PresenceProof::Scan.is_on_site());
+        assert!(PresenceProof::OnSite.is_on_site());
         assert!(PresenceProof::Geo.is_on_site());
         assert!(PresenceProof::Discord.is_on_site());
         assert!(!PresenceProof::Remote.is_on_site());
@@ -181,6 +190,7 @@ mod tests {
     fn proof_round_trips_through_the_database_representation() {
         for proof in [
             PresenceProof::Scan,
+            PresenceProof::OnSite,
             PresenceProof::Geo,
             PresenceProof::Discord,
             PresenceProof::Remote,

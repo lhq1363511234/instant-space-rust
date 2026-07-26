@@ -595,3 +595,65 @@ WebAssembly.instantiate(): Import #34 "./instant_space_app_v65_bg.js"
 `tests/browser/traces-e2e.mjs`：扫码到场 → 写留痕（校验 proof 标成「扫码到场」）→ 封存胶囊 → 错口令（应答「你站对了地方，但这不是那句话」）→ 对口令（应展开信）→ 手机端零横向溢出 → 零 console 错误。
 
 **注意**：Leptos 受控 textarea 用 Playwright 的 `fill()` 不触发 `on:input`，signal 不更新，提交按钮永远 disabled。必须用 `pressSequentially()`。
+
+---
+
+## v14 — 到场验证改用「现场口令」（Wi-Fi 那套逻辑）
+
+用户的原话：「第一点其实需要和那个打开 Wi-Fi 热点的逻辑一样，在 Wi-Fi 里面看进入空间的密码。」
+
+### 为什么这是对的
+
+v13 的到场判据里，**扫码和定位都是客户端说了算**：`?via=qr` 是谁都能往 URL 后面加的字符串，坐标是浏览器随便报的数字。实测确认过这个洞——伪造 `scanned=true` 从北京发请求，拿到的 proof 就是 `scan`，而且**能直接绕过胶囊的距离判定**。
+
+现场口令不一样：它由服务端拿 Argon2 比对，答案从不下发到浏览器。人得站在屋里，从 Wi-Fi 列表里把它抄下来。
+
+### 复用了已经存在的东西
+
+不用新建一套密码。每个空间本来就有 6 位码，主理人被引导把热点名设成 `InstantSpace_<六位码>`（`crates/domain/src/spaces.rs::hotspot_name()`）。客人打开 Wi-Fi 列表就能看见，人不在现场就看不见。**Wi-Fi 覆盖范围天然约等于物理到场范围**，这比 GPS 靠谱，室内还不掉链子。
+
+- `PresenceProof` 新增 `OnSite`（`onsite`），排在 `Scan` 之后
+- 迁移 `20260727000100_onsite_presence.sql`。**PG12 不允许在事务块里 `ALTER TYPE ... ADD VALUE`**，所以文件头必须写 `-- no-transaction`（sqlx 认这个标记，见 `sqlx-core/src/migrate/source.rs:127`）
+- 枚举属主是 postgres，`instant_space` 改不了 → 服务启动跑迁移会报 `must be owner of type presence_proof`。**得先用 postgres 手工执行，再把这条补进 `_sqlx_migrations`**（校验和用 sha384 算文件内容）。这一步漏了会导致服务起不来，重启 7 次全挂
+- `verify_onsite_code()` 在 `app/src/server/traces.rs`，留痕和开胶囊共用
+- `check_onsite_code` server fn 只回 true/false，错了不透露任何信息
+
+### 顺手堵掉的伪造洞（本轮的重点）
+
+判定顺序改成 **口令 → 扫码 → 定位 → Discord**，并且：
+
+- **扫码不能对抗矛盾证据**：如果浏览器同时报了坐标，而坐标在半径外，`scanned` 直接不认。理由是加 `?via=qr` 零成本，而主动交出一个一千公里外的坐标是自己打自己的脸。没给坐标的扫码仍然认（正常扫码用户不一定授权定位）。
+- **开胶囊同理**：原来 `if !scanned` 直接跳过整个距离检查，等于 `?via=qr` 能开走全站所有胶囊。现在只有**口令**能无条件跳过距离；扫码仍要接受坐标反证。
+
+`tests/browser/forged-presence.mjs` 是这个洞的回归测试，6 条断言：
+
+```
+伪造扫码 + 千里外坐标  -> remote   （堵住了）
+伪造扫码 + 不给坐标    -> scan     （仍然宽容）
+真在现场扫码          -> scan
+错口令 + 千里外        -> remote
+对口令 + 千里外        -> on_site  （口令压过距离）
+什么都不给            -> remote
+```
+
+### 交互
+
+`PresenceBar` 里现场口令是主字段，定位降级成「或者用定位」。口令确认后整个输入区收起。文案直接告诉用户去哪儿找：「打开 WiFi 列表，找到 InstantSpace_ 开头的名字，后面六位就是。人不在这儿是看不到的。」
+
+首页留痕那段也跟着改了，不再说「扫码、定位或社群成员」。
+
+### 又一个坑：后台命令的 `&`
+
+`cmd1 && cmd2 && nohup setsid ... &` 里的 `&` 会把**整条链**丢到后台，前面的 `sed` 根本没跑，结果拿旧版本号构建了 7 分钟。**后台构建必须单独一条命令发**，不要和 sed/检查串在一起。
+
+### 测试脚本里的坑
+
+从 wasm 里 `grep` server fn 端点哈希会**粘上相邻字节的数字**（抓到 `leave_trace167849496790251848260`，真实的是 `...84826`）。拿到后先 curl 一下确认 200，别直接信。
+
+另外 server fn 只认 **form-urlencoded**，`Content-Type: application/json` 会报 `missing field`。
+
+OUTPUT_NAME v67 → v69（v68 是功能本身，v69 是修伪造洞）。nginx craft-v21 → v22。
+
+### QA 用的固定口令
+
+外滩空间（`10000000-...-0001`）的码已被我改成 **481902**，`tests/browser/onsite-code.mjs` 依赖它。要改的话记得同步。

@@ -175,8 +175,8 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                                 Locale::En => "Written for whoever comes next: today’s weather, how long the queue ran, which path was shut. You leave; the line stays with the place.",
                             }}</p>
                             <p class="survey-keep-note">{move || match locale.get() {
-                                Locale::Zh => "扫码、定位或社群成员——三者之一，就会标成「现场留下」。",
-                                Locale::En => "Scan, location, or community membership — any one of them marks the entry as left on site.",
+                                Locale::Zh => "现场口令写在这儿的 WiFi 名字里——人不在，就抄不到。",
+                                Locale::En => "The on-site code is in the WiFi name here. If you are not in the room, you cannot copy it.",
                             }}</p>
                         </article>
                         <article class="survey-keep-item">

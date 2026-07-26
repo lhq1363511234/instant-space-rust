@@ -15,6 +15,21 @@ pub struct PresenceState {
     pub status: RwSignal<PresenceStatus>,
     /// The visitor says they are vouched for by the Space's Discord community.
     pub discord_member: RwSignal<bool>,
+    /// The access code read off something physical at the place — the WiFi
+    /// card, the hotspot SSID, the sign by the till. Unlike everything else
+    /// here this is checked server-side, so it is the one claim that holds up.
+    pub onsite_code: RwSignal<String>,
+    /// What the server said last time it checked the code.
+    pub code_state: RwSignal<CodeState>,
+}
+
+/// Whether the code the visitor typed has been confirmed by the server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodeState {
+    Untried,
+    Checking,
+    Accepted,
+    Rejected,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,7 +55,22 @@ impl PresenceState {
             lng: RwSignal::new(None),
             status: RwSignal::new(PresenceStatus::Idle),
             discord_member: RwSignal::new(false),
+            onsite_code: RwSignal::new(String::new()),
+            code_state: RwSignal::new(CodeState::Untried),
         }
+    }
+
+    /// The code as it should travel to the server: `None` unless the visitor
+    /// actually typed something.
+    pub fn code_claim(&self) -> Option<String> {
+        let value = self.onsite_code.get().trim().to_string();
+        (!value.is_empty()).then_some(value)
+    }
+
+    /// Whether presence is settled well enough to open a capsule without the
+    /// server having to fall back on coordinates.
+    pub fn is_confirmed(&self) -> bool {
+        self.scanned.get() || self.code_state.get() == CodeState::Accepted
     }
 
     pub fn has_fix(&self) -> bool {

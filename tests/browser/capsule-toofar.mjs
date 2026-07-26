@@ -26,7 +26,7 @@ const card=p.locator('.capsule-card.is-sealed').first();
 await card.locator('button:has-text("这是给我的")').click();
 await p.waitForTimeout(400);
 console.log('presence prompt:', (await card.locator('.capsule-presence').innerText()).trim().replace(/\s+/g,' '));
-await card.locator('button:has-text("确认我在这里")').click();
+await card.locator('button:has-text("或者用定位")').click();
 await p.waitForTimeout(2500);
 const inp=card.locator('.capsule-attempt input[type=text]');
 await inp.click(); await inp.pressSequentially('外滩夜风',{delay:10});

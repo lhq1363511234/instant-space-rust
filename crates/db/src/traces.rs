@@ -34,6 +34,7 @@ pub struct NewCapsule {
 #[derive(Debug, Clone)]
 pub struct CapsuleChallenge {
     pub id: Uuid,
+    pub space_id: Uuid,
     pub author_name: String,
     pub body: String,
     pub passphrase_hash: String,
@@ -254,7 +255,7 @@ pub async fn capsule_challenge(
 ) -> Result<Option<CapsuleChallenge>, sqlx::Error> {
     let Some(row) = sqlx::query(
         r#"
-        SELECT c.id, c.author_name, c.body, c.passphrase_hash, c.radius_m, c.opens_at,
+        SELECT c.id, c.space_id, c.author_name, c.body, c.passphrase_hash, c.radius_m, c.opens_at,
                c.opened_at, c.opened_by_name, c.failed_attempts, c.created_at,
                s.lat AS space_lat, s.lng AS space_lng
         FROM space_capsules c
@@ -271,6 +272,7 @@ pub async fn capsule_challenge(
 
     Ok(Some(CapsuleChallenge {
         id: row.try_get("id")?,
+        space_id: row.try_get("space_id")?,
         author_name: row.try_get("author_name")?,
         body: row.try_get("body")?,
         passphrase_hash: row.try_get("passphrase_hash")?,
