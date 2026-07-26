@@ -65,8 +65,25 @@ pub fn LoginPage() -> impl IntoView {
                 <div>
                     <p class="eyebrow">{move || t(locale.get(), "主理人入口", "Host access")}</p>
                     <h1>{move || t(locale.get(), "登录后创建和管理旅行空间", "Sign in to create and manage travel spaces")}</h1>
-                    <p>{move || t(locale.get(), "登录后可以把真实地点创建为空间，维护攻略、密码、二维码分享和社群入口。", "After signing in, create Spaces for real places and manage guides, passwords, QR sharing, and community entry.")}</p>
+                    <p>{move || t(locale.get(), "把一个真实地点变成可以进入的空间。", "Turn a real place into a space people can walk into.")}</p>
                 </div>
+                // 左栏过去只有一句话，右边表单一到位，下面就空掉大半页。
+                // 这三条不是凑数的装饰：它们回答的是「我为什么要注册」，
+                // 而这正是一个登录页唯一需要回答的问题。
+                <ul class="auth-affordances">
+                    <li>
+                        <h2>{move || t(locale.get(), "空间", "Spaces")}</h2>
+                        <p>{move || t(locale.get(), "为你在意的地点建一个长期记录，挂上地图，扫码就能进。", "Give a place you care about a lasting record — pinned on the map, opened by a scan.")}</p>
+                    </li>
+                    <li>
+                        <h2>{move || t(locale.get(), "留痕", "Traces")}</h2>
+                        <p>{move || t(locale.get(), "写给之后来这儿的人。人走了，字留在地点名下。", "Write for whoever comes next. You leave; the line stays with the place.")}</p>
+                    </li>
+                    <li>
+                        <h2>{move || t(locale.get(), "胶囊", "Capsules")}</h2>
+                        <p>{move || t(locale.get(), "埋一封信，只有站在这个地点、并且知道那句话的人才打得开。", "Bury a letter only someone standing here — who also knows the words — can open.")}</p>
+                    </li>
+                </ul>
             </header>
             <form
                 class="form auth-form"

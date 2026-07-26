@@ -3616,3 +3616,604 @@ body .capsule-card.is-sealed:hover {
 @supports not (backdrop-filter: blur(6px)) {
   body .capsule-card.is-sealed { background: var(--paper-raised) !important; }
 }
+
+/* ============================================================================
+   v15b · 表单：登录注册，以及所有 .form / .auth-form
+   ----------------------------------------------------------------------------
+   过去这里整个交给了 ui-system.css：12px 圆角、SaaS 灰 #cbd5e1 边框、内阴影、
+   聚焦时紫色光晕。那是另一个产品的语言。这套体系里纸是纸、线是发丝线、
+   强调色只有朱红一个，表单没有理由例外。
+
+   底线聚焦的手法与空间页的现场口令字段完全一致——同一个动作在全站得到同一种
+   回应，用户只需要学一次。
+   ========================================================================== */
+
+/* ---- 输入：撤掉圆角灰框，只留一条底线 ---------------------------------- */
+body .form input:not([type="checkbox"]):not([type="radio"]),
+body .form select,
+body .form textarea,
+body .auth-form input:not([type="checkbox"]):not([type="radio"]),
+body .auth-form select,
+body .auth-form textarea,
+body .guide-editor-card input:not([type="checkbox"]):not([type="radio"]),
+body .guide-editor-card select,
+body .guide-editor-card textarea {
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+  transition: border-bottom-color var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+}
+body .form input:focus,
+body .form select:focus,
+body .form textarea:focus,
+body .auth-form input:focus,
+body .auth-form select:focus,
+body .auth-form textarea:focus,
+body .guide-editor-card input:focus,
+body .guide-editor-card select:focus,
+body .guide-editor-card textarea:focus {
+  border-bottom-color: var(--ink) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* 朱红聚焦线：从中心展开，压在发丝底线上。
+   跟着 label 走而不是跟着 input 走，因为它要盖住整个字段的宽度。 */
+.form .field-label,
+.auth-form .field-label,
+.guide-editor-card .field-label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form .field-label::after,
+.auth-form .field-label::after,
+.guide-editor-card .field-label::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: var(--vermilion);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+  pointer-events: none;
+}
+.form .field-label:focus-within::after,
+.auth-form .field-label:focus-within::after,
+.guide-editor-card .field-label:focus-within::after { transform: scaleX(1); }
+
+body .form .field-label:focus-within > span,
+body .auth-form .field-label:focus-within > span,
+body .guide-editor-card .field-label:focus-within > span {
+  color: var(--vermilion) !important;
+}
+
+/* ---- 登录卡：不再是悬空的白盒子 ----------------------------------------
+   原来它是一张带阴影的圆角卡，浮在页面正中，和左边那段标题各说各话。
+   改成一张对齐到基准线的纸：右上角一枚朱红角标，像归档过的表单。 */
+body .auth-form {
+  position: relative;
+  border: 1px solid var(--rule-strong) !important;
+  border-radius: 2px !important;
+  background: var(--paper-raised) !important;
+  box-shadow: none !important;
+  padding: 34px 32px 30px !important;
+}
+/* 角标：一条竖一条横，只画角，不画框 */
+body .auth-form::before,
+body .auth-form::after {
+  content: "";
+  position: absolute;
+  background: var(--vermilion);
+  pointer-events: none;
+}
+body .auth-form::before { top: -1px; right: -1px; width: 22px; height: 2px; }
+body .auth-form::after  { top: -1px; right: -1px; width: 2px; height: 22px; }
+
+/* ---- 登录 / 注册切换：不是蓝色药丸，是两个刻在纸上的标签 --------------- */
+body .auth-tabs {
+  display: flex;
+  gap: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin-bottom: 26px;
+}
+body .auth-tabs button {
+  flex: 0 0 auto;
+  position: relative;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--ink-faint) !important;
+  font-family: var(--font-text);
+  font-size: .96rem;
+  font-weight: 600;
+  padding: 10px 20px 12px !important;
+  min-height: 44px;
+  cursor: pointer;
+  transition: color var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+}
+body .auth-tabs button:hover { color: var(--ink) !important; }
+body .auth-tabs button[aria-selected="true"],
+body .auth-tabs button.is-active {
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+/* 选中指示：一条朱红线压在分隔线上。
+   两个 tab 之间切换时它是滑过去的——Transformation，两个状态是同一条线的
+   两个位置，不是两个各自淡入淡出的色块。 */
+body .auth-tabs button::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--vermilion);
+  transform: scaleX(0);
+  transition: transform 220ms var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+}
+body .auth-tabs button[aria-selected="true"]::after,
+body .auth-tabs button.is-active::after { transform: scaleX(1); }
+
+/* ---- 表单入场：字段依次写入 --------------------------------------------
+   Offset & Delay。登录表单只有两三个字段，同时出现会读作一整块色块；
+   错开 70ms 就成了「一行一行填」的顺序。步长很小，不要让人等。 */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-form { animation: home-write 520ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 80ms; }
+  .auth-tabs { animation: home-write 420ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 200ms; }
+  .auth-form .field-label:nth-of-type(1) { animation: home-write 420ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 270ms; }
+  .auth-form .field-label:nth-of-type(2) { animation: home-write 420ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 340ms; }
+  .auth-form .field-label:nth-of-type(3) { animation: home-write 420ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 410ms; }
+  .auth-form > button[type="submit"],
+  .auth-form .button-primary { animation: home-write 420ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 470ms; }
+}
+
+/* ---- 错误：摇一次头，和现场口令被拒同一个动作 -------------------------- */
+.auth-form .error,
+.form .error {
+  animation: code-refuse 280ms var(--ease-respond, cubic-bezier(.2,.9,.3,1)),
+             home-write 320ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both;
+  color: var(--vermilion) !important;
+}
+.form-success { animation: home-write 420ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-form, .auth-tabs, .auth-form .field-label,
+  .auth-form > button[type="submit"], .auth-form .button-primary,
+  .auth-form .error, .form .error, .form-success {
+    animation: none !important;
+  }
+  body .auth-tabs button::after,
+  .form .field-label::after,
+  .auth-form .field-label::after { transition: none !important; }
+}
+
+/* ============================================================================
+   v15b · 六张照片：从纸面下抬起来
+   ----------------------------------------------------------------------------
+   过去这段有两个问题。一是入场只写在 @supports (animation-timeline: view())
+   里，Safari 和 iPhone 上六张图是彻底静止的。二是即便在 Chrome 里，用的也是
+   通用的 home-write（上移 15px 淡入）——和正文段落一模一样。照片和段落不该
+   用同一种出场方式。
+
+   现在给它们自己的语汇：照片是被放到纸上的，所以它从下面抬起来、同时从一点点
+   放大收到正位，像一张被推到取景框里的相片落定。位移给到 34px（段落只有
+   15px），因为照片有体积，动得太小反而像抖。
+
+   一张接一张，间隔 90ms。六张同时出现是一块马赛克，依次出现才是一叠照片被
+   摊开——Offset & Delay 在这里是全页最该用力的地方。
+   ========================================================================== */
+
+@keyframes plate-lay {
+  from {
+    opacity: 0;
+    transform: translateY(34px) scale(.965);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 说明文字比照片再晚一步：先看见地方，再读出它叫什么。 */
+@keyframes plate-caption {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---- Chrome / Edge：跟着滚动进度走 -------------------------------------- */
+@supports (animation-timeline: view()) {
+  .survey-field-plate figure {
+    animation: plate-lay linear both;
+    animation-timeline: view();
+  }
+  .survey-field-plate:nth-child(1) figure { animation-range: entry 8%  entry 46%; }
+  .survey-field-plate:nth-child(2) figure { animation-range: entry 12% entry 50%; }
+  .survey-field-plate:nth-child(3) figure { animation-range: entry 16% entry 54%; }
+  .survey-field-plate:nth-child(4) figure { animation-range: entry 20% entry 58%; }
+  .survey-field-plate:nth-child(5) figure { animation-range: entry 24% entry 62%; }
+  .survey-field-plate:nth-child(6) figure { animation-range: entry 28% entry 66%; }
+
+  .survey-field-plate figcaption {
+    animation: plate-caption linear both;
+    animation-timeline: view();
+    animation-range: entry 26% entry 68%;
+  }
+}
+
+/* ---- Safari / iPhone / Firefox：按时间依次抬起 --------------------------
+   拿不到滚动进度，就用 delay 排一遍。这一段过去完全不存在，所以这些浏览器
+   的用户看到的是六张一开始就摆在那儿的图。 */
+@supports not (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .survey-field-head { animation: home-write 560ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 700ms; }
+    .survey-field-plate figure {
+      animation: plate-lay 620ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both;
+    }
+    .survey-field-plate:nth-child(1) figure { animation-delay: 820ms; }
+    .survey-field-plate:nth-child(2) figure { animation-delay: 910ms; }
+    .survey-field-plate:nth-child(3) figure { animation-delay: 1000ms; }
+    .survey-field-plate:nth-child(4) figure { animation-delay: 1090ms; }
+    .survey-field-plate:nth-child(5) figure { animation-delay: 1180ms; }
+    .survey-field-plate:nth-child(6) figure { animation-delay: 1270ms; }
+  }
+}
+
+/* ---- 指针落上照片：抬起并让颜色回来 ------------------------------------
+   静止时照片压了饱和度（saturate .86），是"印在纸上"的样子；
+   hover 时颜色回到 1，同时抬起 3px——那一处地方醒过来了。
+   620ms，慢，因为这是注视不是点击。 */
+@media (hover: hover) {
+  .survey-field-plate figure {
+    transition: transform 520ms cubic-bezier(.22,.61,.36,1);
+  }
+  .survey-field-plate:hover figure { transform: translateY(-3px); }
+  .survey-field-plate:hover img {
+    filter: saturate(1.02) contrast(1.04);
+    transform: scale(1.02);
+  }
+  .survey-field-plate figcaption {
+    transition: color var(--t-respond, 140ms) ease,
+                border-top-color var(--t-respond, 140ms) ease;
+  }
+  .survey-field-plate:hover figcaption {
+    color: var(--ink);
+    border-top-color: var(--vermilion);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-field-plate figure,
+  .survey-field-plate figcaption {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .survey-field-plate:hover figure { transform: none; }
+  .survey-field-plate:hover img { transform: none; }
+}
+
+/* ============================================================================
+   v15b · 让文字活过来
+   ----------------------------------------------------------------------------
+   「全是文字」这件事本身没错——这是一份测绘图记，字就是主体。问题在于这些字
+   出现的方式：整段整段地淡入，读起来像 PDF 加载完了，而不是像有人在写。
+
+   三处改动，都不加新元素，只改字怎么到位：
+   ① 大标题从底下推上来，配一道自上而下的擦除，像一行字被落笔写出来
+   ② 每个 kicker 前面那枚朱红标记先点上，标题才开始写——先落点再落笔
+   ③ 段落分两级延迟，标题永远先于正文到位
+   ========================================================================== */
+
+/* ---- ① 标题：落笔 -------------------------------------------------------
+   home-headline-set 已经在做 clip-path 擦除，但只用在首屏 h1 上。
+   页面下面所有的 h2 都是干淡入。给它们同一支笔。 */
+@keyframes ink-set {
+  from {
+    opacity: 0;
+    clip-path: inset(-14% -20% 102% -6%);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(-14% -20% -14% -6%);
+    transform: none;
+  }
+}
+
+/* ---- ② kicker 的朱红标记：先点上再写 ------------------------------------
+   那枚小方块过去是静态的。它是这一段的落点，理应先出现——
+   一个测绘员先标出点位，然后才写字。 */
+@keyframes mark-drop {
+  from { opacity: 0; transform: scale(0); }
+  to   { opacity: 1; transform: none; }
+}
+.survey-kicker-mark {
+  transform-origin: center;
+}
+
+@supports (animation-timeline: view()) {
+  .survey-field-head h2,
+  .survey-keep-head h2,
+  .survey-passage-head h2 {
+    animation: ink-set linear both;
+    animation-timeline: view();
+    animation-range: entry 12% entry 52%;
+  }
+  .survey-kicker-mark {
+    animation: mark-drop linear both;
+    animation-timeline: view();
+    animation-range: entry 4% entry 24%;
+  }
+  .survey-field-lede,
+  .survey-keep-lede {
+    animation: home-write linear both;
+    animation-timeline: view();
+    animation-range: entry 18% entry 58%;
+  }
+}
+
+@supports not (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .survey-field-head h2 { animation: ink-set 680ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 740ms; }
+    .survey-field-lede    { animation: home-write 520ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 840ms; }
+    .survey-keep-head h2  { animation: ink-set 680ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 1020ms; }
+    .survey-keep-lede     { animation: home-write 520ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 1110ms; }
+    .survey-kicker-mark   { animation: mark-drop 320ms var(--ease-respond, cubic-bezier(.2,.9,.3,1)) both 620ms; }
+  }
+}
+
+/* ---- ③ 正文里的强调：朱红下划线随视线到位 -------------------------------
+   <strong> 在这套体系里过去只是加粗。给它一条朱红底线，在段落写完之后
+   才划上去——像读完一遍回头标出来的重点。 */
+.survey-keep-item strong,
+.survey-passage strong {
+  position: relative;
+  font-weight: 700;
+}
+.survey-keep-item strong::after,
+.survey-passage strong::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: var(--vermilion);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+@supports (animation-timeline: view()) {
+  .survey-keep-item strong::after,
+  .survey-passage strong::after {
+    animation: home-strike linear both;
+    animation-timeline: view();
+    animation-range: entry 34% entry 70%;
+  }
+}
+@supports not (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .survey-keep-item strong::after,
+    .survey-passage strong::after {
+      animation: home-strike 480ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 1400ms;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-field-head h2, .survey-keep-head h2, .survey-passage-head h2,
+  .survey-kicker-mark, .survey-field-lede, .survey-keep-lede {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+  .survey-keep-item strong::after,
+  .survey-passage strong::after { animation: none !important; transform: scaleX(1); }
+}
+
+/* ---- 表单实测修正（/tmp/qa-login-v15b.png 上看出来的三条） -------------- */
+
+/* ① 输入框仍保留着 46px 的 min-height，那是给「有边框有底色的盒子」定的。
+      现在框没了，只剩一条底线，中间那四十几像素就是一片空白——字浮在上面，
+      线掉在很下面，读起来不像一个字段。把高度收到贴着字。 */
+body .form input:not([type="checkbox"]):not([type="radio"]),
+body .form select,
+body .auth-form input:not([type="checkbox"]):not([type="radio"]),
+body .auth-form select,
+body .guide-editor-card input:not([type="checkbox"]):not([type="radio"]),
+body .guide-editor-card select {
+  min-height: 0 !important;
+  height: 38px !important;
+  line-height: 38px !important;
+  font-size: 1rem;
+}
+body .form textarea,
+body .auth-form textarea,
+body .guide-editor-card textarea {
+  min-height: 96px !important;
+  padding-top: 8px !important;
+  line-height: 1.7;
+}
+/* 标签贴紧它说明的那一行 */
+.form .field-label,
+.auth-form .field-label,
+.guide-editor-card .field-label { gap: 2px !important; }
+
+/* ② 角标只画出了横的一半：::before 和 ::after 都定位在 top/right，
+      但 ::after 被 ::before 压掉了宽度。分开写清楚。 */
+body .auth-form::before {
+  top: -1px; right: -1px;
+  width: 24px; height: 2px;
+}
+body .auth-form::after {
+  top: -1px; right: -1px;
+  width: 2px; height: 24px;
+}
+
+/* ③ 卡片过高且悬空：字段收紧之后内边距也该跟着收，
+      并且左对齐到标题那条基准线，不再居中悬浮。 */
+body .auth-form {
+  padding: 30px 30px 28px !important;
+  max-width: 420px;
+}
+.auth-page .auth-form { margin-left: 0; }
+
+/* ---- 登录页版式：两栏对齐同一条基准线 ----------------------------------
+   实测（qa-login-v15b.png）：标题左缘在 340px，表单左缘在 540px，两者各说
+   各话，中间那 200px 空白没有任何理由。而且表单垂直上悬在页面中段，下面拖
+   着一大片空纸。
+
+   改成两栏：左边是这页在说什么，右边是这页要你做什么，共用顶部基准线。
+   窄屏回落成一栏，表单跟在文案后面。 */
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 64px;
+  align-items: start;
+  padding-top: 72px !important;
+  padding-bottom: 96px !important;
+}
+.auth-page-head {
+  grid-column: 1;
+  margin: 0 !important;
+  /* ui-system 给它糊了一层蓝橙渐变和大阴影，在纸上不成立 */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+body .auth-form {
+  grid-column: 2;
+  max-width: none;
+  margin: 0 !important;
+  /* 与左栏 eyebrow 的顶线对齐 */
+  margin-top: 4px !important;
+}
+
+@media (max-width: 1099px) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+    padding-top: 56px !important;
+    padding-bottom: 72px !important;
+  }
+  .auth-page-head, body .auth-form { grid-column: 1; }
+  body .auth-form { max-width: 460px; margin-top: 0 !important; }
+}
+
+/* ---- 登录页左栏的三条说明 ----------------------------------------------
+   排成一列带序号的条目，序号用朱红，和整站的"标点—落笔"语言一致。
+   依次写入，最后一条落定的时间刚好接上右栏表单——两栏读起来是一件事。 */
+.auth-affordances {
+  list-style: none;
+  margin: 44px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  max-width: 30em;
+  counter-reset: afford;
+}
+.auth-affordances li {
+  counter-increment: afford;
+  position: relative;
+  padding: 18px 0 18px 38px;
+  border-top: 1px solid var(--rule);
+}
+.auth-affordances li:last-child { border-bottom: 1px solid var(--rule); }
+.auth-affordances li::before {
+  content: counter(afford, decimal-leading-zero);
+  position: absolute;
+  left: 0; top: 20px;
+  color: var(--vermilion);
+  font-family: var(--font-text);
+  font-size: .74rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .1em;
+}
+/* 左缘标记线，和首页阶段项、空间页卡片同一个手势 */
+.auth-affordances li::after {
+  content: "";
+  position: absolute;
+  left: -10px; top: 14px; bottom: 14px;
+  width: 2px;
+  background: var(--vermilion);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--t-respond, 140ms) var(--ease-respond, cubic-bezier(.2,.9,.3,1));
+}
+@media (hover: hover) {
+  .auth-affordances li:hover::after { transform: scaleY(1); }
+}
+body .auth-affordances h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--ink) !important;
+  letter-spacing: .01em;
+}
+body .auth-affordances p {
+  margin: 0;
+  color: var(--ink-faint) !important;
+  font-size: .9rem;
+  line-height: 1.75;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .auth-affordances li:nth-child(1) { animation: home-write 480ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 300ms; }
+  .auth-affordances li:nth-child(2) { animation: home-write 480ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 380ms; }
+  .auth-affordances li:nth-child(3) { animation: home-write 480ms var(--ease-arrive, cubic-bezier(.22,.61,.36,1)) both 460ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-affordances li { animation: none !important; }
+  .auth-affordances li::after { transition: none !important; }
+}
+@media (max-width: 1099px) {
+  .auth-affordances { margin-top: 32px; max-width: none; }
+}
+
+/* ---- 照片 hover 的属性归属修正 ------------------------------------------
+   figure 的 transform 归入场动画（plate-lay）所有，hover 再往上写 translateY
+   是写不进去的——又一次「一个属性只能有一个主人」。
+   位移交给 img 自己承担：它本来就要做 scale，多一个 translateY 不冲突。 */
+@media (hover: hover) {
+  .survey-field-plate:hover figure { transform: none; }
+  .survey-field-plate img {
+    transition: filter 420ms ease, transform 520ms cubic-bezier(.22,.61,.36,1);
+  }
+  .survey-field-plate:hover img {
+    transform: translateY(-3px) scale(1.02);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .survey-field-plate:hover img { transform: none; }
+}
+
+/* ---- auth 页头改单列 ----------------------------------------------------
+   实测：.auth-page-head 从 ui-system 继承下来是 grid，两列。原来里面只有一个
+   <div>，看不出问题；我把三条说明作为第二个子元素加进去之后，它成了第二列，
+   把标题那一列压成 0px——标题被挤成一行一个字竖着排下来。
+   这一栏本来就该是自上而下读的，单列。 */
+body .auth-page-head {
+  display: block !important;
+  grid-template-columns: none !important;
+}
+body .auth-page-head > div { max-width: 30em; }
+
+/* ---- 手机端：登录表单被底部导航盖住 ------------------------------------
+   实测（qa-login-v15b-mobile.png）：底栏 fixed 68px 高，压在邮箱字段上。
+   app-shell.css:435 本来给 .app-main 留了 68px + 安全区，但我上面给
+   .auth-page 写的 padding-bottom 把它顶掉了——固定元素的让位空间一旦被
+   下游规则覆盖，遮挡就必然发生。这里把让位加回来，并算上刘海屏安全区。 */
+@media (max-width: 1099px) {
+  .auth-page {
+    padding-bottom: calc(var(--shell-mobile-nav-height, 68px) + env(safe-area-inset-bottom) + 32px) !important;
+  }
+}
