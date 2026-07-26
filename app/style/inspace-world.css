@@ -2403,3 +2403,600 @@ body .guide-browser .guide-list > li:hover {
   body .guide-browser .guide-list > li > small { grid-column: 1; }
   body .guide-browser .guide-list > li > .guide-list-link strong { white-space: normal; }
 }
+
+/* =========================================================================
+   v13 — 留痕 / 时间胶囊 (traces & capsules)
+   What a real place keeps after the people leave: a guest book bolted to the
+   wall, and letters buried under it. Paper and ink only — the record must not
+   read like a feed. Nothing here uses a card; entries are ruled lines, and the
+   only enclosed object on the page is a sealed capsule, because that one IS a
+   physical container.
+   ========================================================================= */
+
+.space-traces {
+  margin: 0;
+  padding: 46px 0 0;
+  border-top: 1px solid var(--ink);
+  scroll-margin-top: calc(var(--shell-topbar-height, 58px) + 24px);
+}
+
+/* --- the standing record: prose figures, never a stat dashboard --- */
+.space-chronicle { margin: 0 0 26px; }
+.space-chronicle-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+.space-chronicle-figures > div {
+  padding: 0 26px 0 0;
+  margin: 0 26px 0 0;
+  border-right: 1px solid var(--rule);
+}
+.space-chronicle-figures > div:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+.space-chronicle-figures dt {
+  margin: 0 0 3px;
+  color: var(--ink-faint);
+  font-size: .76rem;
+  letter-spacing: .04em;
+}
+.space-chronicle-figures dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.72rem;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.space-chronicle-first {
+  margin: 16px 0 0;
+  color: var(--ink-faint);
+  font-size: .86rem;
+}
+.space-chronicle-first strong { color: var(--ink); font-weight: 600; }
+
+/* An empty place says so in its own voice — this is the whole invitation. */
+.space-chronicle.is-untouched {
+  padding: 30px 0 30px 20px;
+  border-left: 2px solid var(--vermilion);
+}
+.space-chronicle-lead {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.18rem, 2.1vw, 1.46rem);
+  line-height: 1.45;
+  color: var(--ink);
+}
+.space-chronicle-note {
+  margin: 8px 0 0;
+  max-width: 34em;
+  color: var(--ink-faint);
+  font-size: .9rem;
+  line-height: 1.7;
+}
+
+/* --- presence: one honest line about whether you are actually here --- */
+.presence-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.presence-state { display: flex; align-items: center; }
+.presence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: .84rem;
+}
+.presence-badge::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+.presence-badge.is-strong { color: var(--vermilion-ink); font-weight: 600; }
+.presence-badge.is-strong::before { background: var(--vermilion); }
+.presence-badge.is-weak { color: var(--ink-faint); }
+.presence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-left: auto;
+}
+.presence-discord {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink-soft);
+  font-size: .84rem;
+  cursor: pointer;
+}
+.presence-discord input { width: 16px; height: 16px; accent-color: var(--vermilion); }
+
+/* --- the composer: a ruled field, not a boxed widget --- */
+.trace-composer { margin: 22px 0 30px; }
+.trace-composer textarea {
+  width: 100%;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: .95rem;
+  line-height: 1.7;
+  padding: 12px 14px;
+  resize: vertical;
+}
+.trace-composer textarea:focus-visible,
+.trace-composer input:focus-visible {
+  outline: 2px solid var(--vermilion);
+  outline-offset: 1px;
+}
+.trace-composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 20px;
+  margin-top: 12px;
+}
+.trace-weather-field { flex: 1 1 260px; min-width: 0; }
+.trace-weather-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  padding: 0 12px;
+}
+.trace-composer-submit {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+.trace-remaining {
+  color: var(--ink-faint);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+.trace-remaining.is-over { color: var(--vermilion); font-weight: 600; }
+
+/* --- the guest book: ruled entries, on-site ones marked in the margin --- */
+.trace-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.trace-entry {
+  position: relative;
+  padding: 20px 0 18px 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.trace-entry::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 24px;
+  width: 2px; height: 14px;
+  background: var(--rule-strong);
+}
+.trace-entry.is-on-site::before { background: var(--vermilion); }
+.trace-body {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.78;
+  overflow-wrap: anywhere;
+}
+.trace-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  color: var(--ink-faint);
+  font-size: .78rem;
+}
+.trace-author { color: var(--ink-soft); font-weight: 600; }
+.trace-date { font-variant-numeric: tabular-nums; }
+.trace-weather::before { content: "· "; }
+.trace-proof { color: var(--ink-faint); }
+.trace-proof.is-on-site { color: var(--vermilion-ink); font-weight: 600; }
+.trace-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+.trace-pager-count { color: var(--ink-faint); font-size: .8rem; }
+.trace-empty {
+  margin: 24px 0;
+  color: var(--ink-faint);
+  font-size: .9rem;
+}
+
+/* --- the capsule shelf: the only place on the site allowed a container --- */
+.capsule-shelf {
+  margin: 44px 0 0;
+  padding: 34px 0 0;
+  border-top: 1px solid var(--ink);
+}
+.capsule-shelf-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+.capsule-shelf-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  line-height: 1.3;
+  color: var(--ink);
+}
+.capsule-shelf-note {
+  margin: 8px 0 0;
+  max-width: 44em;
+  color: var(--ink-faint);
+  font-size: .88rem;
+  line-height: 1.72;
+}
+
+.capsule-composer {
+  margin: 24px 0 4px;
+  padding: 24px 22px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper-deep);
+}
+.capsule-composer .field-label { display: block; margin-bottom: 16px; }
+.capsule-composer input[type="text"],
+.capsule-composer input[type="date"],
+.capsule-composer select,
+.capsule-composer textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  padding: 10px 12px;
+  font-family: var(--font-text);
+  font-size: .94rem;
+  line-height: 1.7;
+}
+.capsule-composer textarea { resize: vertical; }
+.capsule-composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 22px;
+}
+.capsule-composer-row > .field-label { flex: 1 1 240px; min-width: 0; }
+.capsule-warning {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--vermilion);
+  background: var(--vermilion-wash);
+  color: var(--ink-soft);
+  font-size: .84rem;
+  line-height: 1.7;
+}
+.capsule-place-note {
+  margin: 4px 0 18px;
+  color: var(--ink-faint);
+  font-size: .84rem;
+}
+.capsule-place-note strong { color: var(--ink); font-weight: 600; }
+
+.capsule-list {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.capsule-card {
+  padding: 20px 20px 22px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper-raised);
+}
+/* A sealed one is shut: darker edge, a wax-red tick in the corner. */
+.capsule-card.is-sealed {
+  position: relative;
+  border-color: var(--ink);
+}
+.capsule-card.is-sealed::after {
+  content: "";
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 0; height: 0;
+  border-top: 16px solid var(--vermilion);
+  border-left: 16px solid transparent;
+}
+.capsule-card.is-open { background: var(--paper-deep); border-style: dashed; }
+.capsule-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.capsule-state {
+  color: var(--vermilion-ink);
+  font-size: .74rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+.capsule-card.is-open .capsule-state { color: var(--ink-faint); }
+.capsule-date { color: var(--ink-faint); font-size: .76rem; font-variant-numeric: tabular-nums; }
+.capsule-recipient {
+  margin: 0 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.capsule-recipient > span { color: var(--ink-faint); font-size: .8rem; }
+.capsule-recipient strong {
+  font-family: var(--font-display);
+  font-size: 1.14rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.capsule-author { margin: 0 0 14px; color: var(--ink-faint); font-size: .8rem; }
+.capsule-note { margin: 0 0 12px; color: var(--ink-soft); font-size: .82rem; }
+.capsule-attempt { margin-top: 14px; }
+.capsule-attempt .field-label { display: block; margin: 12px 0; }
+.capsule-attempt input[type="text"] {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0 12px;
+}
+.capsule-presence { margin-bottom: 4px; }
+.capsule-presence-ok {
+  margin: 0;
+  color: var(--vermilion-ink);
+  font-size: .82rem;
+  line-height: 1.65;
+}
+.capsule-presence-need p {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+  font-size: .82rem;
+  line-height: 1.65;
+}
+.capsule-empty, .capsule-hint {
+  margin: 20px 0 0;
+  color: var(--ink-faint);
+  font-size: .86rem;
+}
+.capsule-taken { margin: 0; color: var(--ink-faint); font-size: .82rem; }
+.capsule-taken strong { color: var(--ink-soft); font-weight: 600; }
+
+/* --- an opened letter: it stops being UI and becomes a page --- */
+.capsule-letter {
+  margin-top: 16px;
+  padding: 20px 18px;
+  border-top: 1px solid var(--ink);
+  background: var(--paper);
+}
+.capsule-letter-head {
+  margin: 0 0 12px;
+  color: var(--ink-faint);
+  font-size: .76rem;
+  letter-spacing: .04em;
+}
+.capsule-letter-body {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  line-height: 1.85;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.capsule-letter-sign {
+  margin: 16px 0 0;
+  text-align: right;
+  color: var(--ink-soft);
+  font-size: .86rem;
+}
+.capsule-result {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: .86rem;
+  line-height: 1.7;
+}
+.capsule-result.is-far { color: var(--survey-blue); }
+.capsule-result.is-wrong { color: var(--vermilion-ink); }
+
+/* --- carving a chat line into the permanent record --- */
+.chat-carve {
+  width: 34px; height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--rule-strong);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+.chat-carve svg {
+  width: 16px; height: 16px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.chat-message:hover .chat-carve,
+.chat-carve:focus-visible { opacity: 1; }
+.chat-carve:hover { color: var(--vermilion); background: var(--paper-deep); }
+.chat-carve.is-carved { opacity: 1; color: var(--vermilion); cursor: default; }
+.chat-carve.is-carved svg { fill: var(--vermilion-wash); }
+/* Touch has no hover, so the affordance must simply be there. */
+@media (hover: none) {
+  .chat-carve { opacity: .75; }
+}
+
+/* The room grew a fourth row (the nature line) between header and transcript. */
+.chat-room { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.chat-room-keep {
+  margin-left: auto;
+  align-self: center;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--vermilion);
+  color: var(--vermilion-ink);
+  font-size: .84rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.chat-room-keep:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.chat-room-nature {
+  margin: 0;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: .8rem;
+  line-height: 1.65;
+}
+body .space-chat-page .chat-shell,
+body .space-chat-page .chat-room {
+  grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+}
+body .space-chat-page .chat-room > .chat-room-nature { grid-area: 2 / 1 !important; align-self: start !important; }
+body .space-chat-page .chat-room > .chat-message-list { grid-area: 3 / 1 !important; }
+body .space-chat-page .chat-room > .chat-compose { grid-area: 4 / 1 !important; }
+body .space-chat-page .chat-room .chat-message {
+  grid-template-columns: 30px minmax(0, 1fr) 34px !important;
+}
+
+@media (max-width: 720px) {
+  .space-traces { padding-top: 34px; }
+  .space-chronicle-figures > div { padding-right: 18px; margin-right: 18px; }
+  .space-chronicle-figures dd { font-size: 1.42rem; }
+  .presence-actions { margin-left: 0; width: 100%; }
+  .trace-composer-submit { margin-left: 0; width: 100%; justify-content: space-between; }
+  .capsule-list { grid-template-columns: minmax(0, 1fr); }
+  .capsule-composer { padding: 20px 16px; }
+  .chat-room-keep { font-size: .8rem; }
+}
+
+/* --- home: what a place keeps (v13) ---------------------------------------
+   Two columns of prose, divided by a single rule. The whole point of the
+   section is that this is an old human habit, not a feature, so it gets set
+   like a page of a book and not like a feature grid. */
+.survey-keep-head { max-width: 36em; }
+.survey-keep-head h2 {
+  margin: 0;
+  max-width: 15em;
+  font-size: clamp(1.7rem, 2.6vw, 2.4rem) !important;
+  text-wrap: balance;
+}
+.survey-keep-lede {
+  margin: 16px 0 0;
+  max-width: 34em;
+  color: var(--ink-soft) !important;
+  font-size: 1rem;
+  line-height: 1.78;
+}
+.survey-keep-pair {
+  margin: 48px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 56px;
+}
+.survey-keep-item { padding-left: 0; }
+.survey-keep-item + .survey-keep-item {
+  padding-left: 56px;
+  margin-left: -56px;
+  border-left: 1px solid var(--rule);
+}
+.survey-keep-item h3 {
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.24rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.survey-keep-item p {
+  margin: 0;
+  color: var(--ink-soft) !important;
+  font-size: .97rem;
+  line-height: 1.82;
+}
+.survey-keep-note {
+  margin-top: 14px !important;
+  color: var(--ink-faint) !important;
+  font-size: .86rem !important;
+}
+.survey-keep-steps {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: keep-step;
+}
+.survey-keep-steps li {
+  counter-increment: keep-step;
+  position: relative;
+  padding: 0 0 0 30px;
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+  font-size: .92rem;
+  line-height: 1.7;
+}
+.survey-keep-steps li::before {
+  content: counter(keep-step);
+  position: absolute;
+  left: 0; top: 1px;
+  width: 19px; height: 19px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--vermilion);
+  border-radius: 50%;
+  color: var(--vermilion-ink);
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+}
+@supports (animation-timeline: view()) {
+  .survey-keep-head { animation: home-write linear both; animation-timeline: view(); animation-range: entry 6% entry 46%; }
+  .survey-keep-item { animation: home-write linear both; animation-timeline: view(); }
+  .survey-keep-item:nth-child(1) { animation-range: entry 14% entry 54%; }
+  .survey-keep-item:nth-child(2) { animation-range: entry 19% entry 59%; }
+}
+@media (max-width: 860px) {
+  .survey-keep-pair { grid-template-columns: minmax(0, 1fr); gap: 34px; margin-top: 36px; }
+  .survey-keep-item + .survey-keep-item {
+    padding-left: 0;
+    margin-left: 0;
+    border-left: 0;
+    padding-top: 30px;
+    border-top: 1px solid var(--rule);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .survey-keep-head,
+  .survey-keep-item { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

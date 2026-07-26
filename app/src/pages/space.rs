@@ -3,6 +3,7 @@ use leptos_router::hooks::use_params_map;
 
 use crate::components::private_verify::PrivateVerify;
 use crate::components::space_share::SpaceSharePanel;
+use crate::components::space_traces::{CarveButton, SpaceTraces};
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::chat::{check_space_access, list_chat_messages, send_chat_message};
 use crate::server::guides::list_space_guides;
@@ -84,9 +85,11 @@ pub fn SpacePage() -> impl IntoView {
                             let space_name = state.space_name.clone();
                             let community_space_name = space_name.clone();
                             let share_space_name = space_name.clone();
+                            let traces_space_name = space_name.clone();
                             let title_space_name = space_name.clone();
                             let is_public = state.is_public;
                             let id = state.space_id.to_string();
+                            let traces_space_id = id.clone();
                             let guide_href = format!("/inspace/guides/new?space_id={id}");
                             let chat_href = format!("/inspace/spaces/{id}/chat");
                             let nav_chat_href = chat_href.clone();
@@ -129,6 +132,11 @@ pub fn SpacePage() -> impl IntoView {
                                                     })
                                                 }}
                                             </Suspense>
+
+                                            <SpaceTraces
+                                                space_id=traces_space_id
+                                                space_name=traces_space_name
+                                            />
 
                                             <section class="space-discussion-entry">
                                                 <p class="survey-kicker">{move || t(locale.get(), "实时补充", "Live context")}</p>
@@ -242,8 +250,10 @@ pub fn SpaceChatPage() -> impl IntoView {
                             let verify_space_name = space_name.clone();
                             let id = state.space_id.to_string();
                             let messages_space_id = id.clone();
+                            let carve_space_id = id.clone();
                             let is_public = state.is_public;
                             let back_href = format!("/inspace/spaces/{id}");
+                            let keep_href = format!("/inspace/spaces/{id}#space-traces");
                             view! {
                                 <section class="chat-shell chat-room" aria-label="Space discussion">
                                     <header class="chat-room-header">
@@ -261,11 +271,22 @@ pub fn SpaceChatPage() -> impl IntoView {
                                                 </span>
                                             </p>
                                         </div>
+                                        <a class="chat-room-keep" href=keep_href>
+                                            {move || t(locale.get(), "这里留下的", "What stays")}
+                                        </a>
                                     </header>
+                                    <p class="chat-room-nature">
+                                        {move || t(
+                                            locale.get(),
+                                            "讨论会滚走。想让一句话留在这个地点，把它刻进留痕。",
+                                            "Discussion scrolls away. To make a line stay with this place, carve it into the record.",
+                                        )}
+                                    </p>
 
                                     <Suspense fallback=move || view! { <p class="space-section-loading">{move || t(locale.get(), "正在加载讨论…", "Loading discussion…")}</p> }>
                                         {move || {
                                             let realtime_space_id = messages_space_id.clone();
+                                            let carve_space_id = carve_space_id.clone();
                                             Suspend::new(async move {
                                                 let items = messages.await;
                                                 view! {
@@ -298,8 +319,13 @@ pub fn SpaceChatPage() -> impl IntoView {
                                                                                         <strong>{message.sender}</strong>
                                                                                         <time datetime=day.clone()>{clock}</time>
                                                                                     </p>
-                                                                                    <p class="chat-message-text">{message.body}</p>
+                                                                                    <p class="chat-message-text">{message.body.clone()}</p>
                                                                                 </div>
+                                                                                <CarveButton
+                                                                                    space_id=carve_space_id.clone()
+                                                                                    message_id=message.id.to_string()
+                                                                                    body=message.body
+                                                                                />
                                                                             </article>
                                                                         }
                                                                     }

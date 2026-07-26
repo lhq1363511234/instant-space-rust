@@ -17,6 +17,17 @@ pub fn space_share_url(space_id: &str) -> String {
     }
 }
 
+/// QR codes carry `?via=qr` so scanning proves the visitor stood at the place.
+pub fn scan_url(share_url: &str) -> String {
+    if share_url.contains("via=qr") {
+        share_url.to_string()
+    } else if share_url.contains('?') {
+        format!("{share_url}&via=qr")
+    } else {
+        format!("{share_url}?via=qr")
+    }
+}
+
 fn qr_image_url(share_url: &str) -> String {
     format!(
         "https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data={}",
@@ -131,7 +142,7 @@ pub fn SpaceSharePanel(
             </div>
 
             {move || if show_qr.get() {
-                let qr_src = qr_image_url(&share_url.get());
+                let qr_src = qr_image_url(&scan_url(&share_url.get()));
                 view! {
                     <div class="space-share-qr">
                         <img
@@ -143,8 +154,8 @@ pub fn SpaceSharePanel(
                         <p>
                             {move || t(
                                 locale.get(),
-                                "手机扫码即可进入空间；可用于店内物料或发给朋友。",
-                                "Scan with a phone to open the space. Use for store prints or friend shares.",
+                                "手机扫码进入空间，会被记为「到场」——可以留痕，也可以开胶囊。",
+                                "Scanning with a phone marks you as on-site: you can leave a trace or open a capsule.",
                             )}
                         </p>
                     </div>

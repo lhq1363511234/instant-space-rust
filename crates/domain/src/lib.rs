@@ -5,5 +5,6 @@ pub mod guides;
 pub mod locations;
 pub mod site;
 pub mod spaces;
+pub mod traces;
 
 pub use spaces::DomainError;

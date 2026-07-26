@@ -154,6 +154,46 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                     </ul>
                 </section>
 
+                <section class="survey-keep" style="order:26" aria-labelledby="inspace-keep-title">
+                    <header class="survey-keep-head">
+                        <p class="survey-kicker"><span class="survey-kicker-mark" aria-hidden="true"></span>{move || match locale.get() { Locale::Zh => "地点会记住", Locale::En => "A place remembers" }}</p>
+                        <h2 id="inspace-keep-title">{move || match locale.get() {
+                            Locale::Zh => "真实的地方，都有人留下过东西。",
+                            Locale::En => "Real places all carry something somebody left.",
+                        }}</h2>
+                        <p class="survey-keep-lede">{move || match locale.get() {
+                            Locale::Zh => "旅馆前台那本写满的簿子、山顶栏杆上锈住的锁、墙角一句只有两个人看得懂的话。空间把这件事接了下来。",
+                            Locale::En => "The filled-in book at a hostel desk, the rusted lock on a summit rail, a line in a corner that only two people understand. A Space keeps doing that.",
+                        }}</p>
+                    </header>
+
+                    <div class="survey-keep-pair">
+                        <article class="survey-keep-item">
+                            <h3>{move || match locale.get() { Locale::Zh => "留痕", Locale::En => "Traces" }}</h3>
+                            <p>{move || match locale.get() {
+                                Locale::Zh => "写给之后来这儿的人：今天的天气、排到几点、哪条路封了。人走了，字留在地点名下。",
+                                Locale::En => "Written for whoever comes next: today’s weather, how long the queue ran, which path was shut. You leave; the line stays with the place.",
+                            }}</p>
+                            <p class="survey-keep-note">{move || match locale.get() {
+                                Locale::Zh => "扫码、定位或社群成员——三者之一，就会标成「现场留下」。",
+                                Locale::En => "Scan, location, or community membership — any one of them marks the entry as left on site.",
+                            }}</p>
+                        </article>
+                        <article class="survey-keep-item">
+                            <h3>{move || match locale.get() { Locale::Zh => "时间胶囊", Locale::En => "Time capsules" }}</h3>
+                            <p>{move || match locale.get() {
+                                Locale::Zh => "把一封信埋在这个地点，只给一个人。口令你亲口告诉他，服务器只留哈希，谁也读不出来。",
+                                Locale::En => "Bury a letter at this place for one person. You tell them the passphrase yourself; the server keeps only a hash and cannot read it back.",
+                            }}</p>
+                            <ol class="survey-keep-steps">
+                                <li>{move || match locale.get() { Locale::Zh => "你在这里埋下，并设定多近算「到了」。", Locale::En => "You bury it here and set how close counts as arriving." }}</li>
+                                <li>{move || match locale.get() { Locale::Zh => "他必须真的走到这个地点。", Locale::En => "They have to actually walk to the place." }}</li>
+                                <li>{move || match locale.get() { Locale::Zh => "说对那句话，信才打开——只此一次。", Locale::En => "Say the right words and it opens — once, for good." }}</li>
+                            </ol>
+                        </article>
+                    </div>
+                </section>
+
                 {guide.visible.then(|| {
                     let eyebrow = guide.eyebrow.clone();
                     let title = guide.title.clone();

@@ -525,3 +525,73 @@ SSR 从 691KB 降到 **57KB**。
 
 ### 7. 保留脚本
 `tests/browser/seed-verify.mjs`（地图聚类 + 攻略分页 + 探索页一次跑完）、`tests/browser/cluster-drill.mjs`（逐级下钻到单点并开抽屉）、`tests/browser/guides-shot.mjs`（桌面/手机行高与溢出）。
+
+---
+
+## v13 — 留痕（Traces）与时间胶囊（Capsules）
+
+用户的原话是：一个空间应该像真实地点一样——旅馆前台有本写满的簿子、黄山栏杆上有锈住的同心锁、墙角有只有两个人看得懂的话。这一版把「地点会留下东西」这件事做成了产品的第二层，讨论区只负责「此刻」，留痕负责「之后」。
+
+### 到场判定（用户拍板：扫码 ➕ 定位 ➕ Discord，三选一）
+
+`app/src/server/traces.rs::judge_presence()`，优先级从强到弱：
+
+1. `scan` — URL 带 `?via=qr`。二维码里编码的就是带 `?via=qr` 的链接（`space_share.rs::scan_url()`），复制链接仍给纯 URL。**这一条是 v13 才接上的，之前二维码编的是纯 URL，扫码到场是死的。**
+2. `geo` — 浏览器 Geolocation 拿到坐标，服务端用 haversine 算距离。留痕半径 `TRACE_ON_SITE_RADIUS_M = 800m`（宽松），胶囊用自己的 `radius_m`。
+3. `discord` — 勾选「我是这个空间社群成员」**且**该空间确实配了 `discord_group`。
+4. `remote` — 都不满足，照样能写，只是标成远程。
+
+距离必须用 haversine，不能用平面近似：种子空间里有一批在 55°N 以上。
+
+### 时间胶囊的规则（用户拍板：A 告诉 B，且 B 必须到场）
+
+- 口令只存 Argon2 哈希（`instant_auth::hash_password`），服务器读不出来。忘了就永远打不开——这是设计，不是缺陷。
+- `open_capsule` 判定顺序：已被取走 → 试错锁死 → 未到开启日期 → **到场**（扫码 or 距离 ≤ radius，否则 `PresenceRequired` / `TooFar`）→ 口令。**先判到场再判口令**，所以远程的人连"口令对不对"都探不出来。
+- `CAPSULE_MAX_ATTEMPTS = 8`，超了永久锁死。
+- `mark_capsule_opened` 带 `WHERE opened_at IS NULL`，并发下只有一个人能开成。
+- 一个胶囊只能开一次，开完对所有人显示「已被取走 + 谁 + 何时」。
+
+### 数据
+
+迁移 `crates/db/migrations/20260726000200_traces_and_capsules.sql`：`presence_proof` 枚举 + `space_traces` + `space_capsules`。生产库已执行，`_sqlx_migrations` 已手工补录且校验和验证通过。表属主是 postgres，已 GRANT 给 `instant_space`。
+
+删除用软删（`hidden`），编年史的数字要诚实。
+
+### 前端
+
+- `app/src/components/presence.rs` — `PresenceState`（全 RwSignal）+ `detect_scan()` 读 URL + `request_location()` 走 web-sys Geolocation 回调。web-sys features 要加 `Navigator/Geolocation/Position/Coordinates/PositionError/PositionOptions/Location`。PositionOptions 的 setter 是 `set_enable_high_accuracy` 这种新名字，且不用 `mut`。
+- `app/src/components/space_traces.rs` — `SpaceTraces` 挂在空间页攻略列表和讨论入口之间，`id="space-traces"` 供聊天页锚点跳回。
+- **空空间的编年史是冷启动钩子**：1000 个种子空间都还是空的，所以空状态不写「暂无数据」，写「还没有人在这里留下任何东西 / 你可以是第一个」，左边一道朱红竖线。
+- `CarveButton` — 聊天页每条消息一个凿子图标，把一句话刻进留痕。`proof` 强制 `remote`：刻别人的话不能算你到场。
+- 聊天页 header 加「这里留下的」链接 + 一句「讨论会滚走」的说明，房间网格从 3 行变 4 行（`grid-template-rows: auto auto minmax(0,1fr) auto`），`.chat-message` 变 3 列（头像/正文/凿子）。
+
+### 一个必须记住的交互坑
+
+`CapsuleCard` 开信成功后**不能**调 `on_changed` 刷新列表。刷新会重建卡片，把读者刚挣到的信当场抹掉。宁可让编年史的计数暂时不准。第一次 e2e 就是这么发现的：`wrong-pass` 正常，`opened letter: NONE`。
+
+### 首页
+
+`survey-keep` 段（order:26，在 field strip 和 guide plate 之间）。两栏，中间一道细线：左边讲留痕，右边讲胶囊三步（埋下 → 走到 → 说对）。文案从实物切入（写满的簿子、锈住的锁），不从功能切入。
+
+### 又踩了一次 Cloudflare
+
+这一轮**没改** map-ui 的 js，所以按 v12 的教训判断「不用 bump OUTPUT_NAME」——错了。CF 边缘缓存的是 **wasm 二进制** `instant_space_app_v65_bg.wasm`（`immutable`, 1 年），新 glue + 旧 wasm 直接报：
+
+```
+WebAssembly.instantiate(): Import #34 "./instant_space_app_v65_bg.js"
+"__wbg_navigator_99621db14b3f1099": function import requires a callable
+```
+
+诊断方法：`curl` 和 `md5sum` 都说服务端是新的，但 Playwright 里 `fetch(..., {cache:'reload'})` 拿到的响应头是 `cf-cache-status: HIT`。**判缓存要在浏览器里查 cf-cache-status，不要信 curl。**
+
+**修订后的规则：只要 wasm 二进制变了（也就是只要改了任何 Rust 前端代码），就必须 bump `OUTPUT_NAME`。** 不是只有改 js snippet 才要。这一轮 v65 → v66 → v67（v66 是这条教训本身，v67 是修开信那个 bug）。
+
+`OUTPUT_NAME` 在两个地方，必须同步：`scripts/build-wasm.mjs:11` 和 `app/src/main.rs:244`（还有 244 行下面的测试断言）。
+
+另：那个 `setsid bash -c '... && node ...'` 的链式命令有一次整个没跑起来（日志时间戳没变、`ALLDONE` 没写）。改用 `nohup setsid ... </dev/null & disown` 并把 `&&` 换成 `;` + 显式 `echo RC=$?`，才能确认每一步真的执行了。
+
+### 验证
+
+`tests/browser/traces-e2e.mjs`：扫码到场 → 写留痕（校验 proof 标成「扫码到场」）→ 封存胶囊 → 错口令（应答「你站对了地方，但这不是那句话」）→ 对口令（应展开信）→ 手机端零横向溢出 → 零 console 错误。
+
+**注意**：Leptos 受控 textarea 用 Playwright 的 `fill()` 不触发 `on:input`，signal 不更新，提交按钮永远 disabled。必须用 `pressSequentially()`。

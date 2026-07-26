@@ -5,6 +5,7 @@ pub mod guides;
 pub mod locations;
 pub mod site;
 pub mod spaces;
+pub mod traces;
 pub mod users;
 
 pub async fn connect(database_url: &str) -> Result<sqlx::PgPool, sqlx::Error> {

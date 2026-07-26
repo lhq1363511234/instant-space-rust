@@ -1,0 +1,28 @@
+import { chromium } from 'playwright';
+const SPACE='10000000-0000-0000-0000-000000000001';
+const b=await chromium.launch();
+const c=await b.newContext({viewport:{width:1280,height:900}});
+await c.addCookies([{name:'instant_session',value:'qa-token-fullstack-1',domain:'opctoai.com',path:'/'}]);
+const p=await c.newPage();
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto(`https://opctoai.com/inspace/spaces/${SPACE}/chat`,{waitUntil:'networkidle'});
+await p.waitForTimeout(3000);
+console.log('carve buttons:', await p.locator('.chat-carve').count());
+console.log('keep link:', (await p.locator('.chat-room-keep').innerText().catch(()=>'NONE')).trim());
+const first=p.locator('.chat-message').first();
+const text=(await first.locator('.chat-message-text').innerText()).trim();
+await first.hover();
+await first.locator('.chat-carve').click();
+await p.waitForTimeout(2500);
+console.log('carved class:', await first.locator('.chat-carve').getAttribute('class'));
+await p.screenshot({path:'/tmp/qa-chat.png'});
+// confirm it landed in the record
+const p2=await c.newPage();
+await p2.goto(`https://opctoai.com/inspace/spaces/${SPACE}`,{waitUntil:'networkidle'});
+await p2.waitForTimeout(2500);
+const list=await p2.locator('.trace-list').innerText();
+console.log('carved line in record:', list.includes(text.slice(0,10)));
+console.log('its proof:', (await p2.locator('.trace-entry').first().locator('.trace-proof').innerText()).trim());
+await p2.screenshot({path:'/tmp/qa-space-desktop.png'});
+console.log('pageerrors:', errs);
+await b.close();

@@ -5,6 +5,7 @@ pub mod geo;
 pub mod guides;
 pub mod site;
 pub mod spaces;
+pub mod traces;
 
 #[cfg(feature = "ssr")]
 use leptos::prelude::ServerFnError;

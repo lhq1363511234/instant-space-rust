@@ -61,4 +61,4 @@ tracing-subscriber = { workspace = true, optional = true }
 uuid.workspace = true
 url.workspace = true
 wasm-bindgen = { workspace = true, optional = true }
-web-sys = { workspace = true, optional = true, features = ["Window", "EventTarget"] }
+web-sys = { workspace = true, optional = true, features = ["Window", "EventTarget", "Navigator", "Geolocation", "Position", "Coordinates", "PositionError", "PositionOptions", "Location"] }
