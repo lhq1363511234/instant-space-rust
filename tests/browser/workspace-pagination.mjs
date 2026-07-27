@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const b=await chromium.launch();const c=await b.newContext({viewport:{width:1440,height:900}});
+await c.addCookies([{name:'instant_session',value:'qa-token-fullstack-1',domain:'opctoai.com',path:'/'}]);
+const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('https://opctoai.com/inspace/my-spaces',{waitUntil:'networkidle'});await p.waitForTimeout(1000);
+const count1=await p.locator('.my-space-card').count();const title1=await p.locator('.my-space-card h2').first().innerText();
+await p.locator('.my-space-pagination button:has-text("下一页")').click();await p.waitForTimeout(500);
+const count2=await p.locator('.my-space-card').count();const title2=await p.locator('.my-space-card h2').first().innerText();
+const page=await p.locator('.my-space-pagination > span').innerText();
+const input=p.locator('.my-space-search input');await input.fill('外滩');await p.waitForTimeout(500);
+const searchCount=await p.locator('.my-space-card').count();const summary=await p.locator('.my-space-summary').innerText();
+console.log({count1,count2,titleChanged:title1!==title2,page,searchCount,summary,errors:errs.length});
+console.log(count1===24&&count2===24&&title1!==title2&&page.includes('2 /')&&searchCount>0&&errs.length===0?'ALL PASS':'FAIL');
+await b.close();

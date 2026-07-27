@@ -114,25 +114,143 @@ pub fn HostRoutes() -> impl IntoView {
 fn MySpaceList(items: Vec<SpaceMarker>) -> impl IntoView {
     let locale = use_i18n().locale;
     if items.is_empty() {
-        view! {
+        return view! {
             <section class="empty-state">
                 <strong>{move || t(locale.get(), "还没有空间", "No spaces yet")}</strong>
                 <span>{move || t(locale.get(), "点击创建空间，把一个景点、餐馆、街区或活动地点变成可扫码分享的数字入口。", "Create a Space to turn a scenic spot, restaurant, district, or event place into a QR-shareable digital entry.")}</span>
             </section>
         }
-        .into_any()
-    } else {
-        view! {
-            <section class="my-space-grid" aria-label="My spaces">
-                <For
-                    each=move || items.clone()
-                    key=|space| space.id.clone()
-                    children=move |space| view! { <MySpaceCard space=space /> }
-                />
-            </section>
-        }
-        .into_any()
+        .into_any();
     }
+
+    const PAGE_SIZE: usize = 24;
+    let items = StoredValue::new(items);
+    let query = RwSignal::new(String::new());
+    let page = RwSignal::new(1usize);
+
+    let matching_count = move || {
+        let needle = query.get().trim().to_lowercase();
+        items.with_value(|all| {
+            all.iter()
+                .filter(|space| {
+                    needle.is_empty()
+                        || space.name_zh.to_lowercase().contains(&needle)
+                        || space
+                            .name_en
+                            .as_deref()
+                            .is_some_and(|name| name.to_lowercase().contains(&needle))
+                        || location_label(space).to_lowercase().contains(&needle)
+                })
+                .count()
+        })
+    };
+
+    let page_items = move || {
+        let needle = query.get().trim().to_lowercase();
+        let count = matching_count();
+        let total_pages = count.max(1).div_ceil(PAGE_SIZE);
+        let current = page.get().clamp(1, total_pages);
+        if current != page.get_untracked() {
+            page.set(current);
+        }
+        let start = (current - 1) * PAGE_SIZE;
+        items.with_value(|all| {
+            all.iter()
+                .filter(|space| {
+                    needle.is_empty()
+                        || space.name_zh.to_lowercase().contains(&needle)
+                        || space
+                            .name_en
+                            .as_deref()
+                            .is_some_and(|name| name.to_lowercase().contains(&needle))
+                        || location_label(space).to_lowercase().contains(&needle)
+                })
+                .skip(start)
+                .take(PAGE_SIZE)
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+    };
+
+    view! {
+        <section class="my-space-directory" aria-label="My spaces">
+            <div class="my-space-toolbar">
+                <label class="my-space-search">
+                    <span>{move || t(locale.get(), "查找空间", "Find a Space")}</span>
+                    <input
+                        type="search"
+                        placeholder=move || t(locale.get(), "输入空间名、城市或地点", "Space name, city, or place")
+                        prop:value=move || query.get()
+                        on:input=move |ev| {
+                            query.set(event_target_value(&ev));
+                            page.set(1);
+                        }
+                    />
+                </label>
+                <p class="my-space-summary" aria-live="polite">
+                    {move || {
+                        let count = matching_count();
+                        let total_pages = count.max(1).div_ceil(PAGE_SIZE);
+                        let current = page.get().clamp(1, total_pages);
+                        if locale.get() == crate::i18n::Locale::Zh {
+                            format!("{count} 个空间 · 第 {current}/{total_pages} 页")
+                        } else {
+                            format!("{count} Spaces · page {current}/{total_pages}")
+                        }
+                    }}
+                </p>
+            </div>
+
+            <Show
+                when=move || { matching_count() > 0 }
+                fallback=move || view! {
+                    <div class="directory-empty">
+                        <strong>{move || t(locale.get(), "没有找到匹配的空间", "No matching Spaces")}</strong>
+                        <span>{move || t(locale.get(), "换一个名称或地点再试。", "Try another name or place.")}</span>
+                    </div>
+                }
+            >
+                <section class="my-space-grid" aria-label="My spaces page">
+                    <For
+                        each=page_items
+                        key=|space| space.id.clone()
+                        children=move |space| view! { <MySpaceCard space=space /> }
+                    />
+                </section>
+                <nav class="my-space-pagination" aria-label=move || t(locale.get(), "我的空间分页", "My Spaces pagination")>
+                    <button
+                        type="button"
+                        class="button button-secondary-light"
+                        disabled=move || page.get() <= 1
+                        on:click=move |_| page.update(|value| *value = value.saturating_sub(1).max(1))
+                    >
+                        {move || t(locale.get(), "上一页", "Previous")}
+                    </button>
+                    <span>
+                        {move || {
+                            let total_pages = matching_count().max(1).div_ceil(PAGE_SIZE);
+                            format!("{} / {}", page.get().clamp(1, total_pages), total_pages)
+                        }}
+                    </span>
+                    <button
+                        type="button"
+                        class="button button-secondary-light"
+                        disabled=move || {
+                            let total_pages = matching_count().max(1).div_ceil(PAGE_SIZE);
+                            page.get() >= total_pages
+                        }
+                        on:click=move |_| {
+                            let total_pages = matching_count().max(1).div_ceil(PAGE_SIZE);
+                            page.update(|value| *value = (*value + 1).min(total_pages));
+                        }
+                    >
+                        {move || t(locale.get(), "下一页", "Next")}
+                    </button>
+                </nav>
+            </Show>
+        </section>
+    }
+    .into_any()
 }
 
 #[component]

@@ -103,6 +103,7 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v17" />
         <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260729-craft-v17" />
         <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260729-craft-v17" />
+        <Stylesheet id="song-css" href="/style/song-system.css?v=20260727-song-v3" />
         <Router>
             <Header />
             <div class="app-main">

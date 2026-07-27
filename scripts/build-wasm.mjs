@@ -8,7 +8,7 @@ const root = process.cwd();
 const pkgDir = join(root, "target", "site", "pkg");
 // Keep this in sync with app/src/main.rs. A versioned loader name prevents an
 // immutable CDN cache from serving an old JS glue file with a new WASM binary.
-const OUTPUT_NAME = "instant_space_app_v71";
+const OUTPUT_NAME = "instant_space_app_v73";
 const wasmInput = join(
   root,
   "target",

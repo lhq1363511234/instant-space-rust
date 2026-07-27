@@ -1,0 +1,1137 @@
+/*
+ * inspace · 宋式空间系统
+ *
+ * 不是“古风皮肤”。宋式审美在这里被翻译成五个可执行规则：
+ * 1. 疏：页面分组靠留白，而不是靠盒子。
+ * 2. 静：月白、墨、青瓷构成主体，朱砂只负责印记和关键状态。
+ * 3. 雅：标题用宋体，界面正文保持清楚；不以书法字体妨碍操作。
+ * 4. 序：同类内容共用一条基准线，页面只保留一个视觉重心。
+ * 5. 生：动效像卷轴舒展、墨迹落定，不做连续漂浮和装饰性弹跳。
+ *
+ * 本文件是末级设计系统层，集中收束遗留样式，不再往 inspace-world.css
+ * 追加整页补丁。
+ */
+
+/* --------------------------------------------------------------------------
+   1. Primitive → semantic → component tokens
+   -------------------------------------------------------------------------- */
+:root {
+  /* primitive · 宋瓷、纸、墨、朱砂 */
+  --song-paper-0: #fcfbf7;
+  --song-paper-1: #f6f3ea;
+  --song-paper-2: #eee9dc;
+  --song-paper-3: #dfd8c8;
+  --song-ink-950: #211f1a;
+  --song-ink-800: #38352e;
+  --song-ink-650: #5d584e;
+  --song-ink-500: #777064;
+  --song-celadon-700: #667568;
+  --song-celadon-500: #87978a;
+  --song-celadon-200: #dce3dc;
+  --song-celadon-100: #edf1ec;
+  --song-cinnabar-700: #8e3327;
+  --song-cinnabar-600: #a43b2d;
+  --song-cinnabar-100: #f1e3df;
+
+  /* semantic */
+  --song-bg: var(--song-paper-0);
+  --song-surface: var(--song-paper-0);
+  --song-surface-soft: var(--song-paper-1);
+  --song-rule: var(--song-paper-3);
+  --song-rule-soft: color-mix(in srgb, var(--song-paper-3) 62%, transparent);
+  --song-text: var(--song-ink-950);
+  --song-text-soft: var(--song-ink-650);
+  --song-text-faint: var(--song-ink-500);
+  --song-accent: var(--song-celadon-700);
+  --song-accent-soft: var(--song-celadon-100);
+  --song-seal: var(--song-cinnabar-600);
+  --song-focus: var(--song-cinnabar-700);
+
+  /* spacing · larger jumps create hierarchy instead of boxes */
+  --song-space-1: 4px;
+  --song-space-2: 8px;
+  --song-space-3: 12px;
+  --song-space-4: 16px;
+  --song-space-5: 24px;
+  --song-space-6: 32px;
+  --song-space-7: 48px;
+  --song-space-8: 64px;
+  --song-space-9: 88px;
+  --song-space-10: 120px;
+
+  --song-page-max: 1180px;
+  --song-reading-max: 720px;
+  --song-radius-control: 2px;
+  --song-radius-object: 4px;
+
+  /* remap old semantic tokens at the source */
+  --paper: var(--song-paper-0);
+  --paper-raised: var(--song-paper-0);
+  --paper-deep: var(--song-paper-1);
+  --ink: var(--song-text);
+  --ink-soft: var(--song-text-soft);
+  --ink-faint: var(--song-text-faint);
+  --rule: var(--song-rule-soft);
+  --rule-strong: var(--song-rule);
+  --vermilion: var(--song-seal);
+  --vermilion-ink: var(--song-cinnabar-700);
+  --vermilion-wash: var(--song-cinnabar-100);
+  --survey-blue: var(--song-celadon-700);
+
+  --is-bg: var(--song-bg);
+  --is-surface: var(--song-surface);
+  --is-surface-subtle: var(--song-surface-soft);
+  --is-surface-muted: var(--song-celadon-100);
+  --is-text: var(--song-text);
+  --is-text-secondary: var(--song-text-soft);
+  --is-text-muted: var(--song-text-faint);
+  --is-border: var(--song-rule-soft);
+  --is-primary: var(--song-ink-950);
+  --is-primary-hover: #11100d;
+  --is-focus: var(--song-focus);
+  --is-radius-sm: 2px;
+  --is-radius-md: 3px;
+  --is-radius-lg: 4px;
+
+  --bo-card: transparent;
+  --bo-border: var(--song-rule-soft);
+  --bo-muted: var(--song-text-faint);
+}
+
+html,
+body {
+  background: var(--song-bg) !important;
+  color: var(--song-text) !important;
+}
+body {
+  font-family: var(--font-text);
+  text-rendering: optimizeLegibility;
+}
+
+.app-main { background: var(--song-bg) !important; }
+
+/* --------------------------------------------------------------------------
+   2. Global type, measure, spacing
+   -------------------------------------------------------------------------- */
+main.page,
+.guide-browser,
+.admin-layout,
+.my-spaces-page {
+  width: min(calc(100% - 72px), var(--song-page-max)) !important;
+  margin-inline: auto !important;
+}
+
+main.page {
+  padding-top: var(--song-space-8) !important;
+  padding-bottom: var(--song-space-10) !important;
+}
+
+h1,
+h2,
+h3,
+.page-head h1,
+.space-detail-header h1,
+.admin-dashboard-head h1 {
+  font-family: var(--font-display) !important;
+  color: var(--song-text) !important;
+  font-weight: 600 !important;
+  letter-spacing: -.025em !important;
+  text-wrap: balance;
+}
+
+h1,
+.page-head h1 {
+  font-size: clamp(2.25rem, 4.4vw, 4.5rem) !important;
+  line-height: 1.08 !important;
+}
+
+h2 { line-height: 1.18 !important; }
+p,
+li,
+dd,
+label,
+input,
+select,
+textarea,
+button {
+  line-height: 1.75;
+}
+
+.page-head,
+.explore-page-head,
+.guide-browser .page-head,
+.auth-page-head,
+.admin-dashboard-head,
+.admin-layout .page-head,
+.my-spaces-page .page-head {
+  margin: 0 0 var(--song-space-8) !important;
+  padding: 0 0 var(--song-space-6) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.page-head > div > p:last-child,
+.explore-page-head > div > p:last-child,
+.guide-browser .page-head > div > p:last-child,
+.auth-page-head > div > p:last-child {
+  max-width: 38em !important;
+  margin-top: var(--song-space-4) !important;
+  color: var(--song-text-soft) !important;
+  font-size: 1rem !important;
+  line-height: 1.9 !important;
+}
+
+.eyebrow,
+.survey-kicker {
+  color: var(--song-accent) !important;
+  font-family: var(--font-text) !important;
+  font-size: .78rem !important;
+  font-weight: 650 !important;
+  letter-spacing: .08em !important;
+}
+.survey-kicker-mark {
+  background: var(--song-accent) !important;
+  box-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Controls · ink does the work; vermilion becomes a seal, not a fill flood
+   -------------------------------------------------------------------------- */
+body .button,
+body button.button,
+body a.button,
+body .button-primary,
+body .button-secondary,
+body .button-secondary-light {
+  min-height: 44px;
+  border-radius: var(--song-radius-control) !important;
+  box-shadow: none !important;
+  font-weight: 650 !important;
+}
+body .button-primary,
+body button.button-primary,
+body a.button-primary {
+  border: 1px solid var(--song-ink-950) !important;
+  background: var(--song-ink-950) !important;
+  color: var(--song-paper-0) !important;
+}
+body .button-primary:hover,
+body button.button-primary:hover,
+body a.button-primary:hover {
+  border-color: var(--song-cinnabar-700) !important;
+  background: var(--song-cinnabar-700) !important;
+}
+body .button-secondary,
+body .button-secondary-light,
+body button.button-secondary,
+body button.button-secondary-light,
+body a.button-secondary,
+body a.button-secondary-light {
+  border: 1px solid var(--song-rule) !important;
+  background: transparent !important;
+  color: var(--song-text) !important;
+}
+body .button-secondary:hover,
+body .button-secondary-light:hover,
+body button.button-secondary:hover,
+body button.button-secondary-light:hover,
+body a.button-secondary:hover,
+body a.button-secondary-light:hover {
+  border-color: var(--song-accent) !important;
+  background: var(--song-accent-soft) !important;
+  color: var(--song-text) !important;
+}
+
+body input:not([type="checkbox"]):not([type="radio"]),
+body select,
+body textarea {
+  border-radius: var(--song-radius-control) !important;
+  border-color: var(--song-rule) !important;
+  background: color-mix(in srgb, var(--song-paper-0) 88%, transparent) !important;
+  color: var(--song-text) !important;
+  box-shadow: none !important;
+}
+body input::placeholder,
+body textarea::placeholder { color: var(--song-text-faint) !important; opacity: 1; }
+
+body a:focus-visible,
+body button:focus-visible,
+body input:focus-visible,
+body select:focus-visible,
+body textarea:focus-visible {
+  outline: 2px solid var(--song-focus) !important;
+  outline-offset: 3px !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. App shell · quiet frame around the world
+   -------------------------------------------------------------------------- */
+.shell-sidebar {
+  width: 248px;
+  padding: 18px 14px;
+  border-right: 1px solid var(--song-rule-soft);
+  background: color-mix(in srgb, var(--song-paper-1) 88%, transparent) !important;
+}
+.shell-brand { padding: 4px 8px; }
+.shell-brand-mark {
+  width: 29px;
+  height: 29px;
+  flex-basis: 29px;
+  border: 2px solid var(--song-seal) !important;
+  border-radius: 1px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.shell-brand-mark::after {
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--song-seal) !important;
+}
+.shell-brand-mark i { display: none; }
+.shell-brand-copy b {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+.shell-brand-copy small { color: var(--song-text-faint); }
+
+.shell-primary-nav,
+.shell-workspace-links { gap: 1px; }
+.shell-nav-link,
+.shell-utility-link,
+.shell-login-link {
+  min-height: 50px;
+  border-radius: 2px;
+  color: var(--song-text-soft);
+}
+.shell-nav-link:hover,
+.shell-utility-link:hover,
+.shell-login-link:hover {
+  background: var(--song-celadon-100);
+  color: var(--song-text);
+}
+.shell-nav-link.is-active,
+.shell-utility-link.is-active {
+  background: transparent !important;
+  color: var(--song-text) !important;
+}
+.shell-nav-link.is-active::before,
+.shell-utility-link.is-active::before {
+  background: var(--song-seal) !important;
+  width: 2px !important;
+}
+
+.shell-topbar {
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+  background: color-mix(in srgb, var(--song-paper-0) 88%, transparent) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) saturate(105%);
+}
+.shell-search { border-color: var(--song-rule-soft) !important; background: transparent !important; }
+.shell-mobile-nav {
+  border-top-color: var(--song-rule-soft) !important;
+  background: color-mix(in srgb, var(--song-paper-0) 94%, transparent) !important;
+  box-shadow: none !important;
+}
+.shell-mobile-nav a.is-active { color: var(--song-seal) !important; }
+
+/* --------------------------------------------------------------------------
+   5. Homepage · one long scroll painting, not stacked modules
+   -------------------------------------------------------------------------- */
+.inspace-home-modules {
+  width: 100% !important;
+  max-width: none !important;
+  padding-inline: clamp(24px, 6vw, 92px) !important;
+}
+.inspace-home-modules::before { opacity: .28; }
+
+.survey-hero {
+  min-height: calc(100dvh - var(--shell-topbar-height));
+  grid-template-columns: minmax(0, .92fr) minmax(320px, .64fr) !important;
+  gap: clamp(72px, 10vw, 164px) !important;
+  align-items: center !important;
+  padding-block: clamp(96px, 12vh, 148px) !important;
+}
+.survey-hero-copy { max-width: 650px; }
+.survey-hero h1 {
+  max-width: 8.5em !important;
+  font-size: clamp(3.1rem, 6.3vw, 6.7rem) !important;
+  line-height: 1.03 !important;
+  font-weight: 500 !important;
+}
+.survey-lede {
+  max-width: 34em !important;
+  margin-top: var(--song-space-6) !important;
+  color: var(--song-text-soft) !important;
+  font-size: 1.05rem !important;
+  line-height: 2 !important;
+}
+.survey-actions { margin-top: var(--song-space-7) !important; }
+.survey-note { margin-top: var(--song-space-6) !important; color: var(--song-text-faint) !important; }
+
+.survey-hero .survey-sheet {
+  align-self: center;
+  max-width: 430px;
+  margin: 0 !important;
+  padding: 30px 32px 34px !important;
+  border: 0 !important;
+  border-top: 1px solid var(--song-rule) !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.survey-sheet-stamp { color: var(--song-seal) !important; }
+
+.survey-passage,
+.survey-field,
+.survey-keep,
+.survey-log,
+.survey-colophon,
+.survey-plate {
+  margin-top: 0 !important;
+  padding-top: var(--song-space-10) !important;
+  padding-bottom: var(--song-space-10) !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.survey-passage {
+  display: grid !important;
+  grid-template-columns: minmax(240px, .7fr) minmax(0, 1.3fr) !important;
+  gap: clamp(72px, 10vw, 160px) !important;
+  align-items: start;
+}
+.survey-passage-head { max-width: 30em; }
+.survey-passage-head h2,
+.survey-field-head h2,
+.survey-keep-head h2 {
+  font-size: clamp(2.4rem, 4.5vw, 4.8rem) !important;
+  font-weight: 500 !important;
+}
+.survey-passage-head p,
+.survey-field-lede,
+.survey-keep-lede {
+  max-width: 38em !important;
+  color: var(--song-text-soft) !important;
+  line-height: 2 !important;
+}
+.survey-stages {
+  margin-top: 4px !important;
+  border: 0 !important;
+}
+.survey-stages::before { display: none !important; }
+.survey-stages > div {
+  padding: 28px 0 34px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+  background: transparent !important;
+}
+.survey-stages dt {
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.1vw, 1.8rem);
+  font-weight: 600;
+}
+.survey-stages dd { margin-top: 10px !important; color: var(--song-text-soft) !important; }
+.survey-stages > div::before { display: none !important; }
+
+.survey-field-head,
+.survey-keep-head {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(280px, 1fr);
+  column-gap: clamp(64px, 9vw, 150px);
+  align-items: end;
+}
+.survey-field-head .survey-kicker,
+.survey-keep-head .survey-kicker { grid-column: 1 / -1; }
+.survey-field-head h2,
+.survey-keep-head h2 { grid-column: 1; margin-bottom: 0 !important; }
+.survey-field-lede,
+.survey-keep-lede { grid-column: 2; margin-bottom: 8px !important; }
+
+.survey-field-strip {
+  margin-top: var(--song-space-9) !important;
+  gap: clamp(54px, 7vw, 96px) clamp(28px, 4vw, 64px) !important;
+}
+.survey-field-plate figure { gap: 14px !important; }
+.survey-field-plate img {
+  border-radius: 1px !important;
+  box-shadow: none !important;
+  filter: saturate(.78) contrast(1.02) brightness(1.02) !important;
+}
+.survey-field-plate figcaption {
+  width: fit-content;
+  padding-top: 8px !important;
+  border-top-color: var(--song-rule-soft) !important;
+  color: var(--song-text-faint) !important;
+}
+
+.survey-keep-pair {
+  margin-top: var(--song-space-9) !important;
+  gap: clamp(56px, 9vw, 140px) !important;
+}
+.survey-keep-item {
+  padding: 32px 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--song-rule) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.survey-keep-item::before,
+.auth-affordances li::after { display: none !important; }
+.survey-keep-item h3 {
+  font-size: clamp(1.7rem, 2.4vw, 2.35rem) !important;
+  font-weight: 500 !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. Explore + guides · filters become a quiet table of contents
+   -------------------------------------------------------------------------- */
+.explore-page,
+.guide-browser {
+  padding-top: var(--song-space-9) !important;
+  padding-bottom: var(--song-space-10) !important;
+}
+.explore-page-head,
+.guide-browser .page-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: var(--song-space-7) !important;
+  align-items: end !important;
+}
+.explore-page-head h1,
+.guide-browser .page-head h1 { max-width: 9em; }
+.explore-head-actions,
+.guide-browser-head-actions { align-self: end; }
+
+.explore-content,
+.guide-browser { background: transparent !important; }
+.explore-search-panel,
+.guide-search-panel,
+.filter-row {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.explore-search-panel,
+.guide-search-panel {
+  padding: 0 0 var(--song-space-7) !important;
+  margin: 0 0 var(--song-space-7) !important;
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+}
+.explore-search-field > span,
+.guide-search-field > span,
+.explore-filter-line > span {
+  color: var(--song-text-faint) !important;
+  font-size: .78rem !important;
+  letter-spacing: .06em;
+}
+.explore-search-row,
+.guide-search-row { margin-top: 12px !important; }
+.explore-search-row input,
+.guide-search-row input {
+  min-height: 52px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+}
+
+.explore-filter-line { margin-top: var(--song-space-5) !important; }
+.filter-chip-row { gap: 0 !important; }
+body .filter-chip {
+  min-height: 42px;
+  padding: 0 16px !important;
+  border: 0 !important;
+  border-bottom: 1px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--song-text-faint) !important;
+  box-shadow: none !important;
+}
+body .filter-chip:hover { color: var(--song-text) !important; }
+body .filter-chip.is-active {
+  border-bottom-color: var(--song-seal) !important;
+  color: var(--song-text) !important;
+  background: transparent !important;
+}
+.explore-clear-button { color: var(--song-text-faint) !important; }
+
+.guide-browser-note {
+  max-width: var(--song-reading-max);
+  margin: calc(var(--song-space-7) * -1) 0 var(--song-space-7) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--song-text-soft) !important;
+}
+.filter-row {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--song-space-4) !important;
+  margin-bottom: var(--song-space-8) !important;
+  padding: 0 0 var(--song-space-7) !important;
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+}
+.filter-row select {
+  min-height: 48px;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+}
+
+.directory-result-bar {
+  margin: 0 !important;
+  padding: 0 0 var(--song-space-4) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  background: transparent !important;
+}
+.directory-result-bar p { color: var(--song-text) !important; }
+.directory-result-bar span { color: var(--song-text-faint) !important; }
+
+.space-directory-list,
+.guide-list {
+  border: 0 !important;
+  background: transparent !important;
+}
+.space-directory-row,
+.guide-list > li,
+.space-guide-list > li {
+  min-height: 0 !important;
+  padding: var(--song-space-5) 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.space-directory-row:hover,
+.guide-list > li:hover {
+  background: color-mix(in srgb, var(--song-celadon-100) 54%, transparent) !important;
+}
+.space-directory-title-line strong,
+.guide-list-link strong {
+  font-family: var(--font-display);
+  font-size: clamp(1.08rem, 1.5vw, 1.34rem);
+  font-weight: 600;
+}
+.space-type-label,
+.space-directory-status span {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--song-accent) !important;
+}
+.space-directory-enter { color: var(--song-seal) !important; }
+
+.directory-pagination {
+  margin-top: var(--song-space-8) !important;
+  padding-top: var(--song-space-5) !important;
+  border-top: 1px solid var(--song-rule-soft) !important;
+}
+.pagination-control,
+.pagination-page {
+  border-radius: 1px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--song-text-soft) !important;
+}
+.pagination-page.is-current {
+  border-bottom-color: var(--song-seal) !important;
+  color: var(--song-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. Space detail + guide detail · one place, not a dashboard
+   -------------------------------------------------------------------------- */
+.space-detail-page,
+.guide-detail-page { padding-top: var(--song-space-8) !important; }
+.space-detail-shell,
+.guide-detail {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.space-detail-header,
+.guide-detail-hero {
+  padding: 0 0 var(--song-space-8) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  background: transparent !important;
+}
+.space-detail-heading-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: var(--song-space-7) !important;
+  align-items: end !important;
+}
+.space-detail-header h1,
+.guide-detail-hero h1 {
+  font-size: clamp(3rem, 6vw, 6.2rem) !important;
+  font-weight: 500 !important;
+}
+.space-detail-badges,
+.space-detail-visibility,
+.guide-detail-meta {
+  color: var(--song-accent) !important;
+}
+.space-detail-visibility {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.space-app-header-desc {
+  max-width: 40em;
+  margin-top: var(--song-space-4) !important;
+  color: var(--song-text-soft) !important;
+}
+.space-detail-layout {
+  gap: clamp(64px, 8vw, 120px) !important;
+  margin-top: var(--song-space-9) !important;
+}
+.space-detail-main,
+.space-detail-side { min-width: 0; }
+.space-detail-side {
+  padding-left: var(--song-space-6);
+  border-left: 1px solid var(--song-rule-soft);
+}
+.space-guides-card,
+.space-discussion-entry,
+.space-share-panel,
+.community-links,
+.related-space-guides,
+.guide-summary,
+.guide-content,
+.guide-section-card,
+.guide-images {
+  padding: var(--song-space-6) 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--song-rule-soft) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.card-head-inline {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.card-head-inline h2 { font-size: clamp(1.8rem, 3vw, 2.8rem) !important; }
+.card-head-inline p { max-width: 38em; color: var(--song-text-soft) !important; }
+
+/* --------------------------------------------------------------------------
+   8. Auth · remove catalog numbering; keep the page calm
+   -------------------------------------------------------------------------- */
+.auth-page { gap: clamp(72px, 10vw, 150px) !important; }
+.auth-affordances { counter-reset: none !important; }
+.auth-affordances li {
+  padding: 24px 0 !important;
+  border-top-color: var(--song-rule-soft) !important;
+}
+.auth-affordances li::before { display: none !important; }
+body .auth-form {
+  border: 0 !important;
+  border-top: 1px solid var(--song-rule) !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  background: transparent !important;
+}
+body .auth-form::before,
+body .auth-form::after { background: var(--song-seal) !important; }
+
+/* --------------------------------------------------------------------------
+   9. Workspace + admin · tables and ledgers, not SaaS cards
+   -------------------------------------------------------------------------- */
+.backoffice-nav-shell {
+  min-height: 58px;
+  margin-bottom: var(--song-space-8) !important;
+  border-bottom-color: var(--song-rule-soft) !important;
+  background: color-mix(in srgb, var(--song-paper-0) 92%, transparent) !important;
+  backdrop-filter: blur(14px);
+}
+.backoffice-nav-mark {
+  border: 1px solid var(--song-rule) !important;
+  border-radius: 2px !important;
+  background: transparent !important;
+  color: var(--song-text) !important;
+}
+.backoffice-nav a {
+  border-radius: 1px !important;
+  color: var(--song-text-faint) !important;
+}
+.backoffice-nav a.is-active {
+  border-bottom: 1px solid var(--song-seal) !important;
+  background: transparent !important;
+  color: var(--song-text) !important;
+}
+
+.stats-grid,
+.admin-guide-stats {
+  gap: 0 !important;
+  border-top: 1px solid var(--song-rule) !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+}
+.stats-grid article,
+.admin-guide-stats article {
+  min-height: 126px;
+  padding: 24px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--song-rule-soft) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.stats-grid article:last-child,
+.admin-guide-stats article:last-child { border-right: 0 !important; }
+.stats-grid article::after,
+.admin-guide-stats article::after { display: none !important; }
+.stats-grid b,
+.admin-guide-stats b {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3vw, 3.3rem) !important;
+  font-weight: 500 !important;
+}
+.admin-audit,
+.admin-table-wrap,
+.admin-card,
+.workspace-card,
+.my-spaces-page article {
+  border-radius: 2px !important;
+  border-color: var(--song-rule-soft) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   10. Responsive composition
+   -------------------------------------------------------------------------- */
+@media (max-width: 1099px) {
+  main.page,
+  .guide-browser,
+  .admin-layout,
+  .my-spaces-page {
+    width: min(calc(100% - 40px), var(--song-page-max)) !important;
+  }
+  main.page { padding-top: var(--song-space-7) !important; }
+  .survey-hero {
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: var(--song-space-8) !important;
+    padding-block: var(--song-space-9) !important;
+  }
+  .survey-hero .survey-sheet { max-width: 560px; }
+  .survey-passage,
+  .survey-field-head,
+  .survey-keep-head {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: var(--song-space-7) !important;
+  }
+  .survey-field-head h2,
+  .survey-field-lede,
+  .survey-keep-head h2,
+  .survey-keep-lede { grid-column: 1 !important; }
+  .survey-passage,
+  .survey-field,
+  .survey-keep,
+  .survey-log,
+  .survey-colophon,
+  .survey-plate {
+    padding-block: var(--song-space-9) !important;
+  }
+  .explore-page-head,
+  .guide-browser .page-head,
+  .space-detail-heading-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+  .filter-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .space-detail-layout { gap: var(--song-space-8) !important; }
+  .space-detail-side {
+    padding-left: 0;
+    padding-top: var(--song-space-6);
+    border-left: 0;
+    border-top: 1px solid var(--song-rule-soft);
+  }
+}
+
+@media (max-width: 560px) {
+  main.page,
+  .guide-browser,
+  .admin-layout,
+  .my-spaces-page {
+    width: calc(100% - 32px) !important;
+  }
+  main.page { padding-top: 36px !important; }
+  h1,
+  .page-head h1 { font-size: clamp(2.1rem, 11vw, 3.2rem) !important; }
+  .page-head,
+  .explore-page-head,
+  .guide-browser .page-head {
+    margin-bottom: var(--song-space-7) !important;
+    padding-bottom: var(--song-space-5) !important;
+  }
+  .inspace-home-modules { padding-inline: 20px !important; }
+  .survey-hero { padding-block: 72px 88px !important; }
+  .survey-hero h1 {
+    max-width: 9em !important;
+    font-size: clamp(3rem, 15vw, 4.6rem) !important;
+  }
+  .survey-passage,
+  .survey-field,
+  .survey-keep,
+  .survey-log,
+  .survey-colophon,
+  .survey-plate { padding-block: 72px !important; }
+  .survey-field-strip { margin-top: 56px !important; gap: 52px !important; }
+  .survey-field-plate figcaption { font-size: .8rem !important; }
+  .explore-page,
+  .guide-browser { padding-top: 48px !important; }
+  .explore-head-actions,
+  .guide-browser-head-actions,
+  .space-app-action-row { width: 100%; }
+  .explore-head-actions .button,
+  .guide-browser-head-actions .button,
+  .space-app-action-row .button { flex: 1 1 0; }
+  .explore-search-panel,
+  .guide-search-panel { padding-bottom: 32px !important; }
+  .filter-chip-row {
+    display: flex !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px !important;
+  }
+  .space-directory-row,
+  .guide-list > li { padding-block: 22px !important; }
+  .directory-pagination { gap: 4px !important; }
+  .pagination-control { padding-inline: 8px !important; }
+  .space-detail-header h1,
+  .guide-detail-hero h1 { font-size: clamp(2.8rem, 14vw, 4.2rem) !important; }
+  .space-detail-layout { margin-top: 64px !important; }
+  .auth-page { gap: 56px !important; }
+  .auth-affordances { margin-top: 36px !important; }
+  .auth-affordances li { padding-block: 22px !important; }
+  body .auth-form { padding: 28px 20px !important; }
+  .stats-grid,
+  .admin-guide-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .stats-grid article:nth-child(2n),
+  .admin-guide-stats article:nth-child(2n) { border-right: 0 !important; }
+  .stats-grid article:nth-child(-n+2),
+  .admin-guide-stats article:nth-child(-n+2) { border-bottom: 1px solid var(--song-rule-soft) !important; }
+}
+
+/* --------------------------------------------------------------------------
+   11. Motion · scroll painting, not a motion demo
+   -------------------------------------------------------------------------- */
+@keyframes song-unroll {
+  from { opacity: .2; clip-path: inset(0 100% 0 0); transform: translateY(14px); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0); transform: none; }
+}
+@keyframes song-ink-settle {
+  from { opacity: 0; filter: blur(5px); transform: translateY(12px); }
+  to   { opacity: 1; filter: blur(0); transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .survey-hero h1 { animation: song-unroll 920ms cubic-bezier(.16,.84,.24,1) both 80ms !important; }
+  .survey-lede { animation: song-ink-settle 680ms cubic-bezier(.16,.84,.24,1) both 380ms !important; }
+  .survey-actions { animation: song-ink-settle 620ms cubic-bezier(.16,.84,.24,1) both 520ms !important; }
+  .page-head h1,
+  .explore-page-head h1,
+  .space-detail-header h1,
+  .auth-page-head h1 {
+    animation: song-ink-settle 620ms cubic-bezier(.16,.84,.24,1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-hero h1,
+  .survey-lede,
+  .survey-actions,
+  .page-head h1,
+  .explore-page-head h1,
+  .space-detail-header h1,
+  .auth-page-head h1 {
+    animation: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    clip-path: none !important;
+    transform: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   12. Rendered-evidence corrections
+   --------------------------------------------------------------------------
+   These overrides respond to computed styles from song-probe.mjs. The legacy
+   layer used !important on these components, so the first pass looked calm in
+   the stylesheet but still rendered as rounded SaaS boxes in the browser.
+ */
+body .guide-browser .filter-row select {
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 2px !important;
+}
+body .guide-browser .guide-list > li,
+body .space-directory-list .space-directory-row {
+  padding: 26px 0 !important;
+  border-radius: 0 !important;
+}
+body .space-guides-card,
+body .space-discussion-entry,
+body .space-share-panel,
+body .community-links,
+body .related-space-guides {
+  padding: 32px 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body .admin-audit-section,
+body .admin-audit-table-wrap {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body .admin-audit-section {
+  margin-top: var(--song-space-8) !important;
+  border-top: 1px solid var(--song-rule) !important;
+}
+body .admin-audit-head { padding: 24px 0 !important; }
+body .admin-audit-table th { background: var(--song-celadon-100) !important; }
+body .admin-audit-table td { border-top-color: var(--song-rule-soft) !important; }
+
+@media (max-width: 560px) {
+  body .guide-browser .guide-list > li,
+  body .space-directory-list .space-directory-row { padding-block: 24px !important; }
+  body .space-guides-card,
+  body .space-discussion-entry,
+  body .space-share-panel,
+  body .community-links { padding-block: 30px !important; }
+}
+
+/* --------------------------------------------------------------------------
+   13. My Spaces · paginated ledger, never an unbounded card wall
+   -------------------------------------------------------------------------- */
+.my-space-directory { margin-top: var(--song-space-8); }
+.my-space-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--song-space-6);
+  align-items: end;
+  margin-bottom: var(--song-space-6);
+  padding-bottom: var(--song-space-5);
+  border-bottom: 1px solid var(--song-rule);
+}
+.my-space-search {
+  display: grid;
+  gap: 8px;
+  max-width: 560px;
+}
+.my-space-search > span {
+  color: var(--song-text-faint);
+  font-size: .78rem;
+  letter-spacing: .06em;
+}
+body .my-space-search input {
+  min-height: 48px;
+  padding-inline: 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+.my-space-summary {
+  margin: 0 0 10px;
+  color: var(--song-text-faint);
+  font-size: .82rem;
+}
+body .my-space-grid {
+  display: block !important;
+  margin: 0 !important;
+}
+body .my-space-card {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, auto);
+  gap: 18px 42px !important;
+  align-items: center;
+  padding: 28px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--song-rule-soft) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body .my-space-card h2 {
+  margin: 0 0 7px !important;
+  font-size: clamp(1.2rem, 1.8vw, 1.6rem) !important;
+}
+body .my-space-card > div:first-child p,
+body .my-space-expiry,
+body .space-coordinates { color: var(--song-text-faint) !important; }
+body .space-card-meta {
+  justify-content: flex-end;
+  gap: 12px !important;
+}
+body .space-badge {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--song-accent) !important;
+}
+body .my-space-expiry { grid-column: 1; margin: 0 !important; }
+body .my-space-card-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-content: flex-end;
+  align-self: center;
+}
+.my-space-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: var(--song-space-8);
+  padding-top: var(--song-space-5);
+  border-top: 1px solid var(--song-rule-soft);
+}
+.my-space-pagination > span {
+  min-width: 5em;
+  color: var(--song-text-faint);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .my-space-toolbar { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .my-space-summary { margin: 0; }
+  body .my-space-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px !important;
+    padding-block: 26px !important;
+  }
+  body .space-card-meta { justify-content: flex-start; flex-wrap: wrap; }
+  body .my-space-expiry,
+  body .my-space-card-actions { grid-column: 1; grid-row: auto; }
+  body .my-space-card-actions { justify-content: flex-start; }
+  body .my-space-card-actions .button { flex: 1 1 calc(50% - 6px); }
+}
+
+/* Final touch audit: workspace pagination inherited a 40px mobile control
+   height from the legacy layer. Primary navigation remains 44px minimum. */
+body .my-space-pagination .button {
+  min-height: 44px !important;
+}
