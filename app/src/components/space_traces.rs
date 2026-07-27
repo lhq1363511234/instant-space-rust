@@ -48,19 +48,21 @@ pub fn SpaceTraces(space_id: String, space_name: String) -> impl IntoView {
     let traces = Resource::new(
         move || (traces_id.clone(), page.get(), refresh.get()),
         |(space_id, page, _)| async move {
-            list_traces(space_id, page, PAGE_SIZE).await.unwrap_or(TracePage {
-                items: Vec::new(),
-                total: 0,
-                chronicle: SpaceChronicle {
-                    trace_count: 0,
-                    on_site_count: 0,
-                    capsule_count: 0,
-                    capsule_opened_count: 0,
-                    first_trace_at: None,
-                    first_trace_author: None,
-                    latest_trace_at: None,
-                },
-            })
+            list_traces(space_id, page, PAGE_SIZE)
+                .await
+                .unwrap_or(TracePage {
+                    items: Vec::new(),
+                    total: 0,
+                    chronicle: SpaceChronicle {
+                        trace_count: 0,
+                        on_site_count: 0,
+                        capsule_count: 0,
+                        capsule_opened_count: 0,
+                        first_trace_at: None,
+                        first_trace_author: None,
+                        latest_trace_at: None,
+                    },
+                })
         },
     );
 
@@ -360,23 +362,34 @@ fn TraceComposer(
     let error = RwSignal::new(None::<String>);
 
     #[allow(clippy::type_complexity)]
-    let write = Action::new(move |input: &(String, String, String, bool, Option<f64>, Option<f64>, bool, Option<String>)| {
-        let (space_id, body, weather, scanned, lat, lng, discord, code) = input.clone();
-        async move {
-            leave_trace(
-                space_id,
-                body,
-                (!weather.trim().is_empty()).then_some(weather),
-                scanned,
-                lat,
-                lng,
-                discord,
-                code,
-                None,
-            )
-            .await
-        }
-    });
+    let write = Action::new(
+        move |input: &(
+            String,
+            String,
+            String,
+            bool,
+            Option<f64>,
+            Option<f64>,
+            bool,
+            Option<String>,
+        )| {
+            let (space_id, body, weather, scanned, lat, lng, discord, code) = input.clone();
+            async move {
+                leave_trace(
+                    space_id,
+                    body,
+                    (!weather.trim().is_empty()).then_some(weather),
+                    scanned,
+                    lat,
+                    lng,
+                    discord,
+                    code,
+                    None,
+                )
+                .await
+            }
+        },
+    );
 
     Effect::new(move |_| {
         if let Some(result) = write.value().get() {
@@ -390,9 +403,19 @@ fn TraceComposer(
                 Err(err) => {
                     let message = err.to_string();
                     error.set(Some(if message.contains("login required") {
-                        t(locale.get_untracked(), "先登录再留下记录。", "Sign in before writing.").to_string()
+                        t(
+                            locale.get_untracked(),
+                            "先登录再留下记录。",
+                            "Sign in before writing.",
+                        )
+                        .to_string()
                     } else if message.contains("too long") {
-                        t(locale.get_untracked(), "写得有点长了，精简一下。", "That is a little long — trim it.").to_string()
+                        t(
+                            locale.get_untracked(),
+                            "写得有点长了，精简一下。",
+                            "That is a little long — trim it.",
+                        )
+                        .to_string()
                     } else {
                         message
                     }));
@@ -625,11 +648,7 @@ fn CapsuleShelf(
 }
 
 #[component]
-fn CapsuleComposer(
-    space_id: String,
-    space_name: String,
-    on_sealed: Callback<()>,
-) -> impl IntoView {
+fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>) -> impl IntoView {
     let locale = use_i18n().locale;
     let recipient = RwSignal::new(String::new());
     let body = RwSignal::new(String::new());
@@ -669,9 +688,19 @@ fn CapsuleComposer(
                 Err(err) => {
                     let message = err.to_string();
                     error.set(Some(if message.contains("login required") {
-                        t(locale.get_untracked(), "先登录才能埋胶囊。", "Sign in to bury a capsule.").to_string()
+                        t(
+                            locale.get_untracked(),
+                            "先登录才能埋胶囊。",
+                            "Sign in to bury a capsule.",
+                        )
+                        .to_string()
                     } else if message.contains("passphrase too short") {
-                        t(locale.get_untracked(), "口令太短了。", "That passphrase is too short.").to_string()
+                        t(
+                            locale.get_untracked(),
+                            "口令太短了。",
+                            "That passphrase is too short.",
+                        )
+                        .to_string()
                     } else {
                         message
                     }));
@@ -800,10 +829,19 @@ fn CapsuleCard(
     let attempting = RwSignal::new(false);
     let outcome = RwSignal::new(None::<CapsuleOpenResult>);
 
-    let open = Action::new(move |input: &(String, String, Option<f64>, Option<f64>, bool, Option<String>)| {
-        let (capsule_id, passphrase, lat, lng, scanned, code) = input.clone();
-        async move { open_capsule(capsule_id, passphrase, lat, lng, scanned, code).await }
-    });
+    let open = Action::new(
+        move |input: &(
+            String,
+            String,
+            Option<f64>,
+            Option<f64>,
+            bool,
+            Option<String>,
+        )| {
+            let (capsule_id, passphrase, lat, lng, scanned, code) = input.clone();
+            async move { open_capsule(capsule_id, passphrase, lat, lng, scanned, code).await }
+        },
+    );
 
     // Deliberately does not refresh the shelf. Reloading the list would rebuild
     // this card and throw away the letter the reader just earned; a stale count

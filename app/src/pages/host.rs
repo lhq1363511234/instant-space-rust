@@ -483,22 +483,54 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
 
     Effect::new(move |_| {
         if let Some(result) = update.value().get() {
-            handle_space_result(result, t(locale.get(), "空间信息已保存", "Space updated"), message, error, status);
+            handle_space_result(
+                result,
+                t(locale.get(), "空间信息已保存", "Space updated"),
+                message,
+                error,
+                status,
+            );
         }
     });
     Effect::new(move |_| {
         if let Some(result) = close.value().get() {
-            handle_space_result(result, t(locale.get(), "空间已关闭，访客暂时无法进入", "Space closed — visitors can no longer enter"), message, error, status);
+            handle_space_result(
+                result,
+                t(
+                    locale.get(),
+                    "空间已关闭，访客暂时无法进入",
+                    "Space closed — visitors can no longer enter",
+                ),
+                message,
+                error,
+                status,
+            );
         }
     });
     Effect::new(move |_| {
         if let Some(result) = reactivate.value().get() {
-            handle_space_result(result, t(locale.get(), "空间已重新开放", "Space reactivated"), message, error, status);
+            handle_space_result(
+                result,
+                t(locale.get(), "空间已重新开放", "Space reactivated"),
+                message,
+                error,
+                status,
+            );
         }
     });
     Effect::new(move |_| {
         if let Some(result) = archive.value().get() {
-            handle_space_result(result, t(locale.get(), "已存为模板，可用于快速创建同类空间", "Archived as a template for creating similar Spaces"), message, error, status);
+            handle_space_result(
+                result,
+                t(
+                    locale.get(),
+                    "已存为模板，可用于快速创建同类空间",
+                    "Archived as a template for creating similar Spaces",
+                ),
+                message,
+                error,
+                status,
+            );
         }
     });
     Effect::new(move |_| {
@@ -506,7 +538,9 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
             match result {
                 Ok(_) => {
                     error.set(None);
-                    message.set(Some(t(locale.get(), "空间已删除", "Space deleted").to_string()));
+                    message.set(Some(
+                        t(locale.get(), "空间已删除", "Space deleted").to_string(),
+                    ));
                     confirm_delete.set(false);
                     refresh_spaces();
                 }
@@ -523,7 +557,14 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
                 Ok(()) => {
                     rotated_password.set(None);
                     error.set(None);
-                    message.set(Some(t(locale.get(), "驻留申请已提交，等待管理员审核", "Residency request submitted for admin review").to_string()));
+                    message.set(Some(
+                        t(
+                            locale.get(),
+                            "驻留申请已提交，等待管理员审核",
+                            "Residency request submitted for admin review",
+                        )
+                        .to_string(),
+                    ));
                 }
                 Err(err) => {
                     message.set(None);
@@ -536,7 +577,14 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
         if let Some(result) = rotate_password.value().get() {
             match result {
                 Ok(result) => {
-                    message.set(Some(t(locale.get(), "新密码已生成，请立即抄录", "New password generated — copy it now").to_string()));
+                    message.set(Some(
+                        t(
+                            locale.get(),
+                            "新密码已生成，请立即抄录",
+                            "New password generated — copy it now",
+                        )
+                        .to_string(),
+                    ));
                     error.set(None);
                     rotated_password.set(Some(result));
                 }

@@ -13,10 +13,7 @@ pub fn AdminRoutes() -> impl IntoView {
         |_| async move { current_session().await.ok().flatten() },
     );
     let stats = Resource::new(|| (), |_| async move { get_admin_stats().await.ok() });
-    let audit = Resource::new(
-        || (),
-        |_| async move { list_audit_log().await.unwrap_or_default() },
-    );
+    let audit = Resource::new(|| (), |_| async move { list_audit_log().await });
 
     view! {
         <main id="main-content" class="page admin-layout">
@@ -65,11 +62,20 @@ pub fn AdminRoutes() -> impl IntoView {
                                     </header>
                                     <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载日志", "Loading log")}</p> }>
                                     {move || Suspend::new(async move {
-                                        let entries = audit.await;
-                                        if entries.is_empty() {
-                                            view! { <p class="muted">{move || t(locale.get(), "暂无操作记录。", "No audit entries yet.")}</p> }.into_any()
-                                        } else {
-                                            view! {
+                                        match audit.await {
+                                            Err(err) => view! {
+                                                <p class="form-error" role="alert">
+                                                    {move || format!(
+                                                        "{}：{}",
+                                                        t(locale.get(), "操作日志加载失败", "Failed to load audit log"),
+                                                        err,
+                                                    )}
+                                                </p>
+                                            }.into_any(),
+                                            Ok(entries) if entries.is_empty() => view! {
+                                                <p class="muted">{move || t(locale.get(), "暂无操作记录。", "No audit entries yet.")}</p>
+                                            }.into_any(),
+                                            Ok(entries) => view! {
                                                 <div class="admin-audit-table-wrap">
                                                     <table class="admin-table admin-audit-table">
                                                     <thead>
@@ -98,7 +104,7 @@ pub fn AdminRoutes() -> impl IntoView {
                                                     </tbody>
                                                     </table>
                                                 </div>
-                                            }.into_any()
+                                            }.into_any(),
                                         }
                                     })}
                                     </Suspense>

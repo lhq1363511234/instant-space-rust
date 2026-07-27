@@ -10,6 +10,8 @@ Rust-specific architecture and roadmap: [`docs/ARCHITECTURE_RUST.md`](docs/ARCHI
 
 Phase plan: [`docs/PHASES.md`](docs/PHASES.md).
 
+Maintenance module map and current Phase gap audit: [`docs/SITE_MODULE_ARCHITECTURE.md`](docs/SITE_MODULE_ARCHITECTURE.md).
+
 ## Commands
 
 ```powershell
@@ -62,3 +64,9 @@ SSR verification added on 2026-07-04:
 - `DATABASE_URL=postgres://postgres:postgres@localhost:5432/instant_space_rust cargo test -p instant-space-app`
 - `npm run test:wasm`
 - `npm run test:browser`
+
+## License / 许可证
+
+本项目采用 [`PolyForm Noncommercial License 1.0.0`](LICENSE)。允许个人学习、研究、测试及其他许可证定义的非商业用途；**未经许可方事先书面授权，禁止任何商业使用、商业部署、收费集成、销售或商业分发。** 商业授权请联系本仓库所有者。具体权利和限制以 [`LICENSE`](LICENSE) 正文为准。
+
+This project is licensed under the [`PolyForm Noncommercial License 1.0.0`](LICENSE). Commercial use requires prior written authorization from the licensor. See [`LICENSE`](LICENSE) for the controlling terms.

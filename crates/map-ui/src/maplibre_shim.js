@@ -594,8 +594,34 @@ function applyProjection(map, projectionKey) {
 
 export function mountMap(elementId, styleKey, projectionKey) {
   const element = document.getElementById(elementId);
-  if (!element || !globalThis.maplibregl) {
+  if (!element) {
     globalThis.requestAnimationFrame?.(() => mountMap(elementId, styleKey, projectionKey));
+    return;
+  }
+  if (!globalThis.maplibregl) {
+    if (element.dataset.mapLoadRequested !== "true") {
+      element.dataset.mapLoadRequested = "true";
+      const loader = globalThis.__instantLoadMapLibre;
+      if (typeof loader === "function") {
+        loader()
+          .then(() => {
+            delete element.dataset.mapLoadRequested;
+            mountMap(elementId, styleKey, projectionKey);
+          })
+          .catch((error) => {
+            delete element.dataset.mapLoadRequested;
+            element.dataset.mapError = "true";
+            const label = element.querySelector(".map-loading span:last-child");
+            if (label) label.textContent = "地图加载失败，请重试";
+            console.error("[inspace] unable to load map runtime", error);
+          });
+      } else {
+        globalThis.setTimeout?.(() => {
+          delete element.dataset.mapLoadRequested;
+          mountMap(elementId, styleKey, projectionKey);
+        }, 120);
+      }
+    }
     return;
   }
 

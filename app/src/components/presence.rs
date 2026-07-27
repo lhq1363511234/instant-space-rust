@@ -106,8 +106,8 @@ pub fn request_location(state: PresenceState) {
     {
         use wasm_bindgen::{closure::Closure, JsCast};
 
-        let Some(geolocation) = web_sys::window()
-            .and_then(|window| window.navigator().geolocation().ok())
+        let Some(geolocation) =
+            web_sys::window().and_then(|window| window.navigator().geolocation().ok())
         else {
             state.status.set(PresenceStatus::Unavailable);
             return;

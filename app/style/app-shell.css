@@ -466,3 +466,77 @@ body:has(.shell-sidebar.is-collapsed) .shell-topbar { left: var(--shell-sidebar-
   .shell-nav-link,
   .shell-utility-link { transition-duration: .01ms !important; }
 }
+
+/* Map-only controls belong to the navigation layer, never over the map. */
+.shell-map-tools {
+  display: grid;
+  gap: 10px;
+  margin: 12px 4px 2px;
+  padding: 14px 6px;
+  border-top: 1px solid var(--is-border);
+  border-bottom: 1px solid var(--is-border);
+}
+.shell-map-tools-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding-inline: 5px;
+}
+.shell-map-tools-head > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--is-text-muted);
+}
+.shell-map-tools-head > span { display: grid; min-width: 0; }
+.shell-map-tools-head b { color: var(--is-text); font-size: .82rem; }
+.shell-map-tools-head small { margin-top: 2px; color: var(--is-text-muted); font-size: .68rem; }
+.shell-map-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--is-border);
+  border-radius: 9px;
+  background: var(--is-surface-muted);
+}
+.shell-map-choice button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--is-text-secondary);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.shell-map-choice button:hover { color: var(--is-text); background: rgb(255 255 255 / .7); }
+.shell-map-choice button.is-active {
+  background: var(--is-surface);
+  color: var(--is-text);
+  box-shadow: 0 1px 2px rgb(16 24 40 / .08);
+}
+.shell-map-choice button:focus-visible {
+  outline: 2px solid var(--is-focus);
+  outline-offset: 1px;
+}
+.shell-sidebar.is-collapsed .shell-map-tools { display: none; }
+
+@media (max-width: 1099px) {
+  .shell-sidebar.is-collapsed .shell-map-tools { display: grid; }
+  .shell-map-choice button { min-height: 44px; }
+}
+
+@media (max-width: 1099px) {
+  .shell-menu-button { width: 44px; min-height: 44px; flex-basis: 44px; }
+  .shell-language-row .language-button { min-height: 44px !important; }
+}

@@ -926,3 +926,67 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 部署版本：WASM `instant_space_app_v73`；宋式 CSS 缓存 `20260727-song-v3`。当前二进制
 仍输出 song-v2，由 nginx 临时 sub_filter 到 v3；下次正常构建 `app.rs` 已直接写 v3，
 可移除这条临时替换。
+
+## 2026-07-27 — iPad 横屏 / 中间断点修复（song-v5）
+
+- 用户实机截图暴露 1100–1366 CSS px 区间：桌面侧栏已展开，但首页仍使用宽屏双栏和基于全视口的字号/间距，`.survey-field-head h2` 被压成一字一行；旧 QA 只检查首个 `h1`，因此漏报。
+- `app/style/song-system.css` 新增 1100–1399px 内容驱动断点：首页 hero、passage、field、keep 在侧栏后的有效画布内重组为单栏；标题、登录页及共享页面标题改用适合有效画布的字号/间距。
+- 移除旧版 `.survey-field-head` / `.survey-keep-head` 的 34–36em 宽度瓶颈；1440px 以上恢复安全双栏，标题轨最小 320px。
+- 样式缓存版本升级到 `20260727-song-v5`；线上 nginx 已将旧 v2/v3/v4 HTML 引用替换到 v5，无需 Rust release 构建即可生效；`app/src/app.rs` 同步 v5 供下次构建。
+- 新增 `tests/browser/tablet-breakpoint-audit.mjs`，检查 1024、1100、1140、1180、1194、1240、1280、1320、1366、1440 下首页/探索/攻略/空间/登录/工作台/后台的所有 h1/h2、网格和横向溢出。
+- QA：上述全部宽度和路由无 5 行以上异常标题、无横向溢出；`song-final-qa.mjs` 全通过；地图 66 个瓦片请求成功、0 失败；聊天 WebSocket `connected`；`cargo check -p instant-space-app` 通过。
+
+## 2026-07-27 — 首页中文文字编排修正（song-v7）
+
+- 实机反馈确认根因不只是断点，而是首页把中文完整句子当海报字处理：超大字号、窄标题栏、标题与解释分居远距离双栏，造成竖排感和语义断句失控。
+- `.survey-passage`、`.survey-field-head`、`.survey-keep-head` 改为真正的编辑阅读单元：眉题 → 1–2 行主标题 → 紧随说明；桌面下方内容再展开，手机重组为单列。
+- 中文展示标题使用受控字号 `clamp(2.85rem, 3.45vw, 3.75rem)`、约 14em 行长、`word-break: keep-all`；不再用 4.5vw/4.8rem 超大字承担布局。
+- `survey-passage` 的三个回答改为标题说明下方三栏，手机单列；标题不再塞进窄左栏。
+- 线上缓存升级 `20260727-song-v7`。1024–1440 中间宽度审计、桌面/iPad/手机全站 QA、reduced-motion、无障碍标签与横向溢出检查全部通过；Impeccable detector 无未解释告警。
+
+## 2026-07-27 — 地图 SPA 懒加载修复、控件迁移与首页编辑器升级（v74）
+
+- 地图持续显示“正在加载”的根因不是瓦片服务：`app/src/map_boot.js` 只在首次页面启动时判断地图路由；从首页经 SPA 导航进入 `/inspace/map` 后新出现的 `#map` 未触发 MapLibre 加载。现通过 `hasMapSurface(root)` 识别后续挂载的正式地图，并由 `crates/map-ui/src/maplibre_shim.js` 主动请求 loader；失败时结束无限 RAF 重试并展示可恢复错误状态。
+- 地图右上角整组“返回页面探索 / 道路 / 深色 / 3D 地球”已从地图画面移除。道路/深色与 2D/3D 改到全局左侧导航的地图专属工具组；手机端位于导航抽屉，选择后自动关闭，不再遮挡地图探索。状态由 `AppState.map_style` / `map_projection` 共享。
+- 首页编辑器从长表单升级为页面编辑器：顶部 sticky 命令栏（草稿/线上、预览、保存、发布）+ 左侧页面结构 + 中间折叠属性区 + 右侧实时预览；支持桌面/手机与中英文预览，预览覆盖 Hero、用户旅程、攻略价值和主理人 CTA；手机端重组为单列。
+- 部署版本：WASM/loader `instant_space_app_v74`，生产二进制 `/usr/local/bin/instant-space-app` 已替换并重启 `instant-space-rust`。
+- 地图真实浏览器验证：桌面与 390px 手机均已挂载 MapLibre、style loaded、loading 隐藏、无地图悬浮模式控件、左侧/抽屉工具可用、无横向溢出；一次健康检查 67 个瓦片请求成功、0 失败、11 个聚合点。
+- 首页编辑器真实浏览器验证：桌面/iPad/手机均显示 6 个编辑区块，无横向溢出、无 console error；手机触控目标均不小于 44px。
+- `tests/browser/song-final-qa.mjs` 最终全通过：桌面、iPad、手机、小屏手机及 reduced-motion 均 PASS。
+
+## 2026-07-27 — 管理控制台首页页面编辑器 v3/v4
+
+用户指出上一版仍只是“目录 + 长表单 + 小预览”，不是真正的页面编辑器。本轮按成熟视觉编辑器的任务结构重构 `/inspace/admin/home`：
+
+- 工作区改为真正三栏：左侧页面结构树、中间主画布、右侧上下文属性检查器；画布成为视觉中心，不再让长表单主导页面。
+- 结构树支持四个首页区块的选择、显示/隐藏和上移/下移；顺序直接写回已有 `order` 字段，无需改变数据库契约。
+- 点击画布区块会打开对应属性面板；属性面板只显示当前区块内容，中文/英文用语言切换编辑，避免同时铺开两套字段。
+- 画布支持桌面、平板、手机三种宽度和中英文实时预览；使用容器查询单位控制画布标题，不再错误地按浏览器视口放大。
+- 顶部命令栏新增未保存状态、撤销修改、保存草稿、发布和查看线上；保存/发布继续沿用现有版本化后端。
+- 页面设置独立为主题与版式、导航与 SEO、发布历史；SEO 面板提供搜索结果摘要预览。
+- 手机端将结构树重组为横向可扫的区块轨道，画布和属性检查器依次向下排列；所有实际可见控件通过触控尺寸检查。
+- 视觉仍遵循宋式空间系统：月白纸面、墨色、青瓷、克制朱砂，不使用卡片套卡片或装饰性渐变。
+
+部署与验证：
+- WASM/loader 升级为 `instant_space_app_v75`；生产二进制已部署并重启。
+- `backoffice.css` 缓存版本为 `20260727-editor-v4`；当前生产二进制输出 v3，由 nginx 临时替换为 v4，源代码已直接写 v4 供下次构建。
+- 管理员真实浏览器 QA：1440×900、1024×768、390×844 均显示 4 个结构区块、实时画布和属性检查器；零横向溢出、零未标记表单控件、零 console/network 错误、无过小控件。
+- 交互验证：选择区块、设备切换、隐藏/恢复区块、编辑后脏状态、撤销恢复全部通过；未在 QA 中触发真实发布，避免产生无意义线上版本。
+- 全站 `song-final-qa.mjs` 在桌面、iPad 横竖屏、手机、小屏手机及 reduced-motion 下最终 ALL PASS。
+- `tests/build/wasm-build.mjs` 原先硬编码 v64，已改为从 `scripts/build-wasm.mjs` 自动读取 OUTPUT_NAME，避免后续版本号升级导致假失败。
+
+## 2026-07-27 — 首页标题显式换行与审计表迁移漂移修复（v76）
+
+- 首页编辑器“主标题”继续使用多行 textarea，并增加“按 Enter 控制换行”的明确提示；编辑器画布 `.canvas-hero h2` 与公共首页 `.survey-hero h1` 均使用 `white-space: pre-line`，保存的 `\n` 不再被 CSS 折叠。
+- 管理后台审计资源移除 `list_audit_log().await.unwrap_or_default()`：真实空数据仍显示“暂无操作记录”，数据库或 schema 错误改为 `role=alert` 的明确错误，不再伪装为空。
+- 新增幂等修复迁移 `20260727000200_repair_admin_audit_log.sql`，恢复生产 `admin_audit_log` 表和三个索引；生产验证表存在、记录数为 0、新旧两条迁移均 `success=true`。
+- 首次部署揭示 SQLx 新增迁移文件未触发 `instant-db` 重编译；新增 `crates/db/build.rs` 的 `cargo:rerun-if-changed=migrations`，保证以后新增 SQL 会进入嵌入式 migrator。
+- 迁移执行又揭示应用数据库角色缺少旧 `users` 表的 `REFERENCES` 权限；已只授予该最小权限，外键创建成功，服务恢复 active，`/health` 与 `/ready` 均通过。
+- 部署版本：WASM/loader `instant_space_app_v76`，`backoffice.css?v=20260727-editor-v5`，`song-system.css?v=20260727-song-v9`。
+- 真实浏览器专项验证：1440×900、1024×768、390×844 下，公共标题与编辑器预览均为 `white-space: pre-line`，输入两行后预览保留换行，无横向溢出、无裁切、无 console error。全站 `tests/browser/song-final-qa.mjs` 桌面、iPad 横竖屏、手机、小屏手机和 reduced-motion 全部通过。
+
+## 2026-07-27 — 非商业许可证
+
+- 仓库新增 `LICENSE`，采用 PolyForm Noncommercial License 1.0.0。
+- 必要声明：Copyright 2026 InSpaceOS；未经许可方事先书面授权，禁止商业使用。
+- Workspace 及所有 Rust package 均声明 `PolyForm-Noncommercial-1.0.0`，并在 README 中加入中英文许可证说明。

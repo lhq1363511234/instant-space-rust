@@ -48,7 +48,11 @@ pub struct CapsuleChallenge {
     pub space_lng: f64,
 }
 
-fn row_to_trace(row: sqlx::postgres::PgRow, viewer: Option<Uuid>, is_admin: bool) -> Result<Trace, sqlx::Error> {
+fn row_to_trace(
+    row: sqlx::postgres::PgRow,
+    viewer: Option<Uuid>,
+    is_admin: bool,
+) -> Result<Trace, sqlx::Error> {
     let author_id: Option<Uuid> = row.try_get("author_id")?;
     let proof: String = row.try_get("proof")?;
     Ok(Trace {

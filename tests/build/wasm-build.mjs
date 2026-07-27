@@ -5,8 +5,11 @@ import assert from "node:assert/strict";
 
 const root = process.cwd();
 const pkgDir = join(root, "target", "site", "pkg");
-const jsPath = join(pkgDir, "instant_space_app_v64.js");
-const wasmPath = join(pkgDir, "instant_space_app_v64_bg.wasm");
+const buildScript = readFileSync(join(root, "scripts", "build-wasm.mjs"), "utf8");
+const outputName = buildScript.match(/const OUTPUT_NAME = "([^"]+)"/)?.[1];
+assert.ok(outputName, "WASM output name should be declared by the build script");
+const jsPath = join(pkgDir, `${outputName}.js`);
+const wasmPath = join(pkgDir, `${outputName}_bg.wasm`);
 
 rmSync(pkgDir, { recursive: true, force: true });
 
@@ -23,6 +26,6 @@ assert.ok(existsSync(jsPath), "WASM JS loader should be generated");
 assert.ok(existsSync(wasmPath), "WASM binary should be generated");
 
 const loader = readFileSync(jsPath, "utf8");
-assert.match(loader, /instant_space_app_v64_bg\.wasm/);
+assert.match(loader, new RegExp(`${outputName}_bg\\.wasm`));
 assert.match(loader, /export function hydrate/);
 assert.match(loader, /as default/);

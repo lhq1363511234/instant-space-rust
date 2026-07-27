@@ -94,9 +94,9 @@ async fn judge_presence(
                 .await
                 .map_err(|err| ServerFnError::new(err.to_string()))?
             {
-                Some((space_lat, space_lng)) => Some(
-                    instant_domain::traces::distance_metres(lat, lng, space_lat, space_lng),
-                ),
+                Some((space_lat, space_lng)) => Some(instant_domain::traces::distance_metres(
+                    lat, lng, space_lat, space_lng,
+                )),
                 None => None,
             }
         }
@@ -232,8 +232,7 @@ pub async fn leave_trace(
             discord_member,
             onsite_code,
         };
-        let (proof, distance) =
-            judge_presence(&pool, id, &claim, TRACE_ON_SITE_RADIUS_M).await?;
+        let (proof, distance) = judge_presence(&pool, id, &claim, TRACE_ON_SITE_RADIUS_M).await?;
 
         let author_name = user
             .name
@@ -393,7 +392,14 @@ pub async fn seal_capsule(
 
     #[cfg(not(feature = "ssr"))]
     {
-        let _ = (space_id, recipient_hint, body, passphrase, radius_m, opens_at);
+        let _ = (
+            space_id,
+            recipient_hint,
+            body,
+            passphrase,
+            radius_m,
+            opens_at,
+        );
         Err(ServerFnError::new("server only"))
     }
 }
@@ -453,14 +459,14 @@ pub async fn open_capsule(
 
         if !code_ok {
             let distance = match (lat, lng) {
-                (Some(lat), Some(lng)) if lat.is_finite() && lng.is_finite() => Some(
-                    instant_domain::traces::distance_metres(
+                (Some(lat), Some(lng)) if lat.is_finite() && lng.is_finite() => {
+                    Some(instant_domain::traces::distance_metres(
                         lat,
                         lng,
                         challenge.space_lat,
                         challenge.space_lng,
-                    ),
-                ),
+                    ))
+                }
                 _ => None,
             };
 

@@ -11,7 +11,7 @@ members = [
 
 [workspace.package]
 edition = "2021"
-license = "UNLICENSED"
+license = "PolyForm-Noncommercial-1.0.0"
 publish = false
 
 [workspace.dependencies]

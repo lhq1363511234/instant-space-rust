@@ -1,4 +1,5 @@
 use instant_domain::auth::CurrentUser;
+use instant_map_ui::{MapProjection, MapStyle};
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 
@@ -94,6 +95,10 @@ pub fn Header() -> impl IntoView {
                     on_navigate=Callback::new(move |_| drawer_open.set(false))
                 />
             </nav>
+
+            <Show when=move || shell_nav_active(&pathname.get(), "map")>
+                <MapSidebarTools refresh=refresh drawer_open=drawer_open />
+            </Show>
 
             <div class="shell-create-zone">
                 <button
@@ -246,6 +251,68 @@ fn ShellNavLink(
 }
 
 #[component]
+fn MapSidebarTools(
+    refresh: crate::app_state::AppRefreshState,
+    drawer_open: RwSignal<bool>,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <section class="shell-map-tools" aria-label=move || t(locale.get(), "地图模式", "Map mode")>
+            <div class="shell-map-tools-head">
+                <ShellIcon name="layers" />
+                <span><b>{move || t(locale.get(), "地图模式", "Map mode")}</b><small>{move || t(locale.get(), "显示方式", "Presentation")}</small></span>
+            </div>
+            <div class="shell-map-choice" role="group" aria-label=move || t(locale.get(), "地图样式", "Map style")>
+                <button
+                    type="button"
+                    class=move || map_choice_class(refresh.map_style.get() == MapStyle::Road)
+                    aria-pressed=move || aria_pressed(refresh.map_style.get() == MapStyle::Road)
+                    on:click=move |_| {
+                        refresh.map_style.set(MapStyle::Road);
+                        instant_map_ui::set_style("map", MapStyle::Road);
+                        drawer_open.set(false);
+                    }
+                >{move || t(locale.get(), "道路", "Road")}</button>
+                <button
+                    type="button"
+                    class=move || map_choice_class(refresh.map_style.get() == MapStyle::Dark)
+                    aria-pressed=move || aria_pressed(refresh.map_style.get() == MapStyle::Dark)
+                    on:click=move |_| {
+                        refresh.map_style.set(MapStyle::Dark);
+                        instant_map_ui::set_style("map", MapStyle::Dark);
+                        drawer_open.set(false);
+                    }
+                >{move || t(locale.get(), "深色", "Dark")}</button>
+            </div>
+            <div class="shell-map-choice map-projection-switcher" role="group" aria-label=move || t(locale.get(), "地图维度", "Map projection")>
+                <button
+                    type="button"
+                    class=move || map_choice_class(refresh.map_projection.get() == MapProjection::Flat2d)
+                    aria-label="Switch to 2D map"
+                    aria-pressed=move || aria_pressed(refresh.map_projection.get() == MapProjection::Flat2d)
+                    on:click=move |_| {
+                        refresh.map_projection.set(MapProjection::Flat2d);
+                        instant_map_ui::set_projection("map", MapProjection::Flat2d);
+                        drawer_open.set(false);
+                    }
+                >"2D"</button>
+                <button
+                    type="button"
+                    class=move || map_choice_class(refresh.map_projection.get() == MapProjection::Globe3d)
+                    aria-label="Switch to 3D globe"
+                    aria-pressed=move || aria_pressed(refresh.map_projection.get() == MapProjection::Globe3d)
+                    on:click=move |_| {
+                        refresh.map_projection.set(MapProjection::Globe3d);
+                        instant_map_ui::set_projection("map", MapProjection::Globe3d);
+                        drawer_open.set(false);
+                    }
+                >"3D"</button>
+            </div>
+        </section>
+    }
+}
+
+#[component]
 fn SidebarAccount(
     user: CurrentUser,
     pathname: String,
@@ -349,6 +416,7 @@ fn ShellIcon(name: &'static str) -> impl IntoView {
         "search" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg> }.into_any(),
         "menu" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg> }.into_any(),
         "panel" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M14 9l-3 3 3 3"/></svg> }.into_any(),
+        "layers" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4-8 4-8-4zM4 12l8 4 8-4M4 17l8 4 8-4"/></svg> }.into_any(),
         "logout" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg> }.into_any(),
         _ => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg> }.into_any(),
     }
@@ -441,6 +509,14 @@ fn language_button_class(is_active: bool) -> &'static str {
         "language-button is-active"
     } else {
         "language-button"
+    }
+}
+
+fn map_choice_class(is_active: bool) -> &'static str {
+    if is_active {
+        "is-active"
+    } else {
+        ""
     }
 }
 

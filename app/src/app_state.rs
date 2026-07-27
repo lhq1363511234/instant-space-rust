@@ -1,3 +1,4 @@
+use instant_map_ui::{MapProjection, MapStyle};
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -8,6 +9,9 @@ pub struct AppRefreshState {
     pub explorer_open: RwSignal<bool>,
     /// Product intro / "首页" hero card. Independent from explorer.
     pub hero_open: RwSignal<bool>,
+    /// Map presentation controls live in the shared left navigation.
+    pub map_style: RwSignal<MapStyle>,
+    pub map_projection: RwSignal<MapProjection>,
     /// Destination-guided map/data scope.
     pub dest_country: RwSignal<String>,
     pub dest_province: RwSignal<String>,
@@ -23,6 +27,8 @@ pub fn provide_app_refresh_state() -> AppRefreshState {
         // First visit: show product first screen (hero). Explorer stays closed.
         explorer_open: RwSignal::new(false),
         hero_open: RwSignal::new(true),
+        map_style: RwSignal::new(MapStyle::Road),
+        map_projection: RwSignal::new(MapProjection::Flat2d),
         dest_country: RwSignal::new(String::new()),
         dest_province: RwSignal::new(String::new()),
         dest_city: RwSignal::new(String::new()),

@@ -99,11 +99,11 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v17" />
         <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v17" />
         <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v17" />
-        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260729-craft-v17" />
+        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260727-mapnav-v2" />
         <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v17" />
-        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260729-craft-v17" />
+        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260727-editor-v5" />
         <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260729-craft-v17" />
-        <Stylesheet id="song-css" href="/style/song-system.css?v=20260727-song-v3" />
+        <Stylesheet id="song-css" href="/style/song-system.css?v=20260727-song-v9" />
         <Router>
             <Header />
             <div class="app-main">

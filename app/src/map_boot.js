@@ -9,6 +9,13 @@
     return MAP_PATHS.indexOf(window.location.pathname) >= 0;
   }
 
+  function hasMapSurface(root) {
+    if (!root) return false;
+    if (root.nodeType === 1 && root.id === 'map') return true;
+    if (typeof root.querySelector === 'function' && root.querySelector('#map')) return true;
+    return false;
+  }
+
   function hasMapPicker(root) {
     if (!root) return false;
     if (root.nodeType === 1 && PICKER_IDS.indexOf(root.id) >= 0) return true;
@@ -68,12 +75,12 @@
   window.__instantLoadMapLibre = requestMapLibre;
 
   function start() {
-    if (isMapRoute() || hasMapPicker(document)) requestMapLibre();
+    if (isMapRoute() || hasMapSurface(document) || hasMapPicker(document)) requestMapLibre();
 
     var observer = new MutationObserver(function (mutations) {
       for (var i = 0; i < mutations.length; i += 1) {
         for (var j = 0; j < mutations[i].addedNodes.length; j += 1) {
-          if (hasMapPicker(mutations[i].addedNodes[j])) {
+          if (hasMapSurface(mutations[i].addedNodes[j]) || hasMapPicker(mutations[i].addedNodes[j])) {
             requestMapLibre();
             return;
           }
