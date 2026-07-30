@@ -1,5 +1,6 @@
 use instant_domain::traces::{
-    CapsuleOpenResult, CapsuleSummary, PresenceProof, SpaceChronicle, Trace, TRACE_MAX_CHARS,
+    CapsuleOpenResult, CapsuleSealResult, CapsuleSummary, PresenceProof, SpaceChronicle, Trace,
+    TRACE_MAX_CHARS,
 };
 use leptos::prelude::*;
 
@@ -264,7 +265,7 @@ fn PresenceBar(presence: PresenceState, space_id: String) -> impl IntoView {
                     }
                 }}
             </div>
-            <Show when=move || !presence.is_confirmed()>
+            <Show when=move || presence.code_state.get() != CodeState::Accepted>
                 <form
                     class=move || if presence.code_state.get() == CodeState::Rejected {
                         "presence-code is-rejected"
@@ -328,13 +329,13 @@ fn PresenceBar(presence: PresenceState, space_id: String) -> impl IntoView {
             </Show>
 
             <div class="presence-actions">
-                <Show when=move || !presence.is_confirmed() && presence.status.get() != PresenceStatus::Located>
+                <Show when=move || presence.status.get() != PresenceStatus::Located>
                     <button
                         type="button"
                         class="button button-secondary-light"
                         on:click=move |_| request_location(presence)
                     >
-                        {move || t(locale.get(), "或者用定位", "Or use my location")}
+                        {move || t(locale.get(), "验证当前位置", "Verify current location")}
                     </button>
                 </Show>
                 <label class="presence-discord">
@@ -612,6 +613,7 @@ fn CapsuleShelf(
                 <CapsuleComposer
                     space_id=space_id.clone()
                     space_name=space_name.clone()
+                    presence=presence
                     on_sealed=Callback::new(move |_| {
                         composing.set(false);
                         on_changed.run(());
@@ -648,7 +650,12 @@ fn CapsuleShelf(
 }
 
 #[component]
-fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>) -> impl IntoView {
+fn CapsuleComposer(
+    space_id: String,
+    space_name: String,
+    presence: PresenceState,
+    on_sealed: Callback<()>,
+) -> impl IntoView {
     let locale = use_i18n().locale;
     let recipient = RwSignal::new(String::new());
     let body = RwSignal::new(String::new());
@@ -658,8 +665,19 @@ fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>
     let error = RwSignal::new(None::<String>);
 
     let seal = Action::new(
-        move |input: &(String, String, String, String, i32, String)| {
-            let (space_id, recipient, body, passphrase, radius, opens_at) = input.clone();
+        move |input: &(
+            String,
+            String,
+            String,
+            String,
+            i32,
+            String,
+            Option<f64>,
+            Option<f64>,
+            Option<String>,
+        )| {
+            let (space_id, recipient, body, passphrase, radius, opens_at, lat, lng, onsite_code) =
+                input.clone();
             async move {
                 seal_capsule(
                     space_id,
@@ -668,6 +686,9 @@ fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>
                     passphrase,
                     radius,
                     (!opens_at.trim().is_empty()).then_some(opens_at),
+                    lat,
+                    lng,
+                    onsite_code,
                 )
                 .await
             }
@@ -677,7 +698,7 @@ fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>
     Effect::new(move |_| {
         if let Some(result) = seal.value().get() {
             match result {
-                Ok(_) => {
+                Ok(CapsuleSealResult::Sealed { .. }) => {
                     recipient.set(String::new());
                     body.set(String::new());
                     passphrase.set(String::new());
@@ -685,6 +706,37 @@ fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>
                     error.set(None);
                     on_sealed.run(());
                 }
+                Ok(CapsuleSealResult::OnsiteCodeRequired) => error.set(Some(
+                    t(
+                        locale.get_untracked(),
+                        "先输入并验证写在现场 Wi-Fi 名称里的口令。",
+                        "First verify the code shown in the on-site Wi-Fi name.",
+                    )
+                    .to_string(),
+                )),
+                Ok(CapsuleSealResult::LocationRequired) => error.set(Some(
+                    t(
+                        locale.get_untracked(),
+                        "还需要允许定位，确认你确实站在这个地点附近。",
+                        "Location is also required to confirm you are near this place.",
+                    )
+                    .to_string(),
+                )),
+                Ok(CapsuleSealResult::TooFar { distance_m, radius_m }) => {
+                    error.set(Some(if locale.get_untracked() == Locale::Zh {
+                        format!("你距离这里约 {distance_m:.0} 米，需要走到 {radius_m} 米以内才能埋下胶囊。")
+                    } else {
+                        format!("You are about {distance_m:.0} m away. Get within {radius_m} m to bury the capsule.")
+                    }));
+                }
+                Ok(CapsuleSealResult::SpaceLocationUnavailable) => error.set(Some(
+                    t(
+                        locale.get_untracked(),
+                        "这个空间还没有可验证的位置，请联系主理人修正坐标。",
+                        "This Space has no verifiable location yet. Ask its host to correct the coordinates.",
+                    )
+                    .to_string(),
+                )),
                 Err(err) => {
                     let message = err.to_string();
                     error.set(Some(if message.contains("login required") {
@@ -721,9 +773,54 @@ fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>
                     passphrase.get().trim().to_string(),
                     radius.get(),
                     opens_at.get(),
+                    presence.lat.get(),
+                    presence.lng.get(),
+                    presence.code_claim(),
                 ));
             }
         >
+            <section class="capsule-bury-gate" aria-labelledby="capsule-bury-gate-title">
+                <div>
+                    <p class="survey-kicker" id="capsule-bury-gate-title">
+                        {move || t(locale.get(), "先证明你正在这里", "First prove you are here")}
+                    </p>
+                    <p>
+                        {move || t(
+                            locale.get(),
+                            "埋胶囊会成为这个地点的一段历史，因此必须同时通过现场 Wi-Fi 口令和本地定位。",
+                            "Burying a capsule becomes part of this place's history, so both the on-site Wi-Fi code and a local location fix are required.",
+                        )}
+                    </p>
+                </div>
+                <ul>
+                    <li class=move || if presence.code_state.get() == CodeState::Accepted { "is-ready" } else { "" }>
+                        <strong>{move || t(locale.get(), "Wi-Fi 现场口令", "On-site Wi-Fi code")}</strong>
+                        <span>{move || if presence.code_state.get() == CodeState::Accepted {
+                            t(locale.get(), "已验证", "Verified")
+                        } else {
+                            t(locale.get(), "请在上方输入并验证", "Verify it above")
+                        }}</span>
+                    </li>
+                    <li class=move || if presence.has_fix() { "is-ready" } else { "" }>
+                        <strong>{move || t(locale.get(), "本地定位", "Local location")}</strong>
+                        <span>{move || if presence.has_fix() {
+                            t(locale.get(), "已取得位置", "Location received")
+                        } else {
+                            t(locale.get(), "尚未取得位置", "Location not received")
+                        }}</span>
+                    </li>
+                </ul>
+                <Show when=move || !presence.has_fix()>
+                    <button type="button" class="button button-secondary-light" on:click=move |_| request_location(presence)>
+                        {move || if presence.status.get() == PresenceStatus::Locating {
+                            t(locale.get(), "正在定位…", "Locating…")
+                        } else {
+                            t(locale.get(), "验证当前位置", "Verify current location")
+                        }}
+                    </button>
+                </Show>
+            </section>
+
             <label class="field-label">
                 <span>{move || t(locale.get(), "这封信是给谁的", "Who is this for")}</span>
                 <input
@@ -795,6 +892,8 @@ fn CapsuleComposer(space_id: String, space_name: String, on_sealed: Callback<()>
                     recipient.get().trim().is_empty()
                         || body.get().trim().is_empty()
                         || passphrase.get().trim().chars().count() < 2
+                        || presence.code_state.get() != CodeState::Accepted
+                        || !presence.has_fix()
                         || seal.pending().get()
                 }
             >

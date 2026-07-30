@@ -8,8 +8,8 @@ use crate::server::auth::current_session;
 use crate::server::guides::{delete_guide, list_manageable_space_guides};
 use crate::server::spaces::{
     apply_my_space_resident, archive_my_space_template, close_my_space, delete_my_space,
-    list_my_spaces, reactivate_my_space, regenerate_space_password, update_my_space,
-    PasswordRotationResult, SpaceMarker,
+    get_space_detail, list_my_spaces, reactivate_my_space, regenerate_space_password,
+    update_my_space, PasswordRotationResult, SpaceMarker,
 };
 use instant_domain::guides::GuideStatus;
 
@@ -377,6 +377,31 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
     let lat = RwSignal::new(format!("{:.6}", space.lat));
     let lng = RwSignal::new(format!("{:.6}", space.lng));
     let is_public = RwSignal::new(space.is_public);
+    // These four are host-editable content that renders on the Space detail
+    // cards (简介 / 主理人). We prefill them from the full detail once it loads.
+    let custom_type = RwSignal::new(String::new());
+    let description_zh = RwSignal::new(String::new());
+    let description_en = RwSignal::new(String::new());
+    let tag_zh = RwSignal::new(String::new());
+    let tag_en = RwSignal::new(String::new());
+    let host_bio_zh = RwSignal::new(String::new());
+    let host_bio_en = RwSignal::new(String::new());
+    let detail_space_id = space.id.clone();
+    let detail = Resource::new(
+        move || detail_space_id.clone(),
+        |space_id| async move { get_space_detail(space_id).await.ok().flatten() },
+    );
+    Effect::new(move |_| {
+        if let Some(Some(d)) = detail.get() {
+            custom_type.set(d.custom_type.unwrap_or_default());
+            description_zh.set(d.description_zh.unwrap_or_default());
+            description_en.set(d.description_en.unwrap_or_default());
+            tag_zh.set(d.tag_zh.unwrap_or_default());
+            tag_en.set(d.tag_en.unwrap_or_default());
+            host_bio_zh.set(d.host_bio_zh.unwrap_or_default());
+            host_bio_en.set(d.host_bio_en.unwrap_or_default());
+        }
+    });
     let message = RwSignal::new(None::<String>);
     let error = RwSignal::new(None::<String>);
     let rotated_password = RwSignal::new(None::<PasswordRotationResult>);
@@ -419,6 +444,13 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
         let lat_value = lat.get().parse::<f64>().unwrap_or(f64::NAN);
         let lng_value = lng.get().parse::<f64>().unwrap_or(f64::NAN);
         let is_public = is_public.get();
+        let custom_type = custom_type.get();
+        let description_zh = description_zh.get();
+        let description_en = description_en.get();
+        let tag_zh = tag_zh.get();
+        let tag_en = tag_en.get();
+        let host_bio_zh = host_bio_zh.get();
+        let host_bio_en = host_bio_en.get();
         async move {
             update_my_space(
                 space_id,
@@ -433,6 +465,13 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
                 lat_value,
                 lng_value,
                 is_public,
+                (!custom_type.trim().is_empty()).then_some(custom_type),
+                (!description_zh.trim().is_empty()).then_some(description_zh),
+                (!description_en.trim().is_empty()).then_some(description_en),
+                (!tag_zh.trim().is_empty()).then_some(tag_zh),
+                (!tag_en.trim().is_empty()).then_some(tag_en),
+                (!host_bio_zh.trim().is_empty()).then_some(host_bio_zh),
+                (!host_bio_en.trim().is_empty()).then_some(host_bio_en),
             )
             .await
         }
@@ -687,6 +726,40 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
                     <label class="field-label">
                         <span>{move || t(locale.get(), "经度", "Longitude")}</span>
                         <input id="space-lng" aria-label="Manage longitude" prop:value=move || lng.get() on:input=move |ev| lng.set(event_target_value(&ev)) required=true />
+                    </label>
+                </div>
+                <div class="my-space-content-fields">
+                    <p class="survey-kicker">{move || t(locale.get(), "空间详情内容", "Space detail content")}</p>
+                    <p class="my-space-content-hint">{move || t(locale.get(), "这些内容会显示在空间详情页的「简介」和「主理人」卡片上。", "This content appears on the About and Host cards of the Space detail page.")}</p>
+                    <div class="form-grid">
+                        <label class="field-label">
+                            <span>{move || t(locale.get(), "自定义类型（可选）", "Custom type (optional)")}</span>
+                            <input aria-label="Manage custom type" placeholder=move || t(locale.get(), "例如：书店 / 露营地 / 展览", "e.g. bookshop / campsite / exhibition") prop:value=move || custom_type.get() on:input=move |ev| custom_type.set(event_target_value(&ev)) />
+                        </label>
+                        <label class="field-label">
+                            <span>{move || t(locale.get(), "标签（中文）", "Tag (Chinese)")}</span>
+                            <input aria-label="Manage Chinese tag" placeholder=move || t(locale.get(), "一个短标签，例如：宋代园林", "A short tag, e.g. Song-era garden") prop:value=move || tag_zh.get() on:input=move |ev| tag_zh.set(event_target_value(&ev)) />
+                        </label>
+                        <label class="field-label">
+                            <span>{move || t(locale.get(), "标签（英文）", "Tag (English)")}</span>
+                            <input aria-label="Manage English tag" prop:value=move || tag_en.get() on:input=move |ev| tag_en.set(event_target_value(&ev)) />
+                        </label>
+                    </div>
+                    <label class="field-label field-label-wide">
+                        <span>{move || t(locale.get(), "简介（中文）", "About (Chinese)")}</span>
+                        <textarea aria-label="Manage Chinese description" rows="4" placeholder=move || t(locale.get(), "这是什么地方、为什么建这个空间。", "What this place is, and why this Space exists.") prop:value=move || description_zh.get() on:input=move |ev| description_zh.set(event_target_value(&ev))></textarea>
+                    </label>
+                    <label class="field-label field-label-wide">
+                        <span>{move || t(locale.get(), "简介（英文，可选）", "About (English, optional)")}</span>
+                        <textarea aria-label="Manage English description" rows="4" prop:value=move || description_en.get() on:input=move |ev| description_en.set(event_target_value(&ev))></textarea>
+                    </label>
+                    <label class="field-label field-label-wide">
+                        <span>{move || t(locale.get(), "主理人寄语（中文）", "Host note (Chinese)")}</span>
+                        <textarea aria-label="Manage Chinese host bio" rows="3" placeholder=move || t(locale.get(), "你和这个地点的关系，想对到访者说的话。", "Your relationship to this place, and a word to visitors.") prop:value=move || host_bio_zh.get() on:input=move |ev| host_bio_zh.set(event_target_value(&ev))></textarea>
+                    </label>
+                    <label class="field-label field-label-wide">
+                        <span>{move || t(locale.get(), "主理人寄语（英文，可选）", "Host note (English, optional)")}</span>
+                        <textarea aria-label="Manage English host bio" rows="3" prop:value=move || host_bio_en.get() on:input=move |ev| host_bio_en.set(event_target_value(&ev))></textarea>
                     </label>
                 </div>
                 <div class="space-picker-panel manage-picker-panel">

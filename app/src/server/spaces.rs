@@ -1,4 +1,7 @@
-use instant_domain::spaces::{SpaceStatus, SpaceSummary, SpaceType};
+use instant_domain::{
+    spaces::{SpaceStatus, SpaceSummary, SpaceType},
+    traces::{FeaturedStory, PresenceProof},
+};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -7,9 +10,10 @@ use instant_auth::{generate_password_code, hash_password};
 #[cfg(feature = "ssr")]
 use instant_db::spaces::{
     apply_resident, archive_template, create_host_space, get_space_summary, list_admin_spaces_page,
-    list_all_spaces_admin, list_home_spaces, list_home_spaces_page, list_host_spaces,
-    list_manageable_spaces, rotate_space_password, set_space_status, space_host_user_id,
-    update_host_space, CreateSpaceInput, SpaceFilter, UpdateSpaceInput,
+    list_all_spaces_admin, list_featured_home_spaces, list_home_spaces, list_home_spaces_page,
+    list_host_spaces, list_manageable_spaces, rotate_space_password, set_home_weight,
+    set_space_status, space_host_user_id, update_host_space, CreateSpaceInput, SpaceFilter,
+    UpdateSpaceInput,
 };
 
 #[cfg(feature = "ssr")]
@@ -33,6 +37,7 @@ pub struct SpaceMarker {
     pub status: String,
     pub expires_at: Option<String>,
     pub online_count: i32,
+    pub home_weight: i32,
     pub generated_password: Option<String>,
     pub hotspot_name: Option<String>,
 }
@@ -64,9 +69,65 @@ pub fn to_marker(space: SpaceSummary) -> SpaceMarker {
         status: space_status_key(&space.status).to_string(),
         expires_at: space.expires_at.map(|value| value.to_string()),
         online_count: space.online_count,
+        home_weight: space.home_weight,
         generated_password: None,
         hotspot_name: None,
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HomeStoryView {
+    pub id: String,
+    pub space_id: String,
+    pub space_name_zh: String,
+    pub city: Option<String>,
+    pub body: String,
+    pub author_name: String,
+    pub proof: PresenceProof,
+    pub created_at: String,
+}
+
+fn to_home_story(story: FeaturedStory) -> HomeStoryView {
+    HomeStoryView {
+        id: story.id.to_string(),
+        space_id: story.space_id.to_string(),
+        space_name_zh: story.space_name_zh,
+        city: story.city,
+        body: story.body,
+        author_name: story.author_name,
+        proof: story.proof,
+        created_at: story.created_at.date().to_string(),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpaceDetailView {
+    pub summary: SpaceMarker,
+    pub description_zh: Option<String>,
+    pub description_en: Option<String>,
+    pub tag_zh: Option<String>,
+    pub tag_en: Option<String>,
+    pub custom_type: Option<String>,
+    pub host_name: Option<String>,
+    pub host_bio_zh: Option<String>,
+    pub host_bio_en: Option<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HostClaimState {
+    /// Not logged in — the UI should prompt sign-in before applying.
+    Anonymous,
+    /// Logged in, no claim yet — show the apply button.
+    None,
+    /// A claim is awaiting admin review.
+    Pending,
+    /// The claim was approved; this user is (or is becoming) the host.
+    Approved,
+    /// The claim was rejected.
+    Rejected,
+    /// The Space already has a host, so no claim was recorded.
+    AlreadyHosted,
 }
 
 #[server(ListSpaces, "/inspace/api")]
@@ -144,6 +205,24 @@ pub async fn list_space_page(
         page_size,
         total_pages,
     })
+}
+
+#[server(ListHomeFeaturedSpaces, "/inspace/api")]
+pub async fn list_home_featured_spaces(limit: i32) -> Result<Vec<SpaceMarker>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    let rows = list_featured_home_spaces(&pool, i64::from(limit.clamp(1, 12)))
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+    Ok(rows.into_iter().map(to_marker).collect())
+}
+
+#[server(ListHomeFeaturedStories, "/inspace/api")]
+pub async fn list_home_featured_stories(limit: i32) -> Result<Vec<HomeStoryView>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    let rows = instant_db::traces::list_featured_stories(&pool, i64::from(limit.clamp(1, 8)))
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+    Ok(rows.into_iter().map(to_home_story).collect())
 }
 
 #[server(ListMySpaces, "/inspace/api")]
@@ -282,6 +361,40 @@ pub async fn get_space_for_guide(space_id: String) -> Result<Option<SpaceMarker>
     }
 }
 
+#[server(GetSpaceDetail, "/inspace/api")]
+pub async fn get_space_detail(space_id: String) -> Result<Option<SpaceDetailView>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let space_uuid = parse_space_id(&space_id)?;
+        let pool = crate::server::db_pool().await?;
+        let Some(detail) = instant_db::spaces::get_space_detail(&pool, space_uuid)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(SpaceDetailView {
+            summary: to_marker(detail.summary),
+            description_zh: detail.description_zh,
+            description_en: detail.description_en,
+            tag_zh: detail.tag_zh,
+            tag_en: detail.tag_en,
+            custom_type: detail.custom_type,
+            host_name: detail.host_name,
+            host_bio_zh: detail.host_bio_zh,
+            host_bio_en: detail.host_bio_en,
+            created_at: detail.created_at,
+        }))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = space_id;
+        Err(ServerFnError::new("server only"))
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[server(CreateSpace, "/inspace/api")]
 pub async fn create_space(
@@ -389,6 +502,7 @@ pub async fn create_space(
             status: "active".to_string(),
             expires_at: None,
             online_count: 0,
+            home_weight: 0,
             generated_password: Some(password),
             hotspot_name: Some(hotspot),
         })
@@ -415,6 +529,13 @@ pub async fn update_my_space(
     lat: f64,
     lng: f64,
     is_public: bool,
+    custom_type: Option<String>,
+    description_zh: Option<String>,
+    description_en: Option<String>,
+    tag_zh: Option<String>,
+    tag_en: Option<String>,
+    host_bio_zh: Option<String>,
+    host_bio_en: Option<String>,
 ) -> Result<SpaceMarker, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
@@ -445,6 +566,13 @@ pub async fn update_my_space(
                 lat,
                 lng,
                 is_public,
+                custom_type: clean_optional(custom_type),
+                description_zh: clean_optional(description_zh),
+                description_en: clean_optional(description_en),
+                tag_zh: clean_optional(tag_zh),
+                tag_en: clean_optional(tag_en),
+                host_bio_zh: clean_optional(host_bio_zh),
+                host_bio_en: clean_optional(host_bio_en),
             },
         )
         .await
@@ -494,6 +622,31 @@ pub async fn archive_my_space_template(space_id: String) -> Result<SpaceMarker, 
 
     #[cfg(not(feature = "ssr"))]
     {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(SetAdminHomeWeight, "/inspace/api")]
+pub async fn set_admin_home_weight(
+    space_id: String,
+    home_weight: i32,
+) -> Result<SpaceMarker, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        if !(0..=1000).contains(&home_weight) {
+            return Err(ServerFnError::new("home weight must be between 0 and 1000"));
+        }
+        let pool = crate::server::db_pool().await?;
+        let updated = set_home_weight(&pool, parse_space_id(&space_id)?, home_weight)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        Ok(to_marker(updated))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (space_id, home_weight);
         Err(ServerFnError::new("server only"))
     }
 }
@@ -576,6 +729,67 @@ async fn set_my_space_status(
     }
 }
 
+#[server(ApplyHostClaim, "/inspace/api")]
+pub async fn apply_host_claim(
+    space_id: String,
+    message: Option<String>,
+) -> Result<HostClaimState, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let space_uuid = parse_space_id(&space_id)?;
+        let Some(user) = crate::server::auth::current_session().await? else {
+            return Err(ServerFnError::new("login required"));
+        };
+        let pool = crate::server::db_pool().await?;
+        let accepted = instant_db::spaces::apply_host_claim(
+            &pool,
+            space_uuid,
+            user.id,
+            clean_optional(message),
+        )
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+
+        if !accepted {
+            return Ok(HostClaimState::AlreadyHosted);
+        }
+        Ok(HostClaimState::Pending)
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (space_id, message);
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(MyHostClaim, "/inspace/api")]
+pub async fn my_host_claim(space_id: String) -> Result<HostClaimState, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let space_uuid = parse_space_id(&space_id)?;
+        let Some(user) = crate::server::auth::current_session().await? else {
+            return Ok(HostClaimState::Anonymous);
+        };
+        let pool = crate::server::db_pool().await?;
+        let status = instant_db::spaces::host_claim_status(&pool, space_uuid, user.id)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        Ok(match status.as_deref() {
+            Some("pending") => HostClaimState::Pending,
+            Some("approved") => HostClaimState::Approved,
+            Some("rejected") => HostClaimState::Rejected,
+            _ => HostClaimState::None,
+        })
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = space_id;
+        Err(ServerFnError::new("server only"))
+    }
+}
+
 #[cfg(feature = "ssr")]
 fn clean_optional(value: Option<String>) -> Option<String> {
     value.and_then(|value| {
@@ -653,6 +867,7 @@ mod tests {
             status: SpaceStatus::Active,
             expires_at: None,
             online_count: 0,
+            home_weight: 0,
         };
 
         let marker = to_marker(summary);

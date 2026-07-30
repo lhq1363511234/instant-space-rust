@@ -77,7 +77,8 @@ pub async fn check_space_access(space_id: String) -> Result<ChatAccessState, Ser
 
         Ok(ChatAccessState {
             space_id: meta.id,
-            space_name: meta.name_en.unwrap_or(meta.name_zh),
+            space_name: meta.name_zh,
+            space_name_en: meta.name_en,
             is_public: meta.is_public,
             allowed: meta.is_public || access_version.is_some(),
             password_version: access_version,

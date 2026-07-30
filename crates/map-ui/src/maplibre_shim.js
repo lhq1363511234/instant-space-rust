@@ -162,24 +162,24 @@ async function reverseGeocodePickedPoint(store, lng, lat) {
   }
 
   try {
-    const local = await reverseGeocodeFromServer(lng, lat);
-    if (local && picker.geocodeSequence === sequence) {
-      applyReverseLocation(local);
+    // The site language decides which names we fill in: a Chinese page fills
+    // Chinese place names, an English page fills English ones. This follows the
+    // page's own language toggle, not the browser locale.
+    const zh = siteLanguageIsChinese();
+
+    // Primary: an online reverse geocoder that actually carries localized
+    // names. Our geo_places table only stores GeoNames pinyin, so it can never
+    // return "南昌市"; we only fall back to it when the network lookup fails.
+    const online = await reverseGeocodeOnline(lng, lat, zh, () => picker.geocodeSequence === sequence);
+    if (online && picker.geocodeSequence === sequence) {
+      applyReverseLocation(online);
       return;
     }
 
-    const language = globalThis.navigator?.language?.toLowerCase().startsWith("zh") ? "zh" : "en";
-    const url = new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
-    url.searchParams.set("latitude", String(lat));
-    url.searchParams.set("longitude", String(lng));
-    url.searchParams.set("localityLanguage", language);
-    const response = await fetch(url);
-    if (!response.ok || picker.geocodeSequence !== sequence) {
-      return;
+    const local = await reverseGeocodeFromServer(lng, lat);
+    if (local && picker.geocodeSequence === sequence) {
+      applyReverseLocation(local);
     }
-    const data = await response.json();
-    const location = normalizeReverseGeocode(data);
-    applyReverseLocation(location);
   } catch {
     // Reverse geocoding is a best-effort enhancement; manual fields remain editable.
   } finally {
@@ -187,6 +187,51 @@ async function reverseGeocodePickedPoint(store, lng, lat) {
       delete element.dataset.geocoding;
     }
   }
+}
+
+function siteLanguageIsChinese() {
+  const lang = (
+    (typeof document !== "undefined" && document.documentElement && document.documentElement.lang) ||
+    globalThis.navigator?.language ||
+    ""
+  ).toLowerCase();
+  return lang.startsWith("zh");
+}
+
+async function reverseGeocodeOnline(lng, lat, zh, stillCurrent) {
+  // Fetch locality names in the page language. "zh-Hans" forces Simplified
+  // Chinese — plain "zh" hands back Traditional characters for Taiwan, Hong
+  // Kong and Macao (臺北市 / 信義區), which we do not want. The country is
+  // always resolved in English so it matches the canonical values used for
+  // grouping and search (the database stores country as "China", never
+  // "中华人民共和国").
+  const localized = await fetchBigDataCloud(lng, lat, zh ? "zh-Hans" : "en");
+  if (!localized || (stillCurrent && !stillCurrent())) {
+    return null;
+  }
+  const location = normalizeReverseGeocode(localized);
+  if (zh) {
+    const english = await fetchBigDataCloud(lng, lat, "en");
+    if (english?.countryName && (!stillCurrent || stillCurrent())) {
+      location.country = english.countryName;
+      // The English country name must not undo the China-territory fix above:
+      // for Taiwan/Hong Kong/Macao we keep country = "China".
+      normalizeChinaTerritory(location, localized);
+    }
+  }
+  return location;
+}
+
+async function fetchBigDataCloud(lng, lat, language) {
+  const url = new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lng));
+  url.searchParams.set("localityLanguage", language);
+  const response = await fetch(url);
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
 }
 
 async function reverseGeocodeFromServer(lng, lat) {
@@ -229,13 +274,34 @@ function normalizeReverseGeocode(data) {
       ? data.locality
       : administrative.find((item) => item.adminLevel === 8 || item.adminLevel === 10)?.name || "";
 
-  return {
+  const result = {
     country: data?.countryName || "",
     province,
     city,
     district,
     spot_name: data?.locality || data?.city || "",
   };
+
+  // Taiwan, Hong Kong and Macao are part of China. Some geocoders label them as
+  // their own "country" (and even return "中华民国"); normalize every one of
+  // them to China with the correct province/SAR name.
+  return normalizeChinaTerritory(result, data);
+}
+
+function normalizeChinaTerritory(location, data) {
+  const code = String(data?.countryCode || "").toUpperCase();
+  const zh = siteLanguageIsChinese();
+  if (code === "TW") {
+    location.country = "China";
+    location.province = zh ? "台湾省" : "Taiwan";
+  } else if (code === "HK") {
+    location.country = "China";
+    location.province = zh ? "香港特别行政区" : "Hong Kong";
+  } else if (code === "MO") {
+    location.country = "China";
+    location.province = zh ? "澳门特别行政区" : "Macao";
+  }
+  return location;
 }
 
 function makePickerMarker() {

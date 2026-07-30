@@ -1,5 +1,7 @@
 #![recursion_limit = "512"]
 
+#[cfg(feature = "ssr")]
+pub mod agent_api;
 pub mod app;
 pub mod app_state;
 pub mod components;

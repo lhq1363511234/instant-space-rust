@@ -1,5 +1,5 @@
 use instant_domain::traces::{
-    CapsuleSummary, PresenceProof, SpaceChronicle, Trace, CAPSULE_MAX_ATTEMPTS,
+    CapsuleSummary, FeaturedStory, PresenceProof, SpaceChronicle, Trace, CAPSULE_MAX_ATTEMPTS,
 };
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
@@ -105,6 +105,49 @@ pub async fn list_traces(
         .map(|row| row_to_trace(row, viewer, is_admin))
         .collect::<Result<Vec<_>, _>>()?;
     Ok((traces, total))
+}
+
+/// Return only real traces that are long enough to be understood out of
+/// context. The parent Space's home weight is the operator's explicit editorial
+/// choice; verified on-site traces and recency are only tie breakers.
+pub async fn list_featured_stories(
+    pool: &PgPool,
+    limit: i64,
+) -> Result<Vec<FeaturedStory>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT t.id, t.space_id, s.name_zh AS space_name_zh, s.city, t.body,
+               t.author_name, t.proof::text AS proof, t.created_at
+        FROM space_traces t
+        JOIN spaces s ON s.id = t.space_id
+        WHERE NOT t.hidden
+          AND s.status IN ('active', 'expired')
+          AND char_length(btrim(t.body)) >= 12
+          AND t.body !~* 'forgery[[:space:]]+probe'
+        ORDER BY s.home_weight DESC,
+                 (CASE WHEN t.proof <> 'remote' THEN 1 ELSE 0 END) DESC,
+                 t.created_at DESC, t.id DESC
+        LIMIT $1
+        "#,
+    )
+    .bind(limit.clamp(1, 8))
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(|row| {
+            Ok(FeaturedStory {
+                id: row.try_get("id")?,
+                space_id: row.try_get("space_id")?,
+                space_name_zh: row.try_get("space_name_zh")?,
+                city: row.try_get("city")?,
+                body: row.try_get("body")?,
+                author_name: row.try_get("author_name")?,
+                proof: PresenceProof::from_db(&row.try_get::<String, _>("proof")?),
+                created_at: row.try_get("created_at")?,
+            })
+        })
+        .collect()
 }
 
 pub async fn create_trace(pool: &PgPool, input: NewTrace) -> Result<Trace, sqlx::Error> {

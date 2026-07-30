@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod agent_api;
 pub mod chat;
 pub mod geo;
 pub mod guides;

@@ -2,7 +2,8 @@ use leptos::prelude::*;
 
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::guides::{
-    list_cities, list_districts, list_guide_page, list_provinces, list_spots, GuidePageResult,
+    list_cities, list_districts, list_guide_countries, list_guide_page, list_provinces, list_spots,
+    GuidePageResult,
 };
 
 const PAGE_SIZE: i32 = 24;
@@ -14,6 +15,11 @@ pub fn GuideBrowser() -> impl IntoView {
     let selected_city = RwSignal::new(None::<String>);
     let selected_district = RwSignal::new(None::<String>);
     let selected_spot = RwSignal::new(None::<String>);
+    let selected_country = RwSignal::new(None::<String>);
+    let countries = Resource::new(
+        || (),
+        |_| async move { list_guide_countries().await.unwrap_or_default() },
+    );
     let provinces = Resource::new(
         || (),
         |_| async move { list_provinces().await.unwrap_or_default() },
@@ -62,6 +68,7 @@ pub fn GuideBrowser() -> impl IntoView {
     // Any filter change resets to page 1, otherwise a deep page number would
     // survive into a much shorter result set.
     Effect::new(move |previous: Option<()>| {
+        selected_country.track();
         selected_province.track();
         selected_city.track();
         selected_district.track();
@@ -76,6 +83,7 @@ pub fn GuideBrowser() -> impl IntoView {
         move || {
             (
                 applied_query.get(),
+                selected_country.get(),
                 selected_province.get(),
                 selected_city.get(),
                 selected_district.get(),
@@ -83,44 +91,47 @@ pub fn GuideBrowser() -> impl IntoView {
                 page.get(),
             )
         },
-        |(query, province, city, district, spot, page)| async move {
+        |(query, country, province, city, district, spot, page)| async move {
             let query = (!query.trim().is_empty()).then_some(query);
-            list_guide_page(query, province, city, district, spot, page, PAGE_SIZE)
-                .await
-                .unwrap_or(GuidePageResult {
-                    items: Vec::new(),
-                    total: 0,
-                    page: 1,
-                    page_size: PAGE_SIZE,
-                    total_pages: 1,
-                })
+            list_guide_page(
+                query, country, province, city, district, spot, page, PAGE_SIZE,
+            )
+            .await
+            .unwrap_or(GuidePageResult {
+                items: Vec::new(),
+                total: 0,
+                page: 1,
+                page_size: PAGE_SIZE,
+                total_pages: 1,
+            })
         },
     );
 
     view! {
         <section class="guide-browser">
-            <div class="page-head">
-                <div>
-                    <p class="survey-kicker">{move || t(locale.get(), "全部记录", "All records")}</p>
-                    <h1>{move || t(locale.get(), "按目的地浏览攻略", "Browse guides by destination")}</h1>
-                    <p>{move || t(locale.get(), "按省市、区域和地点筛选，找到路线、美食和避坑提示。", "Filter by region and place to find routes, food, and practical warnings.")}</p>
+            <div class="page-head directory-hero guide-directory-hero">
+                <div class="directory-hero-copy">
+                    <p class="survey-kicker">{move || t(locale.get(), "地点阅读索引", "Place reading index")}</p>
+                    <h1>{move || t(locale.get(), "先选一个地方，再读那里留下的攻略。", "Choose a place, then read what people left there.")}</h1>
+                    <p>{move || t(locale.get(), "路线、营业时间、避坑提示和现场经验，都应该跟着真实地点保存，而不是散落在没有上下文的信息流里。", "Routes, opening hours, warnings, and first-hand knowledge should stay attached to the real place, not disappear into a contextless feed.")}</p>
                 </div>
-                <div class="guide-browser-head-actions">
+                <div class="guide-browser-head-actions directory-hero-actions">
                     <a class="button button-primary" href="/inspace/my-spaces">
-                        {move || t(locale.get(), "去我的空间写攻略", "Write from My Spaces")}
+                        {move || t(locale.get(), "从我的空间开始写", "Write from My Spaces")}
                     </a>
-                    <a class="button button-secondary-light" href="/inspace/guides/new">
-                        {move || t(locale.get(), "写独立攻略", "Write standalone")}
+                    <a class="guide-standalone-link" href="/inspace/guides/new">
+                        {move || t(locale.get(), "直接写一篇", "Write directly")}
                     </a>
                 </div>
             </div>
-            <p class="guide-browser-note">
-                {move || t(
+            <aside class="guide-writing-rule" aria-label=move || t(locale.get(), "攻略写作说明", "Guide writing guidance")>
+                <strong>{move || t(locale.get(), "让攻略留在地点里", "Keep guides with the place")}</strong>
+                <p>{move || t(
                     locale.get(),
-                    "攻略最好写在空间里：进入一个空间点「写攻略」，地点信息会自动带入，写完的攻略会挂在那个真实地点下。",
-                    "Guides work best inside a Space: open a Space, click Write guide, and the place details are carried over so the guide stays attached to that real location.",
-                )}
-            </p>
+                    "进入你管理的空间再点「写攻略」，地点会自动带入，读者也能从攻略回到空间，看见简介、故事和现场讨论。",
+                    "Open a Space you manage and choose Write guide. The place is attached automatically, and readers can return to its profile, stories, and on-site discussion.",
+                )}</p>
+            </aside>
             <form
                 class="guide-search-panel"
                 role="search"
@@ -130,12 +141,12 @@ pub fn GuideBrowser() -> impl IntoView {
                 }
             >
                 <label class="guide-search-field">
-                    <span>{move || t(locale.get(), "搜索攻略标题或地点", "Search guide titles or places")}</span>
+                    <span>{move || t(locale.get(), "搜索地点或攻略标题", "Search places or guide titles")}</span>
                     <div class="guide-search-row">
                         <input
                             type="search"
                             prop:value=move || query_input.get()
-                            placeholder=move || t(locale.get(), "例如：京都、卢浮宫、外滩", "e.g. Kyoto, Louvre, the Bund")
+                            placeholder=move || t(locale.get(), "例如：南昌、滕王阁、外滩夜行", "e.g. Nanchang, Tengwang Pavilion, the Bund at night")
                             on:input=move |ev| query_input.set(event_target_value(&ev))
                         />
                         <button class="button button-primary" type="submit">
@@ -144,8 +155,60 @@ pub fn GuideBrowser() -> impl IntoView {
                     </div>
                 </label>
             </form>
-            <div class="filter-row">
+            <div class="guide-filter-stack">
+                <div class="guide-filter-heading">
+                    <div>
+                        <strong>{move || t(locale.get(), "沿着地点层级寻找", "Follow the place hierarchy")}</strong>
+                        <span>{move || t(locale.get(), "省份、城市、区域、具体地点", "Province, city, district, and exact place")}</span>
+                    </div>
+                    <button
+                        class="guide-clear-button"
+                        type="button"
+                        on:click=move |_| {
+                            query_input.set(String::new());
+                            applied_query.set(String::new());
+                            selected_country.set(None);
+                            selected_province.set(None);
+                            selected_city.set(None);
+                            selected_district.set(None);
+                            selected_spot.set(None);
+                            page.set(1);
+                        }
+                    >
+                        {move || t(locale.get(), "清除全部", "Clear all")}
+                    </button>
+                </div>
+                <div class="filter-row">
                 <select
+                    prop:value=move || selected_country.get().unwrap_or_default()
+                    aria-label="Country"
+                    on:change=move |ev| {
+                        let value = event_target_value(&ev);
+                        selected_country.set(if value.is_empty() { None } else { Some(value) });
+                        selected_province.set(None);
+                        selected_city.set(None);
+                        selected_district.set(None);
+                        selected_spot.set(None);
+                    }
+                >
+                    <option value="">{move || t(locale.get(), "国家 / 地区", "Country / Region")}</option>
+                    <Suspense fallback=move || view! { <option>{move || t(locale.get(), "加载中", "Loading")}</option> }>
+                        {move || Suspend::new(async move {
+                            let items = countries.await;
+                            view! {
+                                <For
+                                    each=move || items.clone()
+                                    key=|item| item.clone()
+                                    children=move |item| view! {
+                                        <option value=item.clone()>{item.clone()}</option>
+                                    }
+                                />
+                            }
+                        })}
+                    </Suspense>
+                </select>
+                <select
+                    prop:value=move || selected_province.get().unwrap_or_default()
                     aria-label="Province"
                     on:change=move |ev| {
                         let value = event_target_value(&ev);
@@ -172,6 +235,7 @@ pub fn GuideBrowser() -> impl IntoView {
                     </Suspense>
                 </select>
                 <select
+                    prop:value=move || selected_city.get().unwrap_or_default()
                     aria-label="City"
                     on:change=move |ev| {
                         let value = event_target_value(&ev);
@@ -197,6 +261,7 @@ pub fn GuideBrowser() -> impl IntoView {
                     </Suspense>
                 </select>
                 <select
+                    prop:value=move || selected_district.get().unwrap_or_default()
                     aria-label="District"
                     on:change=move |ev| {
                         let value = event_target_value(&ev);
@@ -221,6 +286,7 @@ pub fn GuideBrowser() -> impl IntoView {
                     </Suspense>
                 </select>
                 <select
+                    prop:value=move || selected_spot.get().unwrap_or_default()
                     aria-label="Spot"
                     on:change=move |ev| {
                         let value = event_target_value(&ev);
@@ -243,8 +309,9 @@ pub fn GuideBrowser() -> impl IntoView {
                         })}
                     </Suspense>
                 </select>
+                </div>
             </div>
-            <Suspense fallback=move || view! { <p>{move || t(locale.get(), "正在加载攻略", "Loading guides")}</p> }>
+            <Suspense fallback=move || view! { <p class="directory-loading">{move || t(locale.get(), "正在加载攻略", "Loading guides")}</p> }>
                 {move || Suspend::new(async move {
                     let result = guides.await;
                     view! { <GuideResults result=result page=page /> }
@@ -293,11 +360,11 @@ fn GuideResults(result: GuidePageResult, page: RwSignal<i32>) -> impl IntoView {
     view! {
         <div class="directory-result-bar" aria-live="polite">
             <p>{move || if locale.get() == crate::i18n::Locale::Zh {
-                format!("共 {total} 篇攻略，当前显示 {first}–{last}")
+                format!("找到 {total} 篇地点攻略，正在看第 {first} 至 {last} 篇")
             } else {
-                format!("{total} guides · showing {first}–{last}")
+                format!("{total} place guides, showing {first} to {last}")
             }}</p>
-            <span>{move || t(locale.get(), "按精选与更新时间排序", "Ordered by featured and recency")}</span>
+            <span>{move || t(locale.get(), "按地点扫读，进入后再看完整内容", "Scan by place, then open the full record")}</span>
         </div>
         <ul class="guide-list">
             {result.items.into_iter().map(|guide| {
@@ -315,6 +382,7 @@ fn GuideResults(result: GuidePageResult, page: RwSignal<i32>) -> impl IntoView {
                             <strong>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</strong>
                         </a>
                         <span>{location}</span>
+                        <span class="guide-list-enter" aria-hidden="true">{move || t(locale.get(), "阅读", "Read")}</span>
                         {can_edit.then(|| view! {
                             <div class="guide-list-actions">
                                 <a class="button button-secondary-light" href=edit_href>{move || t(locale.get(), "编辑", "Edit")}</a>

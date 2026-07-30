@@ -1,0 +1,826 @@
+/* ============================================================================
+   inspace directory system · place-first indexes
+   ----------------------------------------------------------------------------
+   Explore and Guides are high-volume indexes, not card galleries. This layer
+   owns their composition after the legacy UI and Song styles: one paper plane,
+   ruled rows, clear search/filter hierarchy, and touch-safe controls.
+   ========================================================================== */
+
+:where(.explore-directory, .guide-browser) {
+  --directory-ink: var(--ink, #171512);
+  --directory-ink-soft: var(--ink-soft, #4f4a42);
+  --directory-ink-faint: var(--ink-faint, #716b61);
+  --directory-paper: var(--paper, #faf8f4);
+  --directory-paper-deep: var(--paper-deep, #f2eee5);
+  --directory-rule: var(--rule, #d8d0c2);
+  --directory-rule-strong: var(--rule-strong, #bdb3a3);
+  --directory-accent: var(--vermilion, #b23a29);
+  --directory-control-height: 46px;
+  --directory-motion: 180ms cubic-bezier(.2, .72, .28, 1);
+  color: var(--directory-ink);
+}
+
+/* Page canvas and first-read composition. */
+body .explore-directory,
+body .guide-browser {
+  width: min(1180px, calc(100% - 2 * clamp(24px, 4vw, 64px))) !important;
+  max-width: 1180px !important;
+  margin-inline: auto !important;
+  padding: clamp(52px, 7vw, 104px) 0 clamp(84px, 10vw, 148px) !important;
+  background: transparent !important;
+}
+
+body .directory-hero,
+body .guide-browser .page-head.directory-hero {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, .36fr) !important;
+  gap: clamp(40px, 7vw, 110px) !important;
+  align-items: end !important;
+  margin: 0 !important;
+  padding: 0 0 clamp(34px, 4vw, 58px) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule) !important;
+  background: transparent !important;
+}
+
+body .directory-hero-copy {
+  max-width: 790px !important;
+}
+
+body .directory-hero .eyebrow,
+body .directory-hero .survey-kicker {
+  margin: 0 0 14px !important;
+  color: var(--directory-ink-faint) !important;
+  font-size: .8rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .08em !important;
+  text-transform: none !important;
+}
+
+body .directory-hero h1,
+body .guide-browser .page-head.directory-hero h1 {
+  max-width: 13em !important;
+  margin: 0 !important;
+  color: var(--directory-ink) !important;
+  font-family: var(--font-display) !important;
+  font-size: clamp(2.65rem, 4.35vw, 4.7rem) !important;
+  font-weight: 500 !important;
+  line-height: 1.04 !important;
+  letter-spacing: -.035em !important;
+  text-wrap: balance;
+}
+
+body .directory-hero-copy > p:last-child,
+body .guide-browser .page-head.directory-hero .directory-hero-copy > p:last-child {
+  max-width: 43em !important;
+  margin: 22px 0 0 !important;
+  color: var(--directory-ink-soft) !important;
+  font-size: 1rem !important;
+  line-height: 1.9 !important;
+}
+
+body .directory-hero-actions {
+  display: grid !important;
+  gap: 12px !important;
+  align-self: end !important;
+  justify-items: stretch !important;
+}
+
+body .directory-hero-actions .button {
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
+}
+
+body .guide-standalone-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  color: var(--directory-ink-soft);
+  font-size: .9rem;
+  text-decoration: underline;
+  text-decoration-color: var(--directory-rule-strong);
+  text-underline-offset: 5px;
+}
+
+body .guide-standalone-link:hover,
+body .guide-standalone-link:focus-visible {
+  color: var(--directory-accent);
+  text-decoration-color: currentColor;
+}
+
+/* Search and classification: one index plane, never a floating filter card. */
+body .explore-directory .explore-content {
+  margin-top: 0 !important;
+}
+
+body .explore-search-panel,
+body .guide-search-panel {
+  position: sticky !important;
+  top: calc(var(--shell-topbar-height, 58px) + 8px) !important;
+  z-index: 10;
+  display: grid !important;
+  gap: 22px !important;
+  margin: 0 !important;
+  padding: 28px 0 24px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule) !important;
+  border-radius: 0 !important;
+  background: color-mix(in srgb, var(--directory-paper) 96%, transparent) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(12px);
+}
+
+body .guide-search-panel {
+  position: relative !important;
+  top: auto !important;
+  padding-top: 30px !important;
+}
+
+body .explore-search-field,
+body .guide-search-field {
+  display: grid !important;
+  gap: 10px !important;
+  color: var(--directory-ink) !important;
+  font-size: .84rem !important;
+  font-weight: 700 !important;
+}
+
+body .explore-search-row,
+body .guide-search-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+}
+
+body .explore-search-row input,
+body .guide-search-row input {
+  width: 100%;
+  min-height: 52px !important;
+  padding: 0 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--directory-ink) !important;
+  font-family: var(--font-text) !important;
+  font-size: clamp(1rem, 1.4vw, 1.12rem) !important;
+}
+
+body .explore-search-row input::placeholder,
+body .guide-search-row input::placeholder {
+  color: var(--directory-ink-faint) !important;
+  opacity: 1;
+}
+
+body .explore-search-row input:focus-visible,
+body .guide-search-row input:focus-visible {
+  outline: 0 !important;
+  border-bottom-color: var(--directory-accent) !important;
+  box-shadow: 0 2px 0 var(--directory-accent) !important;
+}
+
+body .explore-search-row .button,
+body .guide-search-row .button {
+  min-width: 92px;
+  min-height: 52px;
+}
+
+body .explore-filter-line {
+  display: grid !important;
+  grid-template-columns: 150px minmax(0, 1fr) auto !important;
+  gap: 18px !important;
+  align-items: center !important;
+}
+
+body .explore-filter-line > span {
+  color: var(--directory-ink-faint) !important;
+  font-size: .8rem !important;
+  font-weight: 650 !important;
+}
+
+body .explore-filter-line .filter-chip-row {
+  display: flex !important;
+  gap: 4px !important;
+  min-width: 0;
+  flex-wrap: wrap !important;
+}
+
+body .explore-filter-line .filter-chip {
+  position: relative;
+  min-height: 44px !important;
+  padding: 0 13px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--directory-ink-soft) !important;
+  font-size: .86rem !important;
+  font-weight: 650 !important;
+}
+
+body .explore-filter-line .filter-chip::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 5px;
+  height: 1px;
+  background: var(--directory-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--directory-motion);
+}
+
+body .explore-filter-line .filter-chip:hover,
+body .explore-filter-line .filter-chip:focus-visible,
+body .explore-filter-line .filter-chip.is-active {
+  color: var(--directory-ink) !important;
+}
+
+body .explore-filter-line .filter-chip.is-active::after {
+  transform: scaleX(1);
+}
+
+body .explore-clear-button,
+body .guide-clear-button {
+  min-height: 44px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--directory-ink-faint) !important;
+  font-size: .82rem !important;
+  font-weight: 650 !important;
+  text-decoration: underline;
+  text-decoration-color: var(--directory-rule-strong);
+  text-underline-offset: 5px;
+  cursor: pointer;
+}
+
+body .explore-clear-button:hover,
+body .explore-clear-button:focus-visible,
+body .guide-clear-button:hover,
+body .guide-clear-button:focus-visible {
+  color: var(--directory-accent) !important;
+  text-decoration-color: currentColor;
+}
+
+/* Guide writing rule and hierarchical destination filters. */
+body .guide-writing-rule {
+  display: grid;
+  grid-template-columns: minmax(160px, .28fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 72px);
+  margin: 0 !important;
+  padding: 24px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule) !important;
+  background: transparent !important;
+}
+
+body .guide-writing-rule strong {
+  color: var(--directory-accent);
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+body .guide-writing-rule p {
+  max-width: 54em;
+  margin: 0;
+  color: var(--directory-ink-soft);
+  font-size: .9rem;
+  line-height: 1.8;
+}
+
+body .guide-filter-stack {
+  padding: 26px 0 18px;
+  border-bottom: 1px solid var(--directory-rule);
+}
+
+body .guide-filter-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+body .guide-filter-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+body .guide-filter-heading strong {
+  color: var(--directory-ink);
+  font-size: .9rem;
+}
+
+body .guide-filter-heading span {
+  color: var(--directory-ink-faint);
+  font-size: .8rem;
+}
+
+body .guide-browser .filter-row {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: clamp(14px, 2vw, 28px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+body .guide-browser .filter-row select {
+  width: 100%;
+  min-height: var(--directory-control-height) !important;
+  padding: 0 30px 0 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule-strong) !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  color: var(--directory-ink) !important;
+  font-size: .9rem !important;
+  box-shadow: none !important;
+}
+
+body .guide-browser .filter-row select:focus-visible {
+  outline: 0;
+  border-bottom-color: var(--directory-accent) !important;
+  box-shadow: 0 2px 0 var(--directory-accent) !important;
+}
+
+/* Results are ledgers. The only enclosure is the real object users enter. */
+body .directory-result-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  min-height: 72px !important;
+  margin: 0 !important;
+  padding: 18px 0 12px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule-strong) !important;
+  background: transparent !important;
+}
+
+body .directory-result-bar p {
+  margin: 0 !important;
+  color: var(--directory-ink) !important;
+  font-size: .94rem !important;
+  font-weight: 700 !important;
+}
+
+body .directory-result-bar span {
+  color: var(--directory-ink-faint) !important;
+  font-size: .8rem !important;
+}
+
+body .space-directory-list,
+body .guide-browser .guide-list {
+  overflow: visible !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body .space-directory-list .space-directory-row,
+body .guide-browser .guide-list > li {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: background-color var(--directory-motion) !important;
+}
+
+body .space-directory-link {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, .28fr) 64px !important;
+  gap: 24px !important;
+  align-items: center !important;
+  min-height: 108px !important;
+  padding: 24px 2px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+body .space-directory-title-line {
+  display: flex !important;
+  gap: 12px !important;
+  align-items: baseline !important;
+  flex-wrap: wrap !important;
+}
+
+body .space-directory-title-line h2 {
+  margin: 0 !important;
+  color: var(--directory-ink) !important;
+  font-family: var(--font-display) !important;
+  font-size: clamp(1.18rem, 1.7vw, 1.48rem) !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+}
+
+body .space-type-label,
+body .space-directory-status span {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--directory-ink-faint) !important;
+  font-size: .8rem !important;
+  font-weight: 600 !important;
+}
+
+body .space-directory-location {
+  margin: 7px 0 0 !important;
+  color: var(--directory-ink-soft) !important;
+  font-size: .86rem !important;
+  line-height: 1.55 !important;
+}
+
+body .space-directory-status {
+  display: grid !important;
+  gap: 5px !important;
+  justify-items: start !important;
+}
+
+body .space-directory-enter,
+body .guide-list-enter {
+  color: var(--directory-accent) !important;
+  font-size: .82rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+  transition: transform var(--directory-motion);
+}
+
+body .space-directory-row:hover,
+body .space-directory-row:focus-within,
+body .guide-browser .guide-list > li:hover,
+body .guide-browser .guide-list > li:focus-within {
+  background: color-mix(in srgb, var(--directory-paper-deep) 58%, transparent) !important;
+}
+
+body .space-directory-row:hover .space-directory-enter,
+body .space-directory-row:focus-within .space-directory-enter,
+body .guide-browser .guide-list > li:hover .guide-list-enter,
+body .guide-browser .guide-list > li:focus-within .guide-list-enter {
+  transform: translateX(4px);
+}
+
+body .guide-browser .guide-list > li {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, .25fr) 58px auto !important;
+  gap: 20px !important;
+  align-items: center !important;
+  min-height: 82px !important;
+  padding: 18px 2px !important;
+}
+
+body .guide-browser .guide-list > li > .guide-list-link {
+  display: block !important;
+  min-width: 0;
+  padding: 0 !important;
+}
+
+body .guide-browser .guide-list > li > .guide-list-link strong {
+  display: block;
+  overflow: hidden;
+  color: var(--directory-ink) !important;
+  font-family: var(--font-display) !important;
+  font-size: clamp(1.05rem, 1.45vw, 1.28rem) !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body .guide-browser .guide-list > li > span:not(.guide-list-enter) {
+  color: var(--directory-ink-faint) !important;
+  font-size: .82rem !important;
+  white-space: nowrap;
+}
+
+body .guide-browser .guide-list-actions {
+  margin: 0 !important;
+}
+
+body .guide-browser .guide-list-actions .button {
+  min-height: 44px;
+}
+
+/* Pagination is navigation, not another row of bordered chips. */
+body .directory-pagination {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+  margin: clamp(32px, 5vw, 58px) 0 0 !important;
+  padding: 20px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--directory-rule) !important;
+}
+
+body .directory-pagination button {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--directory-ink-soft) !important;
+  font-size: .84rem !important;
+}
+
+body .directory-pagination button:hover:not(:disabled),
+body .directory-pagination button:focus-visible:not(:disabled) {
+  color: var(--directory-accent) !important;
+  background: var(--directory-paper-deep) !important;
+}
+
+body .directory-pagination .pagination-page.is-current {
+  background: var(--directory-ink) !important;
+  color: var(--directory-paper) !important;
+}
+
+body .directory-pagination button:disabled {
+  color: var(--directory-rule-strong) !important;
+  opacity: 1 !important;
+}
+
+body .directory-empty,
+body .directory-loading {
+  margin: 0 !important;
+  padding: clamp(42px, 7vw, 82px) 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--directory-ink-soft) !important;
+}
+
+body .directory-empty {
+  display: grid;
+  gap: 8px;
+}
+
+body .directory-empty strong {
+  color: var(--directory-ink);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+@media (max-width: 960px) {
+  body .directory-hero,
+  body .guide-browser .page-head.directory-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 30px !important;
+  }
+
+  body .directory-hero-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 560px;
+  }
+
+  body .guide-browser .filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  body .explore-directory,
+  body .guide-browser {
+    width: auto !important;
+    margin-inline: 20px !important;
+    padding: 48px 0 calc(96px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body .directory-hero,
+  body .guide-browser .page-head.directory-hero {
+    gap: 26px !important;
+    padding-bottom: 32px !important;
+  }
+
+  body .directory-hero h1,
+  body .guide-browser .page-head.directory-hero h1 {
+    max-width: none !important;
+    font-size: clamp(2.15rem, 10vw, 3rem) !important;
+    line-height: 1.07 !important;
+  }
+
+  body .directory-hero-copy > p:last-child,
+  body .guide-browser .page-head.directory-hero .directory-hero-copy > p:last-child {
+    margin-top: 18px !important;
+    font-size: .94rem !important;
+    line-height: 1.78 !important;
+  }
+
+  body .directory-hero-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .explore-search-panel,
+  body .guide-search-panel {
+    position: relative !important;
+    top: auto !important;
+    gap: 18px !important;
+    padding: 24px 0 !important;
+    backdrop-filter: none;
+  }
+
+  body .explore-search-row,
+  body .guide-search-row {
+    grid-template-columns: minmax(0, 1fr) 66px !important;
+    gap: 10px !important;
+  }
+
+  body .explore-search-row .button,
+  body .guide-search-row .button {
+    min-width: 0;
+    padding-inline: 8px !important;
+  }
+
+  body .explore-filter-line {
+    display: block !important;
+  }
+
+  body .explore-filter-line > span {
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  body .explore-filter-line .filter-chip-row {
+    margin-inline: -10px !important;
+    padding-inline: 10px 4px !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+  }
+
+  body .explore-filter-line .filter-chip-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  body .explore-filter-line .filter-chip {
+    flex: 0 0 auto;
+  }
+
+  body .explore-clear-button {
+    margin-top: 8px;
+  }
+
+  body .guide-writing-rule {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-block: 22px !important;
+  }
+
+  body .guide-filter-heading {
+    align-items: start;
+  }
+
+  body .guide-browser .filter-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  body .directory-result-bar {
+    display: grid !important;
+    gap: 5px !important;
+    min-height: 0 !important;
+    padding-block: 20px 14px !important;
+  }
+
+  body .space-directory-link {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 12px !important;
+    min-height: 0 !important;
+    padding: 22px 0 !important;
+  }
+
+  body .space-directory-main {
+    grid-column: 1;
+  }
+
+  body .space-directory-status {
+    grid-column: 1;
+    display: flex !important;
+    gap: 12px !important;
+    margin-top: 2px;
+  }
+
+  body .space-directory-enter {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  body .guide-browser .guide-list > li {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 6px 12px !important;
+    min-height: 0 !important;
+    padding: 20px 0 !important;
+  }
+
+  body .guide-browser .guide-list > li > .guide-list-link {
+    grid-column: 1;
+  }
+
+  body .guide-browser .guide-list > li > .guide-list-link strong {
+    white-space: normal;
+  }
+
+  body .guide-browser .guide-list > li > span:not(.guide-list-enter) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  body .guide-list-enter {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  body .guide-browser .guide-list-actions {
+    grid-column: 1 / -1;
+    margin-top: 8px !important;
+  }
+
+  body .directory-pagination {
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px !important;
+    scrollbar-width: none;
+  }
+
+  body .directory-pagination::-webkit-scrollbar {
+    display: none;
+  }
+
+  body .directory-pagination button {
+    flex: 0 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body .explore-filter-line .filter-chip::after,
+  body .space-directory-enter,
+  body .guide-list-enter,
+  body .space-directory-list .space-directory-row,
+  body .guide-browser .guide-list > li {
+    transition: none !important;
+  }
+}
+
+/* Rendered polish: balanced wrapping made the Chinese guide headline split
+   into three equally short lines on phones. Let natural line filling keep the
+   statement in two stronger lines instead. */
+@media (max-width: 720px) {
+  body .guide-directory-hero h1 {
+    max-width: none !important;
+    font-size: clamp(2rem, 8.8vw, 2.45rem) !important;
+    text-wrap: wrap !important;
+  }
+}
+
+/* Final specificity repair against legacy guide-row grid ownership. */
+body .guide-browser .guide-list > li > .guide-list-enter {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  justify-self: end;
+}
+
+@media (max-width: 720px) {
+  body .guide-browser .page-head.directory-hero h1 {
+    max-width: none !important;
+    font-size: clamp(2rem, 8.8vw, 2.45rem) !important;
+    text-wrap: wrap !important;
+  }
+
+  body .guide-browser .guide-list > li > .guide-list-link {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  body .guide-browser .guide-list > li > span:not(.guide-list-enter) {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+
+  body .guide-browser .guide-list > li > .guide-list-enter {
+    grid-column: 2 !important;
+    grid-row: 1 / span 2 !important;
+    align-self: center;
+    justify-self: end;
+  }
+}

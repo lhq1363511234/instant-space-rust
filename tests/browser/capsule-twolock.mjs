@@ -26,8 +26,14 @@ await p.goto(`${BASE}/spaces/${SPACE}`,{waitUntil:'networkidle'});
 await p.waitForTimeout(2500);
 
 // 先用定位建立"位置已确认"，注意这在改动后不足以开信。
-await p.locator('button:has-text("或者用定位")').first().click().catch(()=>{});
+await p.locator('button:has-text("验证当前位置")').first().click().catch(()=>{});
 await p.waitForTimeout(2000);
+
+// 埋胶囊本身也需要现场口令 + 定位。
+const createCode=p.locator('.presence-code input');
+await createCode.fill(CODE);
+await p.locator('.presence-code button[type=submit]').click();
+await p.waitForTimeout(1800);
 
 // 造一个胶囊
 await p.locator('.capsule-shelf-head button').click();
@@ -41,6 +47,11 @@ await p.waitForTimeout(300);
 await p.locator('.capsule-composer button[type=submit]').click();
 await p.waitForTimeout(3500);
 
+// 重载后清空现场口令状态，专门验证“只有定位不能开信”。
+await p.reload({waitUntil:'networkidle'});
+await p.waitForTimeout(1800);
+await p.locator('button:has-text("验证当前位置")').first().click().catch(()=>{});
+await p.waitForTimeout(1800);
 const card=p.locator('.capsule-card.is-sealed').first();
 await card.locator('button:has-text("这是给我的")').click();
 await p.waitForTimeout(600);

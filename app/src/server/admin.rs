@@ -1,4 +1,6 @@
-use instant_domain::admin::{AdminStats, AdminUser, AuditLogEntry, ResidentApplication};
+use instant_domain::admin::{
+    AdminStats, AdminUser, AuditLogEntry, HostClaimApplication, ResidentApplication,
+};
 use leptos::prelude::*;
 
 #[server(GetAdminStats, "/inspace/api")]
@@ -185,6 +187,87 @@ pub async fn list_audit_log() -> Result<Vec<AuditLogEntry>, ServerFnError> {
 
     #[cfg(not(feature = "ssr"))]
     {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(ListHostClaims, "/inspace/api")]
+pub async fn list_host_claims() -> Result<Vec<HostClaimApplication>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let pool = crate::server::db_pool().await?;
+        instant_db::spaces::list_host_claims(&pool)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(ApproveHostClaim, "/inspace/api")]
+pub async fn approve_host_claim(claim_id: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let actor = crate::server::auth::require_admin_user().await?;
+        let claim_uuid =
+            uuid::Uuid::parse_str(&claim_id).map_err(|_| ServerFnError::new("invalid claim id"))?;
+        let pool = crate::server::db_pool().await?;
+        let assigned = instant_db::spaces::approve_host_claim(&pool, claim_uuid)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        if let Some((space_id, user_id)) = assigned {
+            let _ = instant_db::admin::record_audit(
+                &pool,
+                Some(actor.id),
+                Some(&actor.email),
+                "approve_host_claim",
+                "space",
+                Some(&space_id.to_string()),
+                Some(&format!("host_user_id={user_id}")),
+            )
+            .await;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = claim_id;
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(RejectHostClaim, "/inspace/api")]
+pub async fn reject_host_claim(claim_id: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let actor = crate::server::auth::require_admin_user().await?;
+        let claim_uuid =
+            uuid::Uuid::parse_str(&claim_id).map_err(|_| ServerFnError::new("invalid claim id"))?;
+        let pool = crate::server::db_pool().await?;
+        instant_db::spaces::reject_host_claim(&pool, claim_uuid)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let _ = instant_db::admin::record_audit(
+            &pool,
+            Some(actor.id),
+            Some(&actor.email),
+            "reject_host_claim",
+            "claim",
+            Some(&claim_id),
+            None,
+        )
+        .await;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = claim_id;
         Err(ServerFnError::new("server only"))
     }
 }

@@ -21,6 +21,7 @@ pub fn AdminNav() -> impl IntoView {
                 <AdminNavLink href="/inspace/admin/spaces" section="spaces" label_zh="空间" label_en="Spaces" icon="spaces" pathname=pathname />
                 <AdminNavLink href="/inspace/admin/guides" section="guides" label_zh="攻略" label_en="Guides" icon="guides" pathname=pathname />
                 <AdminNavLink href="/inspace/admin/resident-applications" section="residents" label_zh="常驻" label_en="Residents" icon="resident" pathname=pathname />
+                <AdminNavLink href="/inspace/admin/host-claims" section="claims" label_zh="认领" label_en="Claims" icon="resident" pathname=pathname />
                 <AdminNavLink href="/inspace/admin/users" section="users" label_zh="用户" label_en="Users" icon="users" pathname=pathname />
             </nav>
         </section>
@@ -71,6 +72,7 @@ fn admin_nav_active(pathname: &str, section: &str) -> bool {
         "spaces" => normalized.starts_with("/admin/spaces"),
         "guides" => normalized.starts_with("/admin/guides"),
         "residents" => normalized.starts_with("/admin/resident-applications"),
+        "claims" => normalized.starts_with("/admin/host-claims"),
         "users" => normalized.starts_with("/admin/users"),
         _ => false,
     }

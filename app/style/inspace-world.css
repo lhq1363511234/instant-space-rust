@@ -3001,6 +3001,251 @@ body .space-chat-page .chat-room .chat-message {
   .survey-keep-item { animation: none !important; opacity: 1 !important; transform: none !important; }
 }
 
+
+/* Taste pass: the vermilion point remains a brand accent elsewhere, but a dot
+   before every homepage eyebrow reads as decoration rather than information. */
+.inspace-home .survey-kicker-mark { display: none; }
+/* --- home: HyperFrames scroll narrative (v2) ----------------------------
+   A native-scroll, sticky viewport stage. Each quarter of the section swaps
+   one image and one copy plane. The page still scrolls normally; JS only maps
+   progress to frames. Reduced-motion turns it into a plain readable stack. */
+.home-hyperframes {
+  position: relative;
+  min-height: 430vh;
+  margin-inline: calc(-1 * clamp(20px, 5vw, 72px));
+}
+.home-hyperframes-sticky {
+  position: sticky;
+  top: 58px;
+  height: calc(100svh - 58px);
+  min-height: 680px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: clamp(28px, 5vh, 58px) clamp(24px, 5vw, 74px) clamp(24px, 4vh, 44px);
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  isolation: isolate;
+}
+.home-hyperframes-intro {
+  position: relative;
+  z-index: 4;
+  display: block;
+  max-width: 46em;
+  padding-bottom: clamp(20px, 3vh, 34px);
+}
+.home-hyperframes-intro .survey-kicker { margin: 0; }
+.home-hyperframes-intro h2 {
+  margin: 0;
+  max-width: 18em;
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 2.4vw, 2.45rem) !important;
+  font-weight: 500;
+  line-height: 1.22;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+.home-hyperframes-stage {
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr);
+  gap: clamp(28px, 5vw, 78px);
+  align-items: stretch;
+}
+.home-hyperframes-visuals {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper-deep);
+}
+.home-hyperframe-visual {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  transform: scale(1.045);
+  transition: opacity 520ms cubic-bezier(.22,.72,.24,1), transform 900ms cubic-bezier(.22,.72,.24,1);
+  pointer-events: none;
+}
+.home-hyperframe-visual.is-active { opacity: 1; transform: scale(1); z-index: 2; }
+.home-hyperframe-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 54%, rgb(21 19 16 / .15));
+  pointer-events: none;
+}
+.home-hyperframe-visual img {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  filter: saturate(.72) contrast(.96) sepia(.08);
+}
+
+.home-hyperframes-copy { position: relative; min-height: 0; }
+.home-hyperframe {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(0, 34px, 0);
+  transition: opacity 340ms ease, transform 480ms cubic-bezier(.16,.84,.24,1), visibility 0s linear 480ms;
+}
+.home-hyperframe.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0);
+  transition-delay: 110ms, 110ms, 0s;
+  z-index: 2;
+}
+.home-hyperframe-type {
+  margin: 0 0 clamp(20px, 4vh, 38px);
+  font-family: var(--font-display);
+  font-size: .76rem;
+  letter-spacing: .16em;
+  color: var(--vermilion-ink);
+}
+.home-hyperframe h3 {
+  margin: 0;
+  max-width: 10em;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 4.35rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -.04em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+.home-hyperframe > p:not(.home-hyperframe-type) {
+  margin: clamp(20px, 4vh, 38px) 0 0;
+  max-width: 30em;
+  color: var(--ink-soft) !important;
+  font-size: clamp(.94rem, 1.15vw, 1.08rem);
+  line-height: 1.82;
+}
+.home-hyperframe-detail {
+  margin-top: auto !important;
+  padding-top: 20px;
+  border-top: 1px solid var(--ink);
+  font-family: var(--font-display);
+  font-size: .92rem !important;
+  letter-spacing: .08em;
+  color: var(--ink) !important;
+}
+.home-hyperframe-list {
+  margin: auto 0 0;
+  padding: 18px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--ink);
+}
+.home-hyperframe-list li {
+  position: relative;
+  margin: 0 0 7px;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: .86rem;
+  line-height: 1.55;
+}
+.home-hyperframe-list li::before { content: ""; position: absolute; left: 0; top: .68em; width: 8px; height: 1px; background: var(--vermilion); }
+.home-hyperframe .home-hyperframe-quote {
+  margin-top: clamp(18px, 3vh, 30px);
+  max-width: 12em;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 1.72rem);
+  line-height: 1.46;
+  color: var(--ink) !important;
+}
+.home-hyperframe-company .button { align-self: flex-start; margin-top: auto; min-height: 46px; }
+.home-hyperframes-footer {
+  position: relative;
+  z-index: 4;
+  padding-top: clamp(18px, 3vh, 28px);
+}
+.home-hyperframes-footer p { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: .98rem; }
+.home-hyperframes-triggers {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  pointer-events: none;
+}
+.home-hyperframes-triggers span { display: block; min-height: 1px; }
+
+/* The carrier headline should read as a moving brand statement, not a Word
+   heading. Keep it to a wider cinematic measure and reveal it as one plane. */
+.survey-hero-copy { perspective: 900px; }
+.survey-hero h1 {
+  max-width: 12.5em !important;
+  text-wrap: balance;
+  transform-origin: left center;
+}
+@media (min-width: 1340px) {
+  .survey-hero { grid-template-columns: minmax(0, 1.24fr) minmax(310px, .76fr); }
+  .survey-hero h1 { font-size: clamp(2.75rem, 3.55vw, 3.85rem) !important; line-height: 1.04 !important; }
+}
+
+@media (max-width: 1099px) {
+  .home-hyperframes { margin-inline: 0; min-height: 410vh; }
+  .home-hyperframes-sticky { min-height: 620px; padding-inline: clamp(20px, 4vw, 44px); }
+  .home-hyperframes-stage { grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr); gap: 34px; }
+  .home-hyperframe h3 { font-size: clamp(1.8rem, 4.8vw, 3.5rem); }
+}
+@media (max-width: 720px) {
+  .home-hyperframes { min-height: 440vh; margin-inline: calc(-1 * 20px); }
+  .home-hyperframes-sticky {
+    min-height: 0;
+    height: calc(100svh - 58px);
+    top: 58px;
+    padding: 20px 20px calc(76px + env(safe-area-inset-bottom));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .home-hyperframes-intro { display: block; padding-bottom: 14px; }
+  .home-hyperframes-intro h2 { margin-top: 8px; max-width: 17em; justify-self: auto; font-size: clamp(1.25rem, 6.1vw, 1.65rem) !important; line-height: 1.22; }
+  .home-hyperframes-intro .survey-kicker { font-size: .72rem; }
+  .home-hyperframes-stage { display: block; }
+  .home-hyperframes-visuals { position: absolute; inset: 0; }
+  .home-hyperframe-visual::after { background: linear-gradient(0deg, rgb(22 20 17 / .88) 0 42%, rgb(22 20 17 / .06) 78%); }
+  .home-hyperframes-copy { position: absolute; inset: auto 0 0; height: 56%; z-index: 5; padding: 20px; }
+  .home-hyperframe { justify-content: flex-start; }
+  .home-hyperframe-type { margin-bottom: 10px; color: #d8a48e; }
+  .home-hyperframe h3 { max-width: 12em; color: #fffaf0; font-size: clamp(1.72rem, 8vw, 2.35rem); line-height: 1.08; }
+  .home-hyperframe > p:not(.home-hyperframe-type) { margin-top: 14px; color: #e7dfd1 !important; font-size: .88rem; line-height: 1.62; }
+  .home-hyperframe dl { display: none; }
+  .home-hyperframes-footer { padding-top: 10px; }
+  .home-hyperframes-footer p { color: var(--ink); font-size: .86rem; }
+  .home-hyperframe-detail,
+  .home-hyperframe-list { display: none; }
+  .home-hyperframe-company .button { margin-top: 16px; min-height: 44px; }
+  .survey-hero h1 { max-width: 11.5em !important; font-size: clamp(2.05rem, 9.2vw, 2.75rem) !important; line-height: 1.06 !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-hyperframes { min-height: 0; margin-inline: 0; }
+  .home-hyperframes-sticky { position: relative; height: auto; min-height: 0; overflow: visible; padding-inline: 0; border: 0; }
+  .home-hyperframes-stage { display: block; }
+  .home-hyperframes-visuals,
+  .home-hyperframes-footer,
+  .home-hyperframes-triggers { display: none; }
+  .home-hyperframes-copy { display: grid; gap: 38px; }
+  .home-hyperframe {
+    position: relative; inset: auto; opacity: 1; visibility: visible; transform: none;
+    padding: 30px 0; border-top: 1px solid var(--rule); transition: none;
+  }
+  .home-hyperframe h3 { max-width: 14em; font-size: clamp(1.7rem, 4vw, 2.5rem); }
+  .home-hyperframe-detail,
+  .home-hyperframe-list,
+  .home-hyperframe-company .button { margin-top: 24px; }
+}
+
 /* --- on-site code: the one proof of presence that is actually checked ------
    Reusing the Space access code the host already broadcasts as the hotspot
    SSID. Reading it requires being in the room, so it gets the prominent field
@@ -4216,4 +4461,324 @@ body .auth-page-head > div { max-width: 30em; }
   .auth-page {
     padding-bottom: calc(var(--shell-mobile-nav-height, 68px) + env(safe-area-inset-bottom) + 32px) !important;
   }
+}
+
+/* v18 — Burying changes a physical place's history, so the composer makes
+   both server-enforced gates visible before the letter fields. */
+.capsule-bury-gate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, .78fr);
+  gap: 18px 34px;
+  margin: 0 0 26px;
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.capsule-bury-gate > div > p:last-child {
+  max-width: 48em;
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: .86rem;
+  line-height: 1.75;
+}
+.capsule-bury-gate ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.capsule-bury-gate li {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: .78rem;
+}
+.capsule-bury-gate li strong { color: var(--ink-soft); font-weight: 650; }
+.capsule-bury-gate li.is-ready,
+.capsule-bury-gate li.is-ready strong { color: var(--vermilion-ink); }
+.capsule-bury-gate li.is-ready::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 6px -8px 0 0;
+  border-radius: 50%;
+  background: var(--vermilion);
+}
+.capsule-bury-gate > .button {
+  grid-column: 2;
+  justify-self: start;
+  min-height: 44px;
+}
+@media (max-width: 720px) {
+  .capsule-bury-gate { grid-template-columns: 1fr; gap: 16px; }
+  .capsule-bury-gate > .button { grid-column: 1; width: 100%; }
+}
+
+/* ============================================================
+   Space detail — card wall (v19)
+   The detail page opens as a restrained wall of entry cards.
+   Opening a card swaps the main region to that one panel with a
+   back control, instead of stacking every section vertically.
+   ============================================================ */
+.space-card-wall {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  align-items: start;
+  gap: 40px;
+  margin-top: 30px;
+}
+.space-card-main-col {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-width: 0;
+}
+.space-about-region {
+  margin: 0;
+}
+.space-card-tools {
+  grid-column: 2;
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-left: 34px;
+  border-left: 1px solid var(--rule);
+}
+
+.space-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.space-card-grid-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* An entry card is one flat, ruled surface — no card-in-card, no shadow. */
+.space-entry-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 118px;
+  padding: 18px 18px 44px;
+  position: relative;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+.space-entry-card:hover { border-color: var(--vermilion); background: var(--paper); }
+.space-entry-card:focus-visible { outline: 2px solid var(--vermilion); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .space-entry-card:hover { transform: translateY(-2px); }
+}
+.space-entry-card-lead { min-height: 150px; }
+.space-entry-card-label {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+.space-entry-card-desc {
+  font-size: .88rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.space-entry-card-go {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  font-size: 1.05rem;
+  color: var(--vermilion-ink);
+}
+
+/* Opened panel */
+.space-panel-open { margin-top: 26px; }
+.space-panel-open-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.space-panel-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 14px 6px 10px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--ink);
+  font: inherit;
+  font-size: .9rem;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+.space-panel-back:hover { border-color: var(--vermilion); color: var(--vermilion-ink); }
+.space-panel-back:focus-visible { outline: 2px solid var(--vermilion); outline-offset: 2px; }
+.space-panel-open-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+/* Intro panel — fact cards, no invented prose */
+.space-fact-wall {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.space-fact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.space-fact-card-wide { grid-column: 1 / -1; }
+.space-fact-key {
+  font-size: .78rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.space-fact-value {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.space-fact-prose {
+  margin: 0;
+  font-size: .95rem;
+  line-height: 1.75;
+  color: var(--ink-soft);
+}
+.space-fact-prose-muted { color: var(--ink-faint); }
+
+/* Host panel */
+.space-host-panel { display: flex; flex-direction: column; gap: 24px; }
+.space-host-identity { display: flex; align-items: center; gap: 16px; }
+.space-host-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--vermilion-wash);
+  color: var(--vermilion-ink);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 650;
+}
+.space-host-name { margin: 0; font-family: var(--font-display); font-size: 1.2rem; font-weight: 650; color: var(--ink); }
+.space-host-role { margin: 2px 0 0; font-size: .86rem; color: var(--ink-faint); }
+.space-host-vacant {
+  padding: 20px 22px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-left: 2px solid var(--vermilion);
+  border-radius: 3px;
+}
+.space-host-vacant-title { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.1rem; font-weight: 650; color: var(--ink); }
+.space-host-vacant p { margin: 0 0 14px; font-size: .92rem; line-height: 1.7; color: var(--ink-soft); }
+.space-host-since { display: flex; flex-direction: column; gap: 4px; }
+.space-host-bio {
+  margin: 14px 0 0;
+  font-size: .95rem;
+  line-height: 1.75;
+  color: var(--ink-soft);
+  white-space: pre-line;
+}
+.space-host-claim-status {
+  margin: 4px 0 0;
+  font-size: .92rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.space-host-claim-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.space-host-claim-form textarea {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 10px 12px;
+  line-height: 1.6;
+}
+.space-host-claim-form textarea:focus-visible {
+  outline: 2px solid var(--vermilion);
+  outline-offset: 1px;
+}
+.admin-claim-note {
+  margin: 8px 0 0;
+  font-size: .92rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .space-card-wall { grid-template-columns: 1fr; gap: 26px; }
+  .space-card-tools {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: 24px;
+  }
+}
+@media (max-width: 640px) {
+  .space-card-grid, .space-card-grid-main { grid-template-columns: 1fr; }
+  .space-fact-wall { grid-template-columns: 1fr; }
+  .space-entry-card { min-height: 96px; padding: 16px 16px 42px; }
+}
+
+/* ============================================================================
+   Taste audit · interaction sizing · 2026-07-28
+   ========================================================================== */
+body .auth-form input:not([type="checkbox"]):not([type="radio"]),
+body .auth-form select {
+  min-height: 44px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+}
+
+body .guide-detail .back-link {
+  display: inline-flex !important;
+  align-items: center;
+  min-height: 44px;
+  margin-left: -10px;
+  padding-inline: 10px;
+}
+
+body .map-cluster {
+  min-width: 44px;
+  min-height: 44px;
 }

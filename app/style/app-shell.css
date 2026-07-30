@@ -323,7 +323,17 @@ body {
 }
 .shell-global-search:focus-within { border-color: #94cbed; background: #fff; box-shadow: 0 0 0 3px rgb(8 121 195 / .11); }
 .shell-global-search svg { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: var(--is-text-muted); stroke-width: 1.8; stroke-linecap: round; }
-.shell-global-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--is-text); font-size: max(16px, .85rem); }
+.shell-global-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--is-text);
+  font-size: max(16px, .85rem);
+}
 .shell-global-search input:focus { outline: 0; }
 .shell-global-search kbd { min-width: 22px; padding: 2px 6px; border: 1px solid var(--is-border); border-bottom-width: 2px; border-radius: 6px; background: #fff; color: var(--is-text-muted); text-align: center; font: 600 .68rem/1.2 system-ui; }
 .shell-topbar-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--is-space-2); }
@@ -454,7 +464,6 @@ body:has(.shell-sidebar.is-collapsed) .shell-topbar { left: var(--shell-sidebar-
 }
 
 @media (max-width: 420px) {
-  .shell-global-search input::placeholder { color: transparent !important; }
   .shell-global-search { max-width: none; }
 }
 
@@ -539,4 +548,13 @@ body:has(.shell-sidebar.is-collapsed) .shell-topbar { left: var(--shell-sidebar-
 @media (max-width: 1099px) {
   .shell-menu-button { width: 44px; min-height: 44px; flex-basis: 44px; }
   .shell-language-row .language-button { min-height: 44px !important; }
+}
+
+/* Keep the mobile topbar search understandable. Earlier mobile rules hid the
+   placeholder, which left a large blank white field on the homepage. */
+@media (max-width: 760px) {
+  .shell-global-search input::placeholder {
+    color: #7a7168 !important;
+    opacity: 1 !important;
+  }
 }

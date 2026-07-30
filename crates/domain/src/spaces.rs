@@ -64,6 +64,9 @@ pub struct SpaceSummary {
     pub status: SpaceStatus,
     pub expires_at: Option<OffsetDateTime>,
     pub online_count: i32,
+    /// Editorial priority for the home page. This is an operator-controlled
+    /// value, not a fabricated popularity metric.
+    pub home_weight: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -76,6 +79,16 @@ pub struct SpaceDetail {
     pub discord_group: Option<String>,
     pub qq_group: Option<String>,
     pub password_version: i32,
+    /// Free-form label when `space_type` is `Custom`; the user-defined type name.
+    pub custom_type: Option<String>,
+    /// Display name of the current host, if the Space has been claimed.
+    pub host_name: Option<String>,
+    /// Host's own words shown on the host panel; editable by the host.
+    pub host_bio_zh: Option<String>,
+    pub host_bio_en: Option<String>,
+    /// When the Space was created, as an RFC3339 string. The honest basis for
+    /// a "since" line — we never fabricate a richer history than this.
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -143,6 +156,7 @@ mod tests {
             status: SpaceStatus::Active,
             expires_at: None,
             online_count: 0,
+            home_weight: 0,
         };
         assert!(summary.is_visible_on_home_map());
     }

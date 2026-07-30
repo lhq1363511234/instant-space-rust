@@ -300,7 +300,8 @@ def collect_city(country, city, langs, want):
 
 
 def main():
-    plan = json.load(open(os.path.join(HERE, "plan.json")))
+    plan_path = os.environ.get("PLAN_FILE") or os.path.join(HERE, "plan.json")
+    plan = json.load(open(plan_path))
     all_rows = []
     seen_qids = set()
     for country in plan["countries"]:
@@ -321,7 +322,7 @@ def main():
         print(f"== {country['name_en']}: {len(got)}", flush=True)
         all_rows.extend(got)
 
-    out = os.path.join(HERE, "places.json")
+    out = os.environ.get("OUT_FILE") or os.path.join(HERE, "places.json")
     json.dump(all_rows, open(out, "w"), ensure_ascii=False, indent=1)
     print("wrote", out, len(all_rows))
 

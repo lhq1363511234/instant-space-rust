@@ -7,7 +7,9 @@ use crate::components::space_traces::{CarveButton, SpaceTraces};
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::chat::{check_space_access, list_chat_messages, send_chat_message};
 use crate::server::guides::list_space_guides;
-use crate::server::spaces::{get_space_for_guide, SpaceMarker};
+use crate::server::spaces::{
+    apply_host_claim, get_space_detail, my_host_claim, HostClaimState, SpaceDetailView, SpaceMarker,
+};
 
 /// `2026-07-08 18:36:17.568978000 +00:00:00` -> `("2026-07-08", "18:36")`.
 fn split_chat_stamp(created_at: impl ToString) -> (String, String) {
@@ -37,6 +39,15 @@ fn sender_monogram(sender: &str) -> String {
         .unwrap_or_else(|| "?".to_string())
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SpacePanel {
+    Wall,
+    Intro,
+    Host,
+    Story,
+    Guides,
+}
+
 #[component]
 pub fn SpacePage() -> impl IntoView {
     let locale = use_i18n().locale;
@@ -44,6 +55,9 @@ pub fn SpacePage() -> impl IntoView {
     let space_id =
         Memo::new(move |_| params.with(|params| params.get("space_id").unwrap_or_default()));
     let refresh = RwSignal::new(0u32);
+    // The detail page opens as a restrained card wall; opening a card swaps the
+    // main region to that one section instead of stacking everything vertically.
+    let panel = RwSignal::new(SpacePanel::Wall);
 
     let access = Resource::new(
         move || (space_id.get(), refresh.get()),
@@ -65,13 +79,13 @@ pub fn SpacePage() -> impl IntoView {
             }
         },
     );
-    let space_meta = Resource::new(
+    let detail = Resource::new(
         move || space_id.get(),
         |space_id| async move {
             if space_id.is_empty() {
                 None
             } else {
-                get_space_for_guide(space_id).await.ok().flatten()
+                get_space_detail(space_id).await.ok().flatten()
             }
         },
     );
@@ -82,17 +96,12 @@ pub fn SpacePage() -> impl IntoView {
                 {move || Suspend::new(async move {
                     match access.await {
                         Some(state) if state.allowed => {
-                            let space_name = state.space_name.clone();
-                            let community_space_name = space_name.clone();
-                            let share_space_name = space_name.clone();
-                            let traces_space_name = space_name.clone();
-                            let title_space_name = space_name.clone();
-                            let is_public = state.is_public;
+                            let name_en_opt = state.space_name_en.clone();
+                            let space_name = crate::i18n::localize_optional(locale.get_untracked(), &state.space_name, name_en_opt.as_deref());
                             let id = state.space_id.to_string();
-                            let traces_space_id = id.clone();
+                            let is_public = state.is_public;
                             let guide_href = format!("/inspace/guides/new?space_id={id}");
                             let chat_href = format!("/inspace/spaces/{id}/chat");
-                            let nav_chat_href = chat_href.clone();
                             view! {
                                 <article class="space-detail-shell" aria-label="Space detail">
                                     <header class="space-detail-header">
@@ -106,66 +115,95 @@ pub fn SpacePage() -> impl IntoView {
                                                 <div class="space-detail-badges">
                                                     <span class="space-detail-visibility">{move || if is_public { t(locale.get(), "公开空间", "Public Space") } else { t(locale.get(), "私密空间", "Private Space") }}</span>
                                                 </div>
-                                                <h1>{title_space_name}</h1>
+                                                <h1>{space_name.clone()}</h1>
                                                 <Suspense fallback=move || view! { <span class="space-meta-line">{move || t(locale.get(), "正在加载地点信息…", "Loading place details…")}</span> }>
                                                     {move || Suspend::new(async move {
-                                                        view! { <SpaceMetaLine space=space_meta.await /> }
+                                                        view! { <SpaceMetaLine space=detail.await.map(|d| d.summary) /> }
                                                     })}
                                                 </Suspense>
-                                                <p class="space-app-header-desc">{move || t(locale.get(), "这里是这个地点的全部记录。先读攻略，再去讨论区问现场。", "Everything recorded about this place. Read the guides first, then ask the discussion room about right now.")}</p>
-                                            </div>
-                                            <div class="space-app-action-row">
-                                                <a class="button button-primary" href=guide_href.clone()>{move || t(locale.get(), "写一篇攻略", "Write a guide")}</a>
-                                                <a class="button button-secondary-light" href=chat_href.clone()>{move || t(locale.get(), "进入讨论区", "Open discussion")}</a>
                                             </div>
                                         </div>
                                     </header>
 
-                                    <div class="space-detail-layout">
-                                        <div class="space-detail-main">
-                                            <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载空间攻略…", "Loading Space guides…")}</div> }>
-                                                {move || {
-                                                    let write_href = guide_href.clone();
-                                                    Suspend::new(async move {
-                                                        let items = guides.await;
-                                                        view! { <SpaceGuideList guides=items write_href=write_href /> }
-                                                    })
-                                                }}
-                                            </Suspense>
-
-                                            <SpaceTraces
-                                                space_id=traces_space_id
-                                                space_name=traces_space_name
-                                            />
-
-                                            <section class="space-discussion-entry">
-                                                <p class="survey-kicker">{move || t(locale.get(), "实时补充", "Live context")}</p>
-                                                <h2>{move || t(locale.get(), "现场讨论", "On-site discussion")}</h2>
-                                                <p>{move || t(locale.get(), "讨论区是独立页面，只谈当天的变化和临时问题：今天哪个入口开、排队多久、天气如何。有长期价值的回答，请整理回攻略。", "The discussion room is its own page for today’s changes: which entrance is open, how long the queue is, what the weather is doing. Durable answers belong in a guide.")}</p>
-                                                <a class="button button-primary" href=nav_chat_href>{move || t(locale.get(), "进入讨论区", "Open discussion")}</a>
-                                            </section>
-                                        </div>
-
-                                        <aside id="space-share" class="space-detail-side" aria-label=move || t(locale.get(), "空间工具", "Space tools")>
-                                            <SpaceSharePanel
-                                                space_id=id.clone()
-                                                space_name=share_space_name
-                                                compact=true
-                                            />
-                                            <CommunityLinks space_name=community_space_name />
-                                        </aside>
-                                    </div>
+                                    {
+                                        let id = id.clone();
+                                        let space_name = space_name.clone();
+                                        let guide_href = guide_href.clone();
+                                        let chat_href = chat_href.clone();
+                                        move || {
+                                            let id = id.clone();
+                                            let space_name = space_name.clone();
+                                            let guide_href = guide_href.clone();
+                                            let chat_href = chat_href.clone();
+                                            match panel.get() {
+                                                SpacePanel::Wall => view! {
+                                                    <SpaceCardWall
+                                                        space_id=id
+                                                        space_name=space_name
+                                                        chat_href=chat_href
+                                                        panel=panel
+                                                    />
+                                                }.into_any(),
+                                                SpacePanel::Intro => view! {
+                                                    <SpacePanelFrame panel=panel title=t(locale.get(), "简介", "About")>
+                                                        <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载简介…", "Loading…")}</div> }>
+                                                            {move || Suspend::new(async move {
+                                                                view! { <SpaceIntroPanel detail=detail.await /> }
+                                                            })}
+                                                        </Suspense>
+                                                    </SpacePanelFrame>
+                                                }.into_any(),
+                                                SpacePanel::Host => view! {
+                                                    <SpacePanelFrame panel=panel title=t(locale.get(), "主理人", "Host")>
+                                                        <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载…", "Loading…")}</div> }>
+                                                            {
+                                                                let host_space_id = id.clone();
+                                                                move || {
+                                                                    let host_space_id = host_space_id.clone();
+                                                                    Suspend::new(async move {
+                                                                        view! { <SpaceHostPanel space_id=host_space_id detail=detail.await /> }
+                                                                    })
+                                                                }
+                                                            }
+                                                        </Suspense>
+                                                    </SpacePanelFrame>
+                                                }.into_any(),
+                                                SpacePanel::Story => view! {
+                                                    <SpacePanelFrame panel=panel title=t(locale.get(), "故事", "Stories")>
+                                                        <SpaceTraces space_id=id.clone() space_name=space_name.clone() />
+                                                    </SpacePanelFrame>
+                                                }.into_any(),
+                                                SpacePanel::Guides => view! {
+                                                    <SpacePanelFrame panel=panel title=t(locale.get(), "空间志", "Guides")>
+                                                        <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载空间志…", "Loading guides…")}</div> }>
+                                                            {
+                                                                let write_href = guide_href.clone();
+                                                                move || {
+                                                                    let write_href = write_href.clone();
+                                                                    Suspend::new(async move {
+                                                                        let items = guides.await;
+                                                                        view! { <SpaceGuideList guides=items write_href=write_href /> }
+                                                                    })
+                                                                }
+                                                            }
+                                                        </Suspense>
+                                                    </SpacePanelFrame>
+                                                }.into_any(),
+                                            }
+                                        }
+                                    }
                                 </article>
                             }.into_any()
                         }
                         Some(state) => {
-                            let space_name = state.space_name.clone();
+                            let name_en_opt = state.space_name_en.clone();
+                            let space_name = crate::i18n::localize_optional(locale.get_untracked(), &state.space_name, name_en_opt.as_deref());
                             let community_space_name = space_name.clone();
                             let id = state.space_id.to_string();
                             view! {
                                 <section class="form">
                                     <h1>{move || t(locale.get(), "私密空间需要访问码", "Private Space requires an access code")}</h1>
-                                    <p>{move || t(locale.get(), "验证后进入这个地点的空间详情：攻略、分享入口、社群和讨论都会在这里。", "After verification, enter this place’s Space detail: guides, share entry, community, and discussion are all here.")}</p>
+                                    <p>{move || t(locale.get(), "验证后进入这个地点的空间详情：简介、主理人、空间志、故事、分享和讨论都在这里。", "After verification, enter this place’s Space detail: about, host, guides, stories, sharing and discussion are all here.")}</p>
                                     <PrivateVerify
                                         space_id=id
                                         space_name=space_name
@@ -185,6 +223,340 @@ pub fn SpacePage() -> impl IntoView {
                 })}
             </Suspense>
         </main>
+    }
+}
+
+/// The default detail view: a quiet, single-column index. Long explanations
+/// and sharing tools stay behind deliberate actions instead of competing in
+/// the first viewport.
+#[component]
+fn SpaceCardWall(
+    space_id: String,
+    space_name: String,
+    chat_href: String,
+    panel: RwSignal<SpacePanel>,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let share_space_name = space_name.clone();
+    let community_space_name = space_name.clone();
+    view! {
+        <div class="space-card-wall">
+            <section class="space-place-index" aria-labelledby="space-place-index-title">
+                <header class="space-place-index-head">
+                    <p class="survey-kicker">{move || t(locale.get(), "空间目录", "Space index")}</p>
+                    <h2 id="space-place-index-title">{move || t(locale.get(), "从这里，读懂这个地点。", "Start here to understand this place.")}</h2>
+                </header>
+
+                <nav class="space-entry-index" aria-label=move || t(locale.get(), "空间内容入口", "Space contents")>
+                    <button type="button" class="space-entry-row space-entry-row-lead" on:click=move |_| panel.set(SpacePanel::Intro)>
+                        <span class="space-entry-row-main">
+                            <span class="space-entry-card-label">{move || t(locale.get(), "简介", "About")}</span>
+                            <span class="space-entry-card-desc">{move || t(locale.get(), "地点与来历", "Place and background")}</span>
+                        </span>
+                        <span class="space-entry-card-go">{move || t(locale.get(), "打开", "Open")}</span>
+                    </button>
+                    <button type="button" class="space-entry-row" on:click=move |_| panel.set(SpacePanel::Host)>
+                        <span class="space-entry-row-main">
+                            <span class="space-entry-card-label">{move || t(locale.get(), "主理人", "Host")}</span>
+                            <span class="space-entry-card-desc">{move || t(locale.get(), "谁在维护", "Who keeps it")}</span>
+                        </span>
+                        <span class="space-entry-card-go">{move || t(locale.get(), "打开", "Open")}</span>
+                    </button>
+                    <button type="button" class="space-entry-row" on:click=move |_| panel.set(SpacePanel::Story)>
+                        <span class="space-entry-row-main">
+                            <span class="space-entry-card-label">{move || t(locale.get(), "故事", "Stories")}</span>
+                            <span class="space-entry-card-desc">{move || t(locale.get(), "来过的人留下什么", "What visitors left")}</span>
+                        </span>
+                        <span class="space-entry-card-go">{move || t(locale.get(), "打开", "Open")}</span>
+                    </button>
+                    <button type="button" class="space-entry-row" on:click=move |_| panel.set(SpacePanel::Guides)>
+                        <span class="space-entry-row-main">
+                            <span class="space-entry-card-label">{move || t(locale.get(), "空间志", "Guides")}</span>
+                            <span class="space-entry-card-desc">{move || t(locale.get(), "实地记录", "Field notes")}</span>
+                        </span>
+                        <span class="space-entry-card-go">{move || t(locale.get(), "打开", "Open")}</span>
+                    </button>
+                    <a class="space-entry-row" href=chat_href>
+                        <span class="space-entry-row-main">
+                            <span class="space-entry-card-label">{move || t(locale.get(), "讨论", "Discussion")}</span>
+                            <span class="space-entry-card-desc">{move || t(locale.get(), "今天现场", "What is happening now")}</span>
+                        </span>
+                        <span class="space-entry-card-go">{move || t(locale.get(), "进入", "Enter")}</span>
+                    </a>
+                </nav>
+            </section>
+
+            <details id="space-share" class="space-tools-disclosure">
+                <summary>
+                    <span>{move || t(locale.get(), "分享与进入", "Share and enter")}</span>
+                    <small>{move || t(locale.get(), "链接、二维码、社群", "Link, QR code, community")}</small>
+                </summary>
+                <div class="space-card-tools" aria-label=move || t(locale.get(), "空间工具", "Space tools")>
+                    <SpaceSharePanel space_id=space_id space_name=share_space_name compact=true />
+                    <CommunityLinks space_name=community_space_name />
+                </div>
+            </details>
+        </div>
+    }
+}
+
+/// Shell around an opened panel: a back control returns to the card wall.
+#[component]
+fn SpacePanelFrame(
+    panel: RwSignal<SpacePanel>,
+    title: &'static str,
+    children: Children,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <section class="space-panel-open" aria-label=title>
+            <div class="space-panel-open-bar">
+                <button type="button" class="space-panel-back" on:click=move |_| panel.set(SpacePanel::Wall)>
+                    <span aria-hidden="true">"←"</span>
+                    <span>{move || t(locale.get(), "返回", "Back")}</span>
+                </button>
+                <span class="space-panel-open-title">{title}</span>
+            </div>
+            <div class="space-panel-open-body">
+                {children()}
+            </div>
+        </section>
+    }
+}
+
+/// The intro panel: what this place is and why the Space exists. Every line is
+/// drawn from stored fields — description, tag, type — so we never invent copy.
+#[component]
+fn SpaceIntroPanel(detail: Option<SpaceDetailView>) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let Some(detail) = detail else {
+        return view! {
+            <div class="empty-state compact-empty">
+                <strong>{move || t(locale.get(), "简介还没有补充", "No description yet")}</strong>
+                <span>{move || t(locale.get(), "主理人认领后，会在这里写清楚这是什么地方、为什么值得进来。", "Once a host claims it, they will write here what this place is and why it is worth entering.")}</span>
+            </div>
+        }.into_any();
+    };
+
+    let (kind_zh, kind_en) = space_type_words(&detail.summary.space_type);
+    let custom_type = detail.custom_type.clone();
+    let type_label = move || {
+        if let Some(custom) = custom_type.clone().filter(|value| !value.trim().is_empty()) {
+            custom
+        } else {
+            t(locale.get(), kind_zh, kind_en).to_string()
+        }
+    };
+
+    let description = localize_optional(
+        locale.get_untracked(),
+        detail.description_zh.as_deref().unwrap_or(""),
+        detail.description_en.as_deref(),
+    );
+    let has_description = !description.trim().is_empty();
+    let description_zh = detail.description_zh.clone().unwrap_or_default();
+    let description_en = detail.description_en.clone();
+
+    let tag = localize_optional(
+        locale.get_untracked(),
+        detail.tag_zh.as_deref().unwrap_or(""),
+        detail.tag_en.as_deref(),
+    );
+    let has_tag = !tag.trim().is_empty();
+    let tag_zh = detail.tag_zh.clone().unwrap_or_default();
+    let tag_en = detail.tag_en.clone();
+
+    let location = join_location(&detail.summary);
+
+    view! {
+        <div class="space-fact-wall">
+            <div class="space-fact-card">
+                <span class="space-fact-key">{move || t(locale.get(), "类型", "Type")}</span>
+                <span class="space-fact-value">{type_label}</span>
+            </div>
+            {(!location.is_empty()).then(|| {
+                let location = location.clone();
+                view! {
+                    <div class="space-fact-card">
+                        <span class="space-fact-key">{move || t(locale.get(), "位置", "Location")}</span>
+                        <span class="space-fact-value">{location.clone()}</span>
+                    </div>
+                }
+            })}
+            {has_tag.then(|| view! {
+                <div class="space-fact-card">
+                    <span class="space-fact-key">{move || t(locale.get(), "标签", "Tag")}</span>
+                    <span class="space-fact-value">{move || localize_optional(locale.get(), &tag_zh, tag_en.as_deref())}</span>
+                </div>
+            })}
+            {if has_description {
+                view! {
+                    <div class="space-fact-card space-fact-card-wide">
+                        <span class="space-fact-key">{move || t(locale.get(), "这是什么地方", "What this place is")}</span>
+                        <p class="space-fact-prose">{move || localize_optional(locale.get(), &description_zh, description_en.as_deref())}</p>
+                    </div>
+                }.into_any()
+            } else {
+                view! {
+                    <div class="space-fact-card space-fact-card-wide">
+                        <span class="space-fact-key">{move || t(locale.get(), "这是什么地方", "What this place is")}</span>
+                        <p class="space-fact-prose space-fact-prose-muted">{move || t(locale.get(), "还没有人写下这个地点的简介。认领主理人后可以补上。", "Nobody has written this place's description yet. A host can add it after claiming.")}</p>
+                    </div>
+                }.into_any()
+            }}
+        </div>
+    }.into_any()
+}
+
+/// The host panel: who maintains the Space and since when. We only state what
+/// the data supports — the host's display name and the creation date — and are
+/// explicit when a Space is still waiting to be claimed.
+#[component]
+fn SpaceHostPanel(space_id: String, detail: Option<SpaceDetailView>) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let host_name = detail
+        .as_ref()
+        .and_then(|d| d.host_name.clone())
+        .filter(|value| !value.trim().is_empty());
+    let bio_zh = detail
+        .as_ref()
+        .and_then(|d| d.host_bio_zh.clone())
+        .unwrap_or_default();
+    let bio_en = detail.as_ref().and_then(|d| d.host_bio_en.clone());
+    let has_bio =
+        !bio_zh.trim().is_empty() || bio_en.as_deref().is_some_and(|v| !v.trim().is_empty());
+    let since = detail
+        .as_ref()
+        .and_then(|d| d.created_at.clone())
+        .map(|value| value.chars().take(10).collect::<String>())
+        .filter(|value| !value.trim().is_empty());
+
+    view! {
+        <div class="space-host-panel">
+            {match host_name {
+                Some(name) => view! {
+                    <div class="space-host-identity">
+                        <span class="space-host-avatar" aria-hidden="true">{name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default()}</span>
+                        <div>
+                            <p class="space-host-name">{name}</p>
+                            <p class="space-host-role">{move || t(locale.get(), "空间主理人", "Space host")}</p>
+                        </div>
+                    </div>
+                    {has_bio.then(|| {
+                        let bio_zh = bio_zh.clone();
+                        let bio_en = bio_en.clone();
+                        view! {
+                            <p class="space-host-bio">{move || localize_optional(locale.get(), &bio_zh, bio_en.as_deref())}</p>
+                        }
+                    })}
+                }.into_any(),
+                None => view! {
+                    <SpaceHostClaim space_id=space_id.clone() />
+                }.into_any(),
+            }}
+            {since.map(|since| view! {
+                <div class="space-host-since">
+                    <span class="space-fact-key">{move || t(locale.get(), "空间建立于", "Space created")}</span>
+                    <span class="space-fact-value">{since}</span>
+                </div>
+            })}
+        </div>
+    }.into_any()
+}
+
+/// The claim flow shown when a Space has no host yet. A signed-in visitor can
+/// apply to become the host; an admin approves the application later. We read
+/// the visitor's existing claim state so a repeat visit shows "under review"
+/// rather than offering to apply again.
+#[component]
+fn SpaceHostClaim(space_id: String) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let message = RwSignal::new(String::new());
+    let error = RwSignal::new(None::<String>);
+    let refresh = RwSignal::new(0u32);
+
+    let claim_space_id = space_id.clone();
+    let state = Resource::new(
+        move || (claim_space_id.clone(), refresh.get()),
+        |(space_id, _)| async move {
+            my_host_claim(space_id)
+                .await
+                .unwrap_or(HostClaimState::None)
+        },
+    );
+
+    let apply_space_id = space_id.clone();
+    let apply = Action::new(move |_: &()| {
+        let space_id = apply_space_id.clone();
+        let note = message.get();
+        async move { apply_host_claim(space_id, (!note.trim().is_empty()).then_some(note)).await }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = apply.value().get() {
+            match result {
+                Ok(_) => {
+                    error.set(None);
+                    refresh.update(|v| *v += 1);
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+
+    view! {
+        <div class="space-host-vacant">
+            <p class="space-host-vacant-title">{move || t(locale.get(), "这个空间正在招募主理人", "This Space is looking for a host")}</p>
+            <p>{move || t(locale.get(), "目前由 inspace 编辑部临时看护。熟悉这里、愿意长期维护的人，可以申请成为主理人：整理简介、维护空间志、回答现场问题。", "For now it is tended by the inspace editorial team. Someone who knows the place and will maintain it can apply to become the host: write the intro, keep the guides, answer on-site questions.")}</p>
+            <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载…", "Loading…")}</div> }>
+                {move || Suspend::new(async move {
+                    match state.await {
+                        HostClaimState::Anonymous => view! {
+                            <a class="button button-primary" href="/inspace/login">{move || t(locale.get(), "登录后申请认领", "Sign in to apply")}</a>
+                        }.into_any(),
+                        HostClaimState::Pending => view! {
+                            <p class="space-host-claim-status">{move || t(locale.get(), "你的认领申请已提交，等待管理员审核。", "Your application has been submitted and is awaiting admin review.")}</p>
+                        }.into_any(),
+                        HostClaimState::Approved => view! {
+                            <p class="space-host-claim-status">{move || t(locale.get(), "你的认领已通过，刷新后即可管理这个空间。", "Your claim was approved. Refresh to manage this Space.")}</p>
+                        }.into_any(),
+                        HostClaimState::Rejected => view! {
+                            <p class="space-host-claim-status">{move || t(locale.get(), "上一次申请未通过，你可以补充说明后再次申请。", "Your last application was not approved. Add a note and apply again.")}</p>
+                            <ClaimForm message=message error=error apply=apply />
+                        }.into_any(),
+                        _ => view! {
+                            <ClaimForm message=message error=error apply=apply />
+                        }.into_any(),
+                    }
+                })}
+            </Suspense>
+        </div>
+    }.into_any()
+}
+
+#[component]
+fn ClaimForm(
+    message: RwSignal<String>,
+    error: RwSignal<Option<String>>,
+    apply: Action<(), Result<HostClaimState, ServerFnError>>,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <form class="space-host-claim-form" on:submit=move |ev| { ev.prevent_default(); apply.dispatch(()); }>
+            <label class="field-label">
+                <span>{move || t(locale.get(), "为什么由你来维护（可选）", "Why you (optional)")}</span>
+                <textarea
+                    rows="3"
+                    placeholder=move || t(locale.get(), "例如：我在这附近生活/工作，熟悉这里。", "e.g. I live or work nearby and know this place well.")
+                    prop:value=move || message.get()
+                    on:input=move |ev| message.set(event_target_value(&ev))
+                ></textarea>
+            </label>
+            {move || error.get().map(|err| view! { <p class="form-error">{err}</p> })}
+            <button class="button button-primary" type="submit" prop:disabled=move || apply.pending().get()>
+                {move || t(locale.get(), "申请成为主理人", "Apply to be the host")}
+            </button>
+        </form>
     }
 }
 
@@ -246,7 +618,8 @@ pub fn SpaceChatPage() -> impl IntoView {
                 {move || Suspend::new(async move {
                     match access.await {
                         Some(state) if state.allowed => {
-                            let space_name = state.space_name.clone();
+                            let name_en_opt = state.space_name_en.clone();
+                            let space_name = crate::i18n::localize_optional(locale.get_untracked(), &state.space_name, name_en_opt.as_deref());
                             let verify_space_name = space_name.clone();
                             let id = state.space_id.to_string();
                             let messages_space_id = id.clone();
@@ -380,7 +753,8 @@ pub fn SpaceChatPage() -> impl IntoView {
                             }.into_any()
                         }
                         Some(state) => {
-                            let space_name = state.space_name.clone();
+                            let name_en_opt = state.space_name_en.clone();
+                            let space_name = crate::i18n::localize_optional(locale.get_untracked(), &state.space_name, name_en_opt.as_deref());
                             let id = state.space_id.to_string();
                             view! {
                                 <section class="form">
@@ -406,26 +780,28 @@ pub fn SpaceChatPage() -> impl IntoView {
     }
 }
 
-#[component]
-fn SpaceMetaLine(space: Option<SpaceMarker>) -> impl IntoView {
-    let locale = use_i18n().locale;
-    let Some(space) = space else {
-        return view! { <span class="space-meta-line">{move || t(locale.get(), "真实地点空间", "Real-place Space")}</span> }.into_any();
-    };
-    let (kind_zh, kind_en) = match space.space_type {
-        instant_domain::spaces::SpaceType::Scenic => ("景点", "Scenic"),
-        instant_domain::spaces::SpaceType::Food => ("美食", "Food"),
-        instant_domain::spaces::SpaceType::Park => ("公园", "Park"),
-        instant_domain::spaces::SpaceType::Transit => ("交通", "Transit"),
-        instant_domain::spaces::SpaceType::Event => ("活动", "Event"),
-        instant_domain::spaces::SpaceType::Custom => ("其他", "Other"),
-    };
-    let location = [
-        space.country,
-        space.province,
-        space.city,
-        space.district,
-        space.spot_name,
+fn space_type_words(
+    space_type: &instant_domain::spaces::SpaceType,
+) -> (&'static str, &'static str) {
+    use instant_domain::spaces::SpaceType;
+    match space_type {
+        SpaceType::Scenic => ("景点", "Scenic"),
+        SpaceType::Food => ("美食", "Food"),
+        SpaceType::Park => ("公园", "Park"),
+        SpaceType::Transit => ("交通", "Transit"),
+        SpaceType::Event => ("活动", "Event"),
+        SpaceType::Custom => ("其他", "Other"),
+    }
+}
+
+/// Join the most specific 3 location parts of a Space, de-duplicated, coarse→fine.
+fn join_location(space: &SpaceMarker) -> String {
+    [
+        space.country.clone(),
+        space.province.clone(),
+        space.city.clone(),
+        space.district.clone(),
+        space.spot_name.clone(),
     ]
     .into_iter()
     .flatten()
@@ -443,7 +819,17 @@ fn SpaceMetaLine(space: Option<SpaceMarker>) -> impl IntoView {
     .into_iter()
     .rev()
     .collect::<Vec<_>>()
-    .join(" · ");
+    .join(" · ")
+}
+
+#[component]
+fn SpaceMetaLine(space: Option<SpaceMarker>) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let Some(space) = space else {
+        return view! { <span class="space-meta-line">{move || t(locale.get(), "真实地点空间", "Real-place Space")}</span> }.into_any();
+    };
+    let (kind_zh, kind_en) = space_type_words(&space.space_type);
+    let location = join_location(&space);
     view! {
         <div class="space-meta-line">
             <span>{move || t(locale.get(), kind_zh, kind_en)}</span>
@@ -465,8 +851,8 @@ fn SpaceGuideList(
             <div class="card-head-inline">
                 <div>
                     <p class="survey-kicker">{move || t(locale.get(), "这个地点的记录", "Records for this place")}</p>
-                    <h2>{move || t(locale.get(), "空间攻略", "Space guides")}</h2>
-                    <p>{move || t(locale.get(), "路线、时间、花费、避坑——写下来就留在这个地点上，下一个人不用重新踩一遍。", "Routes, timing, cost, pitfalls — written once, they stay attached to this place so the next visitor doesn’t start over.")}</p>
+                    <h2>{move || t(locale.get(), "空间志", "Guides")}</h2>
+                    <p>{move || t(locale.get(), "路线、时间、花费和避坑，写下来就留在这个地点上，下一个人不用重新踩一遍。", "Routes, timing, cost, and pitfalls stay attached to this place so the next visitor does not start over.")}</p>
                 </div>
                 <a class="button button-secondary-light" href=write_href>{move || t(locale.get(), "写一篇", "Write one")}</a>
             </div>
@@ -474,7 +860,7 @@ fn SpaceGuideList(
                 view! {
                     <div class="empty-state compact-empty">
                         <strong>{move || t(locale.get(), "这个地点还没有人写过", "Nobody has written about this place yet")}</strong>
-                        <span>{move || t(locale.get(), "攻略只能在空间里创建：从这里开始写，它会自动挂在这个地点下。", "Guides are created inside a Space. Start here and the guide is attached to this place automatically.")}</span>
+                        <span>{move || t(locale.get(), "志只能在空间里创建：从这里开始写，它会自动挂在这个地点下。", "Records are created inside a Space. Start here and it is attached to this place automatically.")}</span>
                         <a class="button button-primary" href=empty_write_href>{move || t(locale.get(), "在这个空间里写第一篇", "Write the first guide here")}</a>
                     </div>
                 }.into_any()

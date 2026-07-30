@@ -19,6 +19,7 @@ pub struct GuidePageResult {
 #[server(ListGuidePage, "/inspace/api")]
 pub async fn list_guide_page(
     q: Option<String>,
+    country: Option<String>,
     province: Option<String>,
     city: Option<String>,
     district: Option<String>,
@@ -37,6 +38,7 @@ pub async fn list_guide_page(
             .filter(|value| !value.is_empty())
     };
     let q = clean(q);
+    let country = clean(country);
     let province = clean(province);
     let city = clean(city);
     let district = clean(district);
@@ -44,8 +46,9 @@ pub async fn list_guide_page(
 
     let fetch = |page: i32| {
         let pool = pool.clone();
-        let (q, province, city, district, spot_name) = (
+        let (q, country, province, city, district, spot_name) = (
             q.clone(),
+            country.clone(),
             province.clone(),
             city.clone(),
             district.clone(),
@@ -55,6 +58,7 @@ pub async fn list_guide_page(
             instant_db::guides::list_published_guides_page(
                 &pool,
                 q,
+                country,
                 province,
                 city,
                 district,
@@ -640,6 +644,15 @@ fn clean_optional(value: Option<String>) -> Option<String> {
     value
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
+}
+
+#[server(ListGuideCountries, "/inspace/api")]
+pub async fn list_guide_countries() -> Result<Vec<String>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+
+    instant_db::guides::published_guide_countries(&pool)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
 #[server(ListProvinces, "/inspace/api")]

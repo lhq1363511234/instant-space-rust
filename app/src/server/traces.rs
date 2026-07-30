@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "ssr"), allow(dead_code))]
 
-use instant_domain::traces::{CapsuleOpenResult, CapsuleSummary, SpaceChronicle, Trace};
+use instant_domain::traces::{
+    CapsuleOpenResult, CapsuleSealResult, CapsuleSummary, SpaceChronicle, Trace,
+};
 #[cfg(feature = "ssr")]
 use instant_domain::traces::{PresenceProof, CAPSULE_MAX_CHARS, TRACE_MAX_CHARS};
 use leptos::prelude::*;
@@ -331,7 +333,10 @@ pub async fn seal_capsule(
     passphrase: String,
     radius_m: i32,
     opens_at: Option<String>,
-) -> Result<String, ServerFnError> {
+    lat: Option<f64>,
+    lng: Option<f64>,
+    onsite_code: Option<String>,
+) -> Result<CapsuleSealResult, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
         let id =
@@ -347,6 +352,33 @@ pub async fn seal_capsule(
             return Err(ServerFnError::new("login required"));
         };
         let pool = crate::server::db_pool().await?;
+        let radius_m = radius_m.clamp(50, 1000);
+
+        // Burying a capsule changes the history of a physical place, so it
+        // needs two independent proofs: the code visible in the local Wi-Fi
+        // list and a browser location fix inside the chosen radius. Neither a
+        // QR query string nor one proof on its own is enough.
+        if !verify_onsite_code(&pool, id, onsite_code.as_deref()).await? {
+            return Ok(CapsuleSealResult::OnsiteCodeRequired);
+        }
+
+        let (lat, lng) = match (lat, lng) {
+            (Some(lat), Some(lng)) if lat.is_finite() && lng.is_finite() => (lat, lng),
+            _ => return Ok(CapsuleSealResult::LocationRequired),
+        };
+        let Some((space_lat, space_lng)) = instant_db::traces::space_coordinates(&pool, id)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?
+        else {
+            return Ok(CapsuleSealResult::SpaceLocationUnavailable);
+        };
+        let distance_m = instant_domain::traces::distance_metres(lat, lng, space_lat, space_lng);
+        if distance_m > f64::from(radius_m) {
+            return Ok(CapsuleSealResult::TooFar {
+                distance_m: distance_m.round(),
+                radius_m,
+            });
+        }
 
         // Only the hash is stored. The author tells the recipient the words
         // themselves; nobody, including this server, can recover them.
@@ -380,14 +412,16 @@ pub async fn seal_capsule(
                 recipient_hint,
                 body,
                 passphrase_hash,
-                radius_m: radius_m.clamp(50, 5000),
+                radius_m,
                 opens_at,
             },
         )
         .await
         .map_err(|err| ServerFnError::new(err.to_string()))?;
 
-        Ok(capsule_id.to_string())
+        Ok(CapsuleSealResult::Sealed {
+            id: capsule_id.to_string(),
+        })
     }
 
     #[cfg(not(feature = "ssr"))]
@@ -399,6 +433,9 @@ pub async fn seal_capsule(
             passphrase,
             radius_m,
             opens_at,
+            lat,
+            lng,
+            onsite_code,
         );
         Err(ServerFnError::new("server only"))
     }

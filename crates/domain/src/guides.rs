@@ -14,6 +14,8 @@ pub struct GuideSummary {
     pub id: Uuid,
     pub title_zh: String,
     pub title_en: Option<String>,
+    #[serde(default)]
+    pub country: Option<String>,
     pub province: String,
     pub city: String,
     pub district: Option<String>,
@@ -57,6 +59,8 @@ pub struct GuideDetail {
     pub content_en: Option<String>,
     pub guide_type: String,
     pub category: Option<String>,
+    #[serde(default)]
+    pub country: Option<String>,
     pub province: String,
     pub city: String,
     pub district: Option<String>,

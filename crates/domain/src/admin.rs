@@ -30,6 +30,19 @@ pub struct ResidentApplication {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostClaimApplication {
+    pub claim_id: Uuid,
+    pub space_id: Uuid,
+    pub name_zh: String,
+    pub name_en: Option<String>,
+    pub applicant_id: Uuid,
+    pub applicant_email: Option<String>,
+    pub applicant_name: Option<String>,
+    pub message: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuditLogEntry {
     pub id: Uuid,
     pub actor_email: Option<String>,

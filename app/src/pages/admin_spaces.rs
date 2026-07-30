@@ -7,7 +7,7 @@ use crate::pages::host::ManageSpaceModal;
 use crate::server::auth::current_session;
 use crate::server::spaces::{
     archive_my_space_template, close_my_space, delete_my_space, list_admin_space_page,
-    reactivate_my_space, SpaceMarker, SpacePageResult,
+    reactivate_my_space, set_admin_home_weight, SpaceMarker, SpacePageResult,
 };
 
 #[component]
@@ -219,6 +219,7 @@ fn AdminSpaceRow(space: SpaceMarker, reload: RwSignal<u32>) -> impl IntoView {
     let status = space.status.clone();
     let space_id = space.id.clone();
     let status_for_buttons = status.clone();
+    let home_weight = RwSignal::new(space.home_weight);
 
     let handle = move |result: Result<SpaceMarker, ServerFnError>, success: &str| match result {
         Ok(_) => {
@@ -259,6 +260,14 @@ fn AdminSpaceRow(space: SpaceMarker, reload: RwSignal<u32>) -> impl IntoView {
             async move { delete_my_space(id).await }
         }
     });
+    let save_home_weight = Action::new({
+        let id = space_id.clone();
+        move |weight: &i32| {
+            let id = id.clone();
+            let weight = *weight;
+            async move { set_admin_home_weight(id, weight).await }
+        }
+    });
     Effect::new(move |_| {
         if let Some(result) = close.value().get() {
             handle(result, "已关闭");
@@ -279,6 +288,11 @@ fn AdminSpaceRow(space: SpaceMarker, reload: RwSignal<u32>) -> impl IntoView {
             handle(result, "已移入已删除");
         }
     });
+    Effect::new(move |_| {
+        if let Some(result) = save_home_weight.value().get() {
+            handle(result, "首页权重已保存");
+        }
+    });
 
     view! {
         <article class="admin-space-row">
@@ -295,6 +309,22 @@ fn AdminSpaceRow(space: SpaceMarker, reload: RwSignal<u32>) -> impl IntoView {
                 </p>
             </div>
             <div class="admin-space-actions">
+                <label class="admin-home-weight">
+                    <span>{move || t(locale.get(), "首页权重", "Home weight")}</span>
+                    <input
+                        type="number"
+                        min="0"
+                        max="1000"
+                        inputmode="numeric"
+                        prop:value=move || home_weight.get().to_string()
+                        on:input=move |ev| {
+                            home_weight.set(event_target_value(&ev).parse::<i32>().unwrap_or(0).clamp(0, 1000));
+                        }
+                    />
+                </label>
+                <button class="button button-secondary-light" type="button" on:click=move |_| { save_home_weight.dispatch(home_weight.get()); }>
+                    {move || t(locale.get(), "首页展示", "Feature")}
+                </button>
                 <button class="button button-secondary-light" type="button" on:click=move |_| manage_open.set(true)>
                     {move || t(locale.get(), "编辑空间", "Edit")}
                 </button>

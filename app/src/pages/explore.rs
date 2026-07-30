@@ -30,15 +30,15 @@ pub fn ExplorePage() -> impl IntoView {
 
     view! {
         <main id="main-content" class="page explore-page explore-directory">
-            <header class="explore-directory-head">
-                <div>
-                    <p class="eyebrow">{move || t(locale.get(), "空间探索", "Space discovery")}</p>
-                    <h1>{move || t(locale.get(), "找到你要去的空间", "Find the Space you need")}</h1>
-                    <p>{move || t(locale.get(), "搜索地点或空间名称，列表只保留判断所需的信息；攻略、讨论和分享都在空间内部。", "Search by place or Space name. The list keeps only decision-making details; guides, discussion, and sharing live inside each Space.")}</p>
+            <header class="explore-directory-head directory-hero">
+                <div class="directory-hero-copy">
+                    <p class="eyebrow">{move || t(locale.get(), "地点索引", "Place index")}</p>
+                    <h1>{move || t(locale.get(), "从一个地点，进入它的空间。", "Start with a place. Enter its Space.")}</h1>
+                    <p>{move || t(locale.get(), "搜索你正要去、曾经到过或真正熟悉的地方。空间里保存攻略、现场讨论，以及后来的人仍能读到的地点记忆。", "Search for somewhere you are visiting, have been to, or know well. Each Space keeps practical guides, on-site discussion, and memories tied to that place.")}</p>
                 </div>
-                <div class="explore-head-actions">
-                    <a class="button button-secondary" href="/inspace/map">{move || t(locale.get(), "地图模式", "Map view")}</a>
-                    <button class="button button-primary" type="button" on:click=move |_| modal.open.set(true)>{move || t(locale.get(), "创建空间", "Create Space")}</button>
+                <div class="explore-head-actions directory-hero-actions">
+                    <a class="button button-secondary" href="/inspace/map">{move || t(locale.get(), "在地图上寻找", "Find on the map")}</a>
+                    <button class="button button-primary" type="button" on:click=move |_| modal.open.set(true)>{move || t(locale.get(), "为熟悉的地点建空间", "Create a Space for a place")}</button>
                 </div>
             </header>
 
@@ -53,19 +53,19 @@ pub fn ExplorePage() -> impl IntoView {
                     }
                 >
                     <label class="explore-search-field">
-                        <span>{move || t(locale.get(), "搜索地点或空间", "Search places or Spaces")}</span>
+                        <span>{move || t(locale.get(), "先输入一个地点", "Start with a place")}</span>
                         <div class="explore-search-row">
                             <input
                                 type="search"
                                 prop:value=move || query_input.get()
-                                placeholder=move || t(locale.get(), "输入名称、城市、区域或具体地点", "Name, city, district, or place")
+                                placeholder=move || t(locale.get(), "例如：南昌、滕王阁、公司楼下的公园", "e.g. Nanchang, Tengwang Pavilion, the park near work")
                                 on:input=move |ev| query_input.set(event_target_value(&ev))
                             />
                             <button class="button button-primary" type="submit">{move || t(locale.get(), "搜索", "Search")}</button>
                         </div>
                     </label>
                     <div class="explore-filter-line">
-                        <span>{move || t(locale.get(), "类型", "Type")}</span>
+                        <span>{move || t(locale.get(), "再按类型缩小范围", "Then narrow by type")}</span>
                         <div class="filter-chip-row">{space_type_buttons(locale, selected_type, page)}</div>
                         <button
                             class="explore-clear-button"
@@ -168,11 +168,11 @@ fn ExploreResults(result: SpacePageResult, page: RwSignal<i32>) -> impl IntoView
     view! {
         <div class="directory-result-bar" aria-live="polite">
             <p>{move || if locale.get() == crate::i18n::Locale::Zh {
-                format!("共 {total} 个空间，当前显示 {first}–{last}")
+                format!("找到 {total} 个空间，正在看第 {first} 至 {last} 个")
             } else {
-                format!("{total} Spaces · showing {first}–{last}")
+                format!("{total} Spaces, showing {first} to {last}")
             }}</p>
-            <span>{move || t(locale.get(), "按推荐与创建时间排序", "Ordered by relevance and recency")}</span>
+            <span>{move || t(locale.get(), "先看地点，再决定是否进入", "Scan the place first, then decide whether to enter")}</span>
         </div>
         <div class="space-directory-list">
             {result.items.into_iter().map(|space| view! { <SpaceRow space=space /> }).collect_view()}
@@ -284,13 +284,13 @@ fn SpaceRow(space: SpaceMarker) -> impl IntoView {
                         <h2>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</h2>
                         <span class="space-type-label">{move || t(locale.get(), kind_zh, kind_en)}</span>
                     </div>
-                    <p class="space-directory-location">{if location.is_empty() { "—".to_string() } else { location }}</p>
+                    <p class="space-directory-location">{move || if location.is_empty() { t(locale.get(), "地点信息待补充", "Location details pending").to_string() } else { location.clone() }}</p>
                 </div>
                 <div class="space-directory-status">
                     <span>{move || if is_public { t(locale.get(), "公开", "Public") } else { t(locale.get(), "需访问码", "Access code") }}</span>
-                    {(online_count > 0).then(|| view! { <span>{format!("{online_count} online")}</span> })}
+                    {(online_count > 0).then(|| view! { <span>{move || if locale.get() == crate::i18n::Locale::Zh { format!("{online_count} 人在线") } else { format!("{online_count} online") }}</span> })}
                 </div>
-                <span class="space-directory-enter" aria-hidden="true">"→"</span>
+                <span class="space-directory-enter" aria-hidden="true">{move || t(locale.get(), "进入", "Open")}</span>
             </a>
         </article>
     }

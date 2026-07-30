@@ -78,6 +78,7 @@ fn build_router() -> Router {
     let shell_options = options.clone();
 
     Router::new()
+        .merge(instant_space_web::agent_api::router())
         .route("/health", get(health))
         .route("/ready", get(ready))
         .route(
@@ -241,7 +242,7 @@ async fn reverse_geo(
 
 fn leptos_options() -> LeptosOptions {
     LeptosOptions::builder()
-        .output_name("instant_space_app_v76")
+        .output_name("instant_space_app_v90")
         .site_addr(SITE_ADDR.parse::<SocketAddr>().expect("valid site address"))
         .hash_files(false)
         .build()
@@ -272,7 +273,7 @@ mod tests {
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.js"));
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.css"));
         assert!(!html.contains("unpkg.com/maplibre-gl"));
-        assert!(html.contains("/pkg/instant_space_app_v76.js"));
+        assert!(html.contains("/pkg/instant_space_app_v90.js"));
     }
 
     #[tokio::test]

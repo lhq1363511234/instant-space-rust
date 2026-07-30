@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 #[cfg(feature = "ssr")]
 use leptos_meta::MetaTags;
-use leptos_meta::{provide_meta_context, Link, Meta, Script, Stylesheet, Title};
+use leptos_meta::{provide_meta_context, Html, Link, Meta, Script, Stylesheet, Title};
 use leptos_router::{
     components::{Route, Router, Routes},
     path,
@@ -13,7 +13,9 @@ use crate::components::{
     space_form::{provide_create_space_modal, CreateSpaceModalHost},
 };
 use crate::pages::{
+    about::AboutPage,
     admin::AdminRoutes,
+    admin_claims::AdminClaimsPage,
     admin_guides::AdminGuidesPage,
     admin_home::AdminHomePage,
     admin_residents::AdminResidentsPage,
@@ -30,11 +32,13 @@ use crate::pages::{
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    crate::i18n::provide_i18n();
+    let i18n = crate::i18n::provide_i18n();
+    let locale = i18n.locale;
     crate::app_state::provide_app_refresh_state();
     provide_create_space_modal();
 
     view! {
+        <Html {..} lang=move || locale.get().code() attr:data-locale=move || locale.get().code() />
         <Title text="inspace｜走到导航的尽头，体验才开始" />
         <Meta name="description" content="地图带你到达，inspace 让你真正进入真实地点：看攻略、了解现场、分享二维码，并与在场的人连接。" />
         <Meta name="keywords" content="inspace,旅行攻略,空间地图,真实地点,介观空间,Travel guide,travel map,destination guide" />
@@ -99,17 +103,25 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v17" />
         <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v17" />
         <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v17" />
-        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260727-mapnav-v2" />
+        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260729-shell-search-v4" />
         <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v17" />
         <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260727-editor-v5" />
-        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260729-craft-v17" />
-        <Stylesheet id="song-css" href="/style/song-system.css?v=20260727-song-v9" />
+        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260728-hyperframes-taste-v3" />
+        <Stylesheet id="song-css" href="/style/song-system.css?v=20260730-song-colour-v13" />
+        <Stylesheet id="about-css" href="/style/about.css?v=20260729-about-v5" />
+        <Stylesheet id="directory-css" href="/style/directory-system.css?v=20260728-directory-v3" />
+        <Stylesheet id="space-experience-css" href="/style/space-experience.css?v=20260729-space-experience-v2" />
+        <Stylesheet id="home-reframe-css" href="/style/home-reframe.css?v=20260729-home-restore-record-v1" />
+        <Stylesheet id="home-discovery-css" href="/style/home-discovery.css?v=20260730-home-discovery-v10" />
+        <Stylesheet id="admin-operations-css" href="/style/admin-operations.css?v=20260729-home-featured-v1" />
         <Router>
             <Header />
             <div class="app-main">
             <Routes fallback=|| view! { <main id="main-content" class="page"><h1>"Not found"</h1></main> }>
                 <Route path=path!("/") view=HomePage />
                 <Route path=path!("/inspace") view=HomePage />
+                <Route path=path!("/about") view=AboutPage />
+                <Route path=path!("/inspace/about") view=AboutPage />
                 <Route path=path!("/explore") view=ExplorePage />
                 <Route path=path!("/inspace/explore") view=ExplorePage />
                 <Route path=path!("/map") view=MapWorkspace />
@@ -144,6 +156,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/inspace/admin/guides") view=AdminGuidesPage />
                 <Route path=path!("/admin/resident-applications") view=AdminResidentsPage />
                 <Route path=path!("/inspace/admin/resident-applications") view=AdminResidentsPage />
+                <Route path=path!("/admin/host-claims") view=AdminClaimsPage />
+                <Route path=path!("/inspace/admin/host-claims") view=AdminClaimsPage />
                 <Route path=path!("/admin/users") view=AdminUsersPage />
                 <Route path=path!("/inspace/admin/users") view=AdminUsersPage />
             </Routes>
@@ -159,11 +173,11 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     let map_boot = include_str!("map_boot.js");
     let capitals_boot = include_str!("geo_capitals_boot.js");
     let chat_realtime = include_str!("chat_realtime.js");
-    let field_parallax = include_str!("field_parallax.js");
+    let home_hyperframes = include_str!("home_hyperframes.js");
 
     view! {
         <!DOCTYPE html>
-        <html lang="zh-CN" data-instant-ssr="leptos">
+        <html data-instant-ssr="leptos">
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -172,7 +186,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <AutoReload options=options.clone() />
                 <HydrationScripts options=options.clone() />
                 <script>{chat_realtime}</script>
-                <script>{field_parallax}</script>
+                <script>{home_hyperframes}</script>
                 <MetaTags />
             </head>
             <body>

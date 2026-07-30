@@ -109,20 +109,20 @@ impl Default for HomeHeroConfig {
             visible: true,
             order: 10,
             eyebrow: LocalizedText::new(
-                "到达之后",
-                "After you arrive",
+                "关于每一个真实地点",
+                "About every real place",
             ),
             title: LocalizedText::new(
-                "走到导航的尽头，才是体验的开始。",
-                "Where the map ends, the experience begins.",
+                "我们不生产故事，我们只是地点故事的搬运工。",
+                "We do not make the stories. We just carry a place's stories to you.",
             ),
             body: LocalizedText::new(
-                "地图把你送到门口。这个地方怎么走、什么时候来、哪里会踩坑，写在这里；还没写下的，问此刻正在现场的人。",
-                "The map drops you at the door. How to walk it, when to come, what to avoid — it is written here. What is not, you ask the people standing there now.",
+                "每一个真实的地方，都有人来过、走过、留下过。我们把这些收下来，等你到了，推门进去，交给你。",
+                "Every real place has people who came, walked it, and left something behind. We keep it here, so that when you arrive and step in, it is waiting for you.",
             ),
             note: LocalizedText::new("Be IN the space, beyond the map.", "Be IN the space, beyond the map."),
             sample_location: LocalizedText::new("上海 · 黄浦区 · 外滩", "Shanghai · Huangpu · The Bund"),
-            sample_title: LocalizedText::new("今晚去外滩，走哪条路人少？", "The Bund tonight — which way is less crowded?"),
+            sample_title: LocalizedText::new("今晚去外滩，走哪条路人少？", "The Bund tonight, which way is less crowded?"),
             sample_body: LocalizedText::new("这一条被空间里的人反复修订过：路线、上桥口、退场时间。", "Revised again and again by people who were there: the route, the ramp, when to leave."),
             sample_guide_label: LocalizedText::new("外滩夜景与人流", "Night views and crowds"),
             sample_question: LocalizedText::new("南京东路站哪个出口离江边最近？", "Which exit at East Nanjing Rd is closest to the river?"),
@@ -163,14 +163,14 @@ impl Default for HomeJourneyConfig {
             ),
             body: LocalizedText::new(
                 "不是介绍，不是评分，是有人替你先走过一遍，并且还在这里。",
-                "Not descriptions, not ratings — someone walked it first, and is still here.",
+                "Not descriptions, not ratings, someone walked it first, and is still here.",
             ),
             arrive_title: LocalizedText::new("到达", "Arrive"),
             arrive_body: LocalizedText::new("地图的任务到此结束。", "This is where the map stops."),
             guide_title: LocalizedText::new("看懂", "Understand"),
             guide_body: LocalizedText::new(
                 "路线、时段、避坑，写成这个地方的一份长期档案。",
-                "Routes, timing, pitfalls — kept as one long-running record of the place.",
+                "Routes, timing, pitfalls, kept as one long-running record of the place.",
             ),
             help_title: LocalizedText::new("问人", "Ask"),
             help_body: LocalizedText::new(
@@ -212,7 +212,7 @@ impl Default for HomeGuideConfig {
             ),
             visual_route: LocalizedText::new("南京东路站 2 号口出，沿滇池路步行 8 分钟", "Exit 2 at East Nanjing Rd, 8 minutes along Dianchi Rd"),
             visual_warning: LocalizedText::new("周五、周六 19:30 后观景平台限流", "Platform access is capped after 19:30 on Fri and Sat"),
-            visual_live: LocalizedText::new("今晚南段围挡施工，改走北侧台阶", "Barriers on the south stretch tonight — use the north steps"),
+            visual_live: LocalizedText::new("今晚南段围挡施工，改走北侧台阶", "Barriers on the south stretch tonight, use the north steps"),
             cta_label: LocalizedText::new("翻阅空间攻略", "Read space guides"),
             cta_url: "/inspace/guides".to_string(),
         }
@@ -235,14 +235,14 @@ impl Default for HomeHostConfig {
             visible: true,
             order: 40,
             title: LocalizedText::new(
-                "你比大多数人更熟悉某个地方。",
-                "You know one place better than most people do.",
+                "为熟悉的地点，建一个空间。",
+                "Create a Space for a place you know.",
             ),
             body: LocalizedText::new(
-                "把它建成一个空间：写下攻略，回答提问，让后来的人少走一段冤枉路。",
-                "Turn it into a space: write the guide, answer what comes up, and spare the next person the detour.",
+                "我们正在招募空间主理人，让真实地点有人长期维护。",
+                "We are recruiting Space hosts to keep real places maintained over time.",
             ),
-            cta_label: LocalizedText::new("建一个空间", "Create a space"),
+            cta_label: LocalizedText::new("成为空间主理人", "Become a Space host"),
         }
     }
 }

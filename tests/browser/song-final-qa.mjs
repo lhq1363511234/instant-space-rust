@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 const BASE='https://opctoai.com/inspace';
 const routes=[
- ['home','/'],['explore','/explore'],['guides','/guides'],
+ ['home','/'],['about','/about'],['explore','/explore'],['guides','/guides'],
  ['space','/spaces/10000000-0000-0000-0000-000000000001'],
  ['login','/login'],['workspace','/my-spaces'],['admin','/admin']
 ];
@@ -13,7 +13,7 @@ for(const [vpName,viewport] of viewports){
  const c=await b.newContext({viewport,geolocation:{latitude:31.2397,longitude:121.4998},permissions:['geolocation']});
  await c.addCookies([{name:'instant_session',value:'qa-token-fullstack-1',domain:'opctoai.com',path:'/'}]);
  for(const [name,path] of routes){
-  if(!['desktop','phone'].includes(vpName) && !['home','guides','space','login'].includes(name)) continue;
+  if(!['desktop','phone'].includes(vpName) && !['home','about','guides','space','login'].includes(name)) continue;
   const p=await c.newPage(); const errs=[]; const failed=[];
   p.on('pageerror',e=>errs.push(e.message));
   p.on('console',m=>{if(m.type()==='error') errs.push(m.text())});

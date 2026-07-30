@@ -1,4 +1,6 @@
+pub mod about;
 pub mod admin;
+pub mod admin_claims;
 pub mod admin_guides;
 pub mod admin_home;
 pub mod admin_residents;

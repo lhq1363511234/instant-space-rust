@@ -990,3 +990,176 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 - 仓库新增 `LICENSE`，采用 PolyForm Noncommercial License 1.0.0。
 - 必要声明：Copyright 2026 InSpaceOS；未经许可方事先书面授权，禁止商业使用。
 - Workspace 及所有 Rust package 均声明 `PolyForm-Noncommercial-1.0.0`，并在 README 中加入中英文许可证说明。
+
+## 2026-07-27 — 胶囊写入双现场验证、全国省级空间与主理人招募（v78）
+
+### 胶囊写入
+- `seal_capsule` 不再只检查登录：埋胶囊必须同时通过空间 Wi-Fi 名称中的现场口令和浏览器 GPS 半径验证；只满足一项、没有定位或距离过远都不能写入。
+- 正常拒绝使用 `CapsuleSealResult` 结构化返回，不再把“距离太远”当 HTTP 500；服务端仍是最终权限边界，前端 disabled 只负责引导。
+- 胶囊编辑器新增两项现场证明清单；扫码不会再隐藏现场口令输入；“或者用定位”改为中性的“验证当前位置”。
+- `tests/browser/capsule-seal-presence.mjs` 覆盖：无证明、仅 Wi-Fi、Wi-Fi+近场 GPS、Wi-Fi+远场 GPS；`capsule-twolock.mjs` 同步适配写入规则。两组均 ALL PASS。
+
+### 中国省级内容补全
+- 新增幂等脚本 `scripts/seed/seed_china_provinces.py`，从生产 `geo_places` 的真实城镇坐标生成编辑部基础空间，不虚构著名景点事实。
+- 中国 34 个省级地区（含港澳台）各写入 50 个空间和 50 份一一绑定的攻略，共 1,700 + 1,700；逐省 SQL 核验全部为 50/50。
+- 这些空间全部 `host_user_id = NULL`，标记“主理人招募中 / Host wanted”；系统管理员负责先点亮，等待当地人认领和补充真实路线、现场变化与地方故事。
+- 生产总量更新为 Spaces 2,714（active 2,702）、Guides 2,701。地图健康检查 MapLibre style loaded、11 个聚合点、59 个瓦片成功、0 失败。
+
+### About 与主理人招募
+- 新增 `/inspace/about`：解释“地图负责到达，inspace 负责体验”、三层能力、空间主理人职责，以及压缩后的创始人寄语。
+- 全局侧栏底部增加“关于 inspace”；首页末段改为公开招募空间主理人，并链接 About 招募章节。
+- 迁移 `20260727000300_home_host_recruitment.sql` 同步更新当前草稿和已发布首页文案。
+- About 使用独立 `about.css`；第一次截图发现桌面 2px 溢出和深色段落对比度不足，第二轮修复后桌面/平板/手机均无溢出、按钮可见、触控目标不小于 44px。
+
+### 部署与验证
+- 生产版本：WASM/loader `instant_space_app_v78`，`about.css?v=20260727-about-v2`，`inspace-world.css?v=20260727-capsule-v18`。
+- `/health` 与 `/ready` 正常；迁移 `20260727000300` success=true。
+- `song-final-qa.mjs` 已加入 About，桌面、iPad 横竖屏、390/375 手机和 reduced-motion 全部 ALL PASS；无横向溢出、标题裁切、未标记字段、console/network 错误。
+
+## 待办路线图（2026-07-27，已与用户敲定，尚未动代码）
+
+> 详见 `docs/SPACE_DETAIL_AND_API_PLAN.md`。执行顺序 **2 → 4 → 3 → 1**。
+
+核心认知：**空间 = 任何真实地点的数字入口**（公司/餐馆/公园/景点都能建），不只旅游景点。之前文案写不好就是没抓住这点。
+
+1. **对外 API（作者自用，最后做，别忘了！）**：带 API Key 鉴权的 REST（`/api/spaces`、`/api/guides` 增改查），让作者的 AI agent 程序化建空间/写志/管空间。这轮只做 API+鉴权，不接模型。暂不开放给普通用户。
+2. **详情页重构（先做）**：「攻略」→「志」（英文暂 Guide，待确认）。详情页做成**卡片墙**（点开才进，非长滚动）：顶部空间头 + 「关于」区（简介卡/主理人+发展史卡/故事卡）+ 志卡 + 讨论卡。志的板块按**可自定义的空间类型**动态适配，故事暂不并入讨论。
+3. **首页加轮播**：用公司/餐馆/公园/景点等示例讲清「创建空间为了什么」。
+4. **文案重写**：首页+About，从「旅行攻略」扩展到「给在乎的真实地点建可进入的数字空间」，保持宋式美学。
+
+已完成背景：反向地理选点已修（简体中文 + 台湾/港澳归正中国）；中国种子已换 Wikidata 真实景点（1062 招募空间，南昌可搜到滕王阁）。WASM 版本推进到 v80。
+
+## 主理人认领 + 简介/主理人可编辑（2026-07-28，已上线 v84）
+
+用户反馈的逻辑缺口：卡片墙写“认领后可写简介”，但代码里既没有“认领”动作，认领了也没有改简介的入口。现已补齐闭环，三块内容均可编辑运营。
+
+- 认领方式（用户拍板）：申请 → 管理员审批，防止故宫等热门点被抢占。主理人卡片只加“寄语”，不单列联系方式。
+- 迁移 `20260728000100_host_claims_and_bio.sql`：`spaces` 加 `host_bio_zh/en`；新表 `space_host_claims`(space_id,user_id,message,status,created_at,decided_at, UNIQUE(space_id,user_id))，pending 部分索引。
+- DB (`crates/db/src/spaces.rs`)：`UpdateSpaceInput` 扩 `custom_type/description_zh/en/tag_zh/en/host_bio_zh/en`；`update_host_space`、`get_space_detail` 同步；新增 `apply_host_claim`(仅未认领空间受理，ON CONFLICT 重置)、`host_claim_status`、`list_host_claims`、`approve_host_claim`(事务：赋 host_user_id + 本条 approved + 同空间其余 pending 置 rejected)、`reject_host_claim`。
+- domain：`SpaceDetail` 加 `host_bio_zh/en`；`admin::HostClaimApplication`。
+- server：`SpaceDetailView` 加 host_bio；`update_my_space` 扩 7 参（host.rs 调用点同步，19 参加 `#[allow(clippy::too_many_arguments)]`）；新增用户态 `apply_host_claim`/`my_host_claim`（返回 `HostClaimState` 枚举 Anonymous/None/Pending/Approved/Rejected/AlreadyHosted）；admin `list/approve/reject_host_claim`（审批写 audit）。
+- 前端：`space.rs` `SpaceHostPanel` 加 `space_id`，已认领显示寄语，招募中渲染 `SpaceHostClaim`（按 claim 状态显示登录/申请表单/审核中）；`host.rs` `ManageSpacePanel` 拉 `get_space_detail` 预填，编辑表单加 简介/自定义类型/标签/主理人寄语 字段；新页 `admin_claims.rs`（路由 `/admin/host-claims`，侧栏“认领”）。CSS 追加 `.space-host-bio/.space-host-claim-*/.admin-claim-note`。
+
+### 部署踩坑（重要）
+- 迁移首次失败：`ALTER TABLE spaces` 报 `must be owner of table spaces`。根因：服务以 `instant_space` 连接，但表属主是 `postgres`，服务因此崩溃重启循环。
+- 修复：`sudo -u postgres psql instant_space_rust` 把 public schema 全部表/序列 `OWNER TO instant_space`（`REASSIGN OWNED` 思路），重启后迁移自动补跑成功（migrations=17，`IF NOT EXISTS` 幂等）。以后新迁移改 spaces 表不会再报属主错。
+- 生产版本：WASM `instant_space_app_v84`，`inspace-world.css?v=20260727-cardwall-v22`。cardwall QA 六视口 ALL PASS，滕王阁招募态认领入口截图正常。
+
+### 路线图进度
+- 第 2 步（详情页卡片墙）完成，并额外补齐认领+可编辑闭环。剩余：4 首页/About 文案（About 已改）、3 首页轮播、1 对外 API（最后）。
+
+## 2026-07-28 · taste-skill 全站审计与首轮修复
+
+- 使用 `design-taste-frontend`、`inspace-design-engineer`、响应式、无障碍和 Playwright 质量门扫描生产站；报告在 `output/playwright/taste-audit/report.json`，覆盖首页、About、探索、攻略、攻略详情、地图、两类空间详情、聊天、登录、用户/管理员登录门，视口为 1440×900、1024×768、390×844。
+- 全站共同通过项：测试路由无横向溢出、无控制台错误、图片 alt/表单标签无严重缺失；地图画布和聚合点正常，OpenFreeMap 的 `ERR_ABORTED` 是 MapLibre 主动取消旧瓦片请求，不是地图加载失败；reduced-motion 下首页动画为 0。
+- 首轮修复：`song-system.css` 最终接管首页 Hero，解决后加载的旧 `!important` 把标题挤成桌面 5 行、手机 4 行的问题；线上实测桌面/iPad/手机均为 2 行且 overflow=0。
+- 触控修复：登录输入框、攻略详情返回入口、地图聚合点均达到至少 44px。
+- HyperFrames 专项证据在 `output/playwright/hyperframes/`：桌面和手机四幕均可正向切换，反向滚动可回放，active frame 与 active visual 一致，无横向溢出；reduced-motion 退化为普通文档流。
+- 当前结构性优先级：Explore（边框 76、嵌套边框 50、手机小字 51）→ Guides（边框 58、嵌套 50）→ About/攻略详情的长标题与破折号文案 → 登录/全局 shell 的次级触控细化。探索和攻略需要结构重构，不能继续靠追加装饰 CSS：删除筛选容器套列表容器的双层框，分类改文本索引/分段线，列表对象只保留一层边界。
+- 本轮未做 release/WASM 构建；`cargo check -p instant-space-app` 通过。通过 Nginx 静态样式版本替换上线 `inspace-world ... v3` 与 `song-system ... v11`，只 reload Nginx，未重启应用或其他服务。
+
+## 2026-07-28 · 探索与攻略从修复升级为地点索引
+
+- 新增专用样式层 `app/style/directory-system.css`，由 `app/src/app.rs` 最后加载；它只接管 Explore/Guides，避免继续在通用旧 CSS 里堆紧急覆盖。当前生产缓存版本 `20260728-directory-v3`。
+- Explore 从“筛选卡 + 列表卡”升级为地点索引：主叙事改为“从一个地点，进入它的空间”，搜索具体地点优先，类型作为第二层缩小范围，结果行只保留名称、类型、地点、访问状态和进入动作；创建 CTA 明确为“为熟悉的地点建空间”。
+- Guides 升级为地点阅读索引：标题强调“先选一个地方，再读那里留下的攻略”，明确攻略应在用户管理的空间内创建；搜索之后按省份→城市→区域→地点逐级筛选，新增可真正复位所有 select DOM 状态的“清除全部”；攻略行改为标题、地点、阅读动作的编辑式索引。
+- 数据/后端契约保持不变：Explore 20 条/页、Guides 24 条/页，既有服务端分页、搜索、类型/地区筛选与路由全部保留。
+- 生产已部署 WASM/SSR `instant_space_app_v87`。本轮只做了一次 release（8m27s）和一次 WASM（3m09s）构建；之后的两次视觉修正仅通过 CSS 缓存版本与 Nginx reload 上线，没有重复构建。
+- 最终浏览器 QA：1440×900、1024×768、390×844 均 overflow=0、console/network 0；Explore 嵌套边框 50→14（手机 41→11），桌面小字 47→7；Guides 嵌套边框 50→17（手机 41→14）；两页 H1 手机均 2 行、visible em dash=0、reduced-motion 动画=0。搜索“南昌”返回 18 个空间；类型筛选/清除、四级地区筛选/清除、空间行和攻略行点击跳转均验证通过。
+- 最终证据：`output/playwright/directory-upgrade/final-report.json` 与同目录最终截图。
+- 仍需单独处理的数据质量：部分历史批量导入的攻略标题/地点本身错误或过于泛化，这不是本次 UI 索引重构造成的；应在数据治理模块修正，不能用前端隐藏。
+
+## 2026-07-29 · Taste 升级：空间详情地点索引与 About 叙事页
+
+- 本轮继续严格使用 `design-taste-frontend`：Design Read 为“面向真实地点访客与未来主理人的品牌叙事和空间详情重构，宋式编辑感、真实地点沉淀、克制且有目的的动效”；参数为变化度 8、动效 6、密度 3。
+- 空间详情不再展示五个等权大卡片。`SpaceCardWall` 已改为“地点入口索引”，顺序固定为简介 → 主理人 → 故事 → 空间志 → 讨论；第一条简介承担更完整解释，其他入口用墨线分隔的编辑式行，不再卡片套卡片。讨论仍跳独立路由 `/inspace/spaces/:id/chat`。
+- 新增 `app/style/space-experience.css`，作为最后加载的空间详情专用样式层。分享和社群仍在桌面右侧工具轨，iPad/手机下落到索引之后；旧分享、二维码、社群、认领、故事胶囊和空间志业务契约均未改变。
+- 简介面板的类型、位置、标签、地点说明从嵌套 fact cards 改为规则线信息行；面板返回按钮实测 44px，打开面板使用 300ms 状态转场，`prefers-reduced-motion` 下完全关闭。
+- About 保持整页统一月白纸主题，取消中途深色主题翻转、`01/02/03` 编号和装饰点；新增真实地点图片窗口、首屏双 CTA、无编号主理人职责和创始人寄语。可见文案中的 em dash / en dash 为 0。
+- About 的 scroll-driven 动效只保留轻微位移，不再降低文字 opacity，避免再次出现“透明灰字”；桌面/iPad H1 为 2 行，390px 手机为 3 行且无裁切。正文小于 12px 的可见文字为 0。
+- 生产版本：SSR/WASM `instant_space_app_v88`，About CSS `20260729-about-v4`，空间体验 CSS `20260729-space-experience-v1`，migrations=19。仅执行一次 release（11m07s）和一次 WASM（4m03s）构建，健康检查与 ready 均正常。
+- 因边缘 CSS 缓存为 4 小时，Nginx 的既有 cache-buster sub_filter 增加 `20260729-about-v3` → `20260729-about-v4`，确保普通刷新立即取得修正版；只 reload Nginx，未重启无关服务。
+- 最终 Playwright QA 覆盖 1440×900、1024×768、390×844，以及故宫 hosted / 滕王阁 recruiting 两种空间：全部 overflow=0、console/network=0；简介、主理人、故事、空间志面板和返回全部通过；讨论路由通过；reduced-motion 动画全部为 none。
+- 证据位于 `output/playwright/taste-space-about-final/final-report.json` 及同目录桌面、iPad、手机截图。`tests/browser/space-cardwall-qa.mjs` 已同步新 `.space-entry-row` 结构。
+
+## 2026-07-29 首页 v7 中宽屏修正
+- 用户截图指出首页在中宽屏/平板宽度下像单栏文档：左侧堆文字和大斜图，右侧大面积空白。
+- 按 taste skill 收口：`app/style/home-reframe.css` 追加 v7 断点。
+  - 901-1099px 保持左右首屏构图，图片在右侧，不再塌成单栏。
+  - 721-900px 改成居中单栏，控制宽度与图片尺寸，避免内容靠左和右侧空白。
+  - 首图减小失衡感，保留轻微倾斜但不再像素材硬贴。
+- `app/src/app.rs` 首页样式版本推进到 `20260729-home-reframe-v7`。
+- Nginx sub_filter 已把旧 `home-reframe` v1-v6 映射到 v7；若边缘缓存仍吐旧 HTML，可用带 query 的 URL 或 no-cache 验证。
+- 同轮修复移动端 topbar 搜索：`app/style/app-shell.css` 恢复手机 placeholder，避免顶部出现空白长框；样式版本 `20260729-shell-search-v4`。
+- Playwright 截图输出：`output/playwright/home-v7-responsive/`。
+
+## 2026-07-29 首页 v10 去除平板/中宽屏大空白
+- 用户反馈 v7/v8“改了跟没改一样，还是有大空白”。复查发现根因不是单纯断点，而是旧样式的列间距/更高权重规则继续生效，把右侧图片列压到约 300px，造成右边视觉空白。
+- `app/style/home-reframe.css` 追加 v10 高权重覆盖：`body .inspace-home .survey-hero` 在 760-1180px 使用 `grid-template-columns: 42% 58%`，`gap/column-gap/row-gap: 0`，右侧图片占 58% 舞台。
+- 760-900px 使用 `45% 55%`，避免中宽屏重新变成左侧文档流。
+- `app/src/app.rs` 首页样式版本推进到 `20260729-home-reframe-v10`，Nginx sub_filter 映射旧 v1-v9 到 v10。
+- Playwright 计算值：1024px 由旧 `499px 300px / gap 61px` 变为 `365px 504px / gap 0`；900px 变为 `342px 418px / gap 0`；overflow=0。
+- 截图目录：`output/playwright/home-v10-no-blank/`。
+
+## 2026-07-29 — 首页尺寸收敛 + 宋式美学执行准则（v6）
+
+- 用户明确：上一轮问题不是热门空间卡片，而是首页「空间示例」轮播图和主标题同一视觉等级过大；已上线 `home-discovery-v6`。
+- 首页尺寸：桌面主标题上限 `6.2rem → 5.05rem`；轮播图片最高 `640px → 380px`；手机轮播图 `252px → 200px`，手机标题上限 `3.25rem → 2.75rem`。`1440×900 / 768×1024 / 390×844` 无横向溢出、无 console/network error；轮播隐藏页不可获得键盘焦点。
+- 平板热门空间：宽度 ≤900px 改为规则双列，避免桌面主卡跨行造成棋盘式空洞；奇数末项跨整行。手机仍保持横向滑动。
+- 用户认可的宋式美学不是泛黄、大留白或仿古装饰。后续设计遵循：
+  - 月白/米白为底，墨黑建立阅读秩序；雨过天青只作为低饱和层次，朱砂仅用于关键行动/状态。
+  - 留白必须服务层级、阅读或转场，不能是无意义空洞。
+  - 一屏一个视觉主角，图片、标题、正文严格递减；采用“一角半边”、虚实相生，而非均分堆叠。
+  - 通过真实材质、细线、比例、字重表达质感；避免卡片嵌套、杂色、渐变和装饰性动效。
+  - 动效应克制地解释状态/层级（如卷轴展开、墨色渐显），支持 reduced-motion，禁止抢内容。
+- 资源：主机为 4 核。用户允许构建使用约 80% CPU；后续默认 `CARGO_BUILD_JOBS=3`（约 75% 并发），不要重复并行启动 cargo。当前 release 的单大 crate / 链接阶段并不一定随 `-j` 线性加速。
+
+## 2026-07-29 — 首页宋园点景（v7）
+
+- 用户要求增加园林装饰。首页 Hero 已增加低对比度的纯 CSS/SVG 装饰：月洞门、竹影和水纹；仅作为背景点景，不承载信息，不影响键盘/点击，不引入额外图片请求或装饰性动画。
+- 响应式：桌面右侧完整点景；平板缩小并降低透明度；手机向右收边、透明度降为 `.33`，标题/正文始终在上层可读。
+- 部署：`home-discovery-v7` 已发布，服务健康检查 `ok/ready`；1440×900、768×1024、390×844 均无横向溢出、无 console/network error，轮播隐藏链接不可聚焦。
+
+## 2026-07-30 — 全站宋式文字色板（song-colour-v12）
+
+- 用户指出“文字改色”要求的是全站，而不只是轮播。`song-system.css` 现建立全局“墨分五色”语义：
+  - 墨黑：主标题与长文阅读；深墨灰：正文；石灰：地点、时间、说明；水青：路径/链接；青瓷：分类、标签、在线状态；梅子青：已发布/通过/成功；朱砂：风险、拒绝、删除及关键注意。
+- 同时将旧 `--color-*` 遗留语义 token 映射至宋式 token，探索、空间详情、攻略、聊天、空间管理、登录与后台都会继承，不再回退蓝紫 SaaS 色。
+- 发布版本：`song-system.css?v=20260729-song-colour-v12`，首页窗景 `home-discovery-v8` 一并发布。
+- QA：首页、探索、空间详情、登录、我的空间、后台均无横向溢出、无 console/network error；四种窗形在桌面与手机轮播均可切换，隐藏轮播链接不可获焦。
+
+## 2026-07-30 · 攻略搜索/国家筛选 + 作者 Agent REST API 已上线
+
+### 用户原意（再次确认，防止忘记）
+- `memory.md` 里说的“对外 API”不是 `/inspace/api` 的 Leptos Server Functions。
+- 它是**作者自用 AI Agent REST API**：作者以后用自己的 Agent 程序化建空间、写志、管理空间；这轮只做 API 与鉴权，不接大模型、不开放给普通用户。
+
+### 攻略目录修复
+- 迁移 `20260730000100_guides_country.sql`：`guides` 新增 `country`，2063/2063 篇从绑定的 `spaces.country` 完整回填，索引 `guides_country_idx`。
+- `GuideSummary`/`GuideDetail` 增 `country`；新建/更新志时 country 从绑定空间派生，避免 Agent 或用户填出不一致国家。
+- 攻略页新增国家下拉（China/Egypt/France/Italy/Japan/Spain/Thailand/Türkiye/United Kingdom/United States）。
+- 搜索从整句 `ILIKE` 改为拆词后 AND：每个 token 必须命中标题/地点层级/国家/摘要/正文之一；生产验证 `南昌 滕王阁` 精确返回 1 篇「滕王阁」。
+- 攻略详情本身 SSR 一直正常；客户端“点不开”的实际根因是服务端 DOM 已更新但线上仍加载旧 WASM v89，触发 Tachys hydration panic。已构建 hydrate WASM `instant_space_app_v90`，Nginx 暂用精确 sub_filter 将公开 HTML 的 v89 loader 改写为 v90；源码 `app/src/main.rs` 与 `scripts/build-wasm.mjs` 均已推进到 v90，下一次正常 server release 后可移除这条临时改写。
+
+### Agent REST API
+- 新增迁移 `20260730000200_agent_rest_api.sql`：
+  - `agent_api_keys`：绑定 user、`key_prefix`、Argon2 `key_hash`、scopes、每分钟限流、撤销/最后使用时间。
+  - `agent_api_audit_log`：key/user/method/path/status/target/remote_addr/时间。
+- 新增 `crates/db/src/agent_api.rs`：Key 查询、分钟计数、审计、空间/志归属检查。
+- 新增 `app/src/agent_api.rs`，独立 Axum JSON REST，不复用 Leptos Server Function 协议：
+  - `GET/POST /api/spaces`
+  - `PATCH /api/spaces/:id`
+  - `GET/POST /api/guides`
+  - `PATCH /api/guides/:id`
+- 鉴权支持 `Authorization: Bearer` 或 `X-Inspace-Api-Key`；scope 为 `spaces:read/write`、`guides:read/write`；默认 60 req/min；API Key 绑定用户只能管理自己的对象。
+- 新增一次性 Key 工具 `app/src/bin/create-agent-key.rs`；明文只显示一次，数据库不存明文。
+- 公网根 `/api/` 已被 HAPI 占用，Nginx 只将精确的 `/api/spaces`、`/api/guides`（含 `/:id`）代理到 3001，其余 `/api/*` 仍去 3006，未破坏 HAPI。
+- 完整文档：`docs/AGENT_REST_API.md`。
+
+### 部署与 QA
+- `cargo check -p instant-space-app --all-targets` 通过；release server 二进制已安装到 `/usr/local/bin/instant-space-app`；`/health`、`/ready` 正常。
+- API 真实临时 Key CRUD 验证：创建/更新空间、创建/更新志、中文多关键词 GET、scope 403、审计均通过；所有临时 Key/空间/志/对应审计均删除，残留 0。
+- 浏览器最终证据：`output/playwright/final-20260730/`。
+  - 1440×900、390×844：首页当前可见图片正常、无横向溢出。
+  - 攻略国家筛选 + `南昌 滕王阁` 返回 1 篇并可点击进入详情。
+  - 无 hydration panic、console error、HTTP >=400、横向溢出、未标记表单字段或小于 44px 的主内容交互控件。

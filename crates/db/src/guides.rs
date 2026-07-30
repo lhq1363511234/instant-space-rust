@@ -57,7 +57,7 @@ pub async fn list_guides_by_author(
 ) -> Result<Vec<GuideSummary>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
-        SELECT id, title_zh, title_en, province, city, district, spot_name,
+        SELECT id, title_zh, title_en, country, province, city, district, spot_name,
                status::text AS status, featured, author_id, space_id
         FROM guides
         WHERE author_id = $1
@@ -82,7 +82,7 @@ pub async fn bind_guide_to_space(
         UPDATE guides
         SET space_id = $2, updated_at = now()
         WHERE id = $1
-        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+        RETURNING id, title_zh, title_en, country, province, city, district, spot_name,
                   status::text AS status, featured, author_id, space_id
         "#,
     )
@@ -103,7 +103,7 @@ pub async fn list_published_guides(
 ) -> Result<Vec<GuideSummary>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
-        SELECT id, title_zh, title_en, province, city, district, spot_name,
+        SELECT id, title_zh, title_en, country, province, city, district, spot_name,
                status::text AS status, featured, author_id, space_id
         FROM guides
         WHERE status = 'published'
@@ -133,9 +133,29 @@ pub struct PaginatedGuides {
 /// Paginated variant of [`list_published_guides`]. The guide directory holds a
 /// four-digit number of published guides, so the browser must never receive the
 /// whole table in one response.
+/// Distinct countries that currently have at least one published guide, so the
+/// directory country filter only offers nations the reader can actually reach.
+pub async fn published_guide_countries(pool: &PgPool) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT DISTINCT country
+        FROM guides
+        WHERE status = 'published'
+          AND country IS NOT NULL
+          AND country <> ''
+        ORDER BY country
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter().map(|row| row.try_get("country")).collect()
+}
+
 pub async fn list_published_guides_page(
     pool: &PgPool,
     q: Option<String>,
+    country: Option<String>,
     province: Option<String>,
     city: Option<String>,
     district: Option<String>,
@@ -143,46 +163,63 @@ pub async fn list_published_guides_page(
     limit: i64,
     offset: i64,
 ) -> Result<PaginatedGuides, sqlx::Error> {
+    // Split the free-text query into keywords and require every keyword to
+    // match at least one field. A single ILIKE on the whole phrase would miss
+    // "\u5357\u660c \u6ed5\u738b\u9601" because the stored title has no space between the two
+    // words; token-wise AND matching handles multi-word searches instead.
+    let tokens: Option<Vec<String>> = q.as_ref().map(|value| {
+        value
+            .split_whitespace()
+            .map(|token| token.to_string())
+            .collect::<Vec<_>>()
+    });
+    let tokens = tokens.filter(|list| !list.is_empty());
+
     const FILTER: &str = r#"
         WHERE status = 'published'
-          AND ($1::text IS NULL OR province = $1)
-          AND ($2::text IS NULL OR city = $2)
-          AND ($3::text IS NULL OR district = $3)
-          AND ($4::text IS NULL OR spot_name = $4)
+          AND ($1::text IS NULL OR country = $1)
+          AND ($2::text IS NULL OR province = $2)
+          AND ($3::text IS NULL OR city = $3)
+          AND ($4::text IS NULL OR district = $4)
+          AND ($5::text IS NULL OR spot_name = $5)
           AND (
-            $5::text IS NULL
-            OR title_zh ILIKE '%' || $5 || '%'
-            OR title_en ILIKE '%' || $5 || '%'
-            OR spot_name ILIKE '%' || $5 || '%'
-            OR city ILIKE '%' || $5 || '%'
-            OR province ILIKE '%' || $5 || '%'
+            $6::text[] IS NULL
+            OR NOT EXISTS (
+              SELECT 1 FROM unnest($6::text[]) AS tok
+              WHERE concat_ws(
+                ' ', title_zh, title_en, spot_name, district, city, province,
+                country, summary_zh, summary_en, content_zh, content_en
+              ) NOT ILIKE '%' || tok || '%'
+            )
           )
     "#;
 
     let total: i64 = sqlx::query_scalar(&format!("SELECT count(*)::bigint FROM guides {FILTER}"))
+        .bind(country.clone())
         .bind(province.clone())
         .bind(city.clone())
         .bind(district.clone())
         .bind(spot_name.clone())
-        .bind(q.clone())
+        .bind(tokens.clone())
         .fetch_one(pool)
         .await?;
 
     let rows = sqlx::query(&format!(
         r#"
-        SELECT id, title_zh, title_en, province, city, district, spot_name,
+        SELECT id, title_zh, title_en, country, province, city, district, spot_name,
                status::text AS status, featured, author_id, space_id
         FROM guides
         {FILTER}
         ORDER BY featured DESC, updated_at DESC, created_at DESC, id
-        LIMIT $6 OFFSET $7
+        LIMIT $7 OFFSET $8
         "#
     ))
+    .bind(country)
     .bind(province)
     .bind(city)
     .bind(district)
     .bind(spot_name)
-    .bind(q)
+    .bind(tokens)
     .bind(limit)
     .bind(offset)
     .fetch_all(pool)
@@ -204,7 +241,7 @@ pub async fn get_published_guide(
     let Some(row) = sqlx::query(
         r#"
         SELECT id, title_zh, title_en, summary_zh, summary_en, content_zh, content_en,
-               guide_type, category, province, city, district, spot_name,
+               guide_type, category, country, province, city, district, spot_name,
                status::text AS status, featured, author_id, author_name, space_id, cover_image_url,
                images, sections, created_at, updated_at
         FROM guides
@@ -233,6 +270,7 @@ pub async fn get_published_guide(
         content_en: row.try_get("content_en")?,
         guide_type: row.try_get("guide_type")?,
         category: row.try_get("category")?,
+        country: row.try_get("country").unwrap_or(None),
         province: row.try_get("province")?,
         city: row.try_get("city")?,
         district: row.try_get("district")?,
@@ -259,7 +297,7 @@ pub async fn get_guide(pool: &PgPool, guide_id: Uuid) -> Result<Option<GuideDeta
     let Some(row) = sqlx::query(
         r#"
         SELECT id, title_zh, title_en, summary_zh, summary_en, content_zh, content_en,
-               guide_type, category, province, city, district, spot_name,
+               guide_type, category, country, province, city, district, spot_name,
                status::text AS status, featured, author_id, author_name, space_id, cover_image_url,
                images, sections, created_at, updated_at
         FROM guides
@@ -294,7 +332,7 @@ pub async fn list_guides_by_space(
     let rows = if include_unpublished {
         sqlx::query(
             r#"
-            SELECT id, title_zh, title_en, province, city, district, spot_name,
+            SELECT id, title_zh, title_en, country, province, city, district, spot_name,
                    status::text AS status, featured, author_id, space_id
             FROM guides
             WHERE space_id = $1
@@ -316,7 +354,7 @@ pub async fn list_guides_by_space(
     } else {
         sqlx::query(
             r#"
-            SELECT id, title_zh, title_en, province, city, district, spot_name,
+            SELECT id, title_zh, title_en, country, province, city, district, spot_name,
                    status::text AS status, featured, author_id, space_id
             FROM guides
             WHERE space_id = $1
@@ -337,6 +375,7 @@ fn row_to_guide_summary(row: sqlx::postgres::PgRow) -> Result<GuideSummary, sqlx
         id: row.try_get("id")?,
         title_zh: row.try_get("title_zh")?,
         title_en: row.try_get("title_en")?,
+        country: row.try_get("country").unwrap_or(None),
         province: row.try_get("province")?,
         city: row.try_get("city")?,
         district: row.try_get("district")?,
@@ -364,6 +403,7 @@ fn row_to_guide_detail(row: sqlx::postgres::PgRow) -> Result<GuideDetail, sqlx::
         content_en: row.try_get("content_en")?,
         guide_type: row.try_get("guide_type")?,
         category: row.try_get("category")?,
+        country: row.try_get("country").unwrap_or(None),
         province: row.try_get("province")?,
         city: row.try_get("city")?,
         district: row.try_get("district")?,
@@ -398,14 +438,16 @@ pub async fn create_guide_draft(
         INSERT INTO guides (
             title_zh, title_en, summary_zh, summary_en, content_zh, content_en,
             guide_type, category, province, city, district, spot_name,
-            status, featured, author_id, author_name, space_id, cover_image_url, images, sections
+            status, featured, author_id, author_name, space_id, cover_image_url, images, sections,
+            country
         )
         VALUES (
             $1, $2, $3, $4, $5, $6,
             $7, $8, $9, $10, $11, $12,
-            $13::guide_status, $14, $15, $16, $17, $18, $19, $20
+            $13::guide_status, $14, $15, $16, $17, $18, $19, $20,
+            (SELECT country FROM spaces WHERE id = $17)
         )
-        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+        RETURNING id, title_zh, title_en, country, province, city, district, spot_name,
                   status::text AS status, featured, author_id, space_id
         "#,
     )
@@ -459,6 +501,7 @@ pub async fn update_guide(
             district = $12,
             spot_name = $13,
             space_id = $14,
+            country = (SELECT country FROM spaces WHERE id = $14),
             cover_image_url = $15,
             images = $16,
             sections = $17,
@@ -466,7 +509,7 @@ pub async fn update_guide(
             featured = $19,
             updated_at = now()
         WHERE id = $1
-        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+        RETURNING id, title_zh, title_en, country, province, city, district, spot_name,
                   status::text AS status, featured, author_id, space_id
         "#,
     )
@@ -503,7 +546,7 @@ pub async fn delete_guide_row(pool: &PgPool, guide_id: Uuid) -> Result<GuideSumm
         r#"
         DELETE FROM guides
         WHERE id = $1
-        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+        RETURNING id, title_zh, title_en, country, province, city, district, spot_name,
                   status::text AS status, featured, author_id, space_id
         "#,
     )
@@ -519,7 +562,7 @@ pub async fn delete_guide_row(pool: &PgPool, guide_id: Uuid) -> Result<GuideSumm
 pub async fn list_all_guides_admin(pool: &PgPool) -> Result<Vec<GuideSummary>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
-        SELECT id, title_zh, title_en, province, city, district, spot_name,
+        SELECT id, title_zh, title_en, country, province, city, district, spot_name,
                status::text AS status, featured, author_id, space_id
         FROM guides
         ORDER BY
@@ -545,7 +588,7 @@ pub async fn set_guide_status(
         SET status = $2::guide_status,
             updated_at = now()
         WHERE id = $1
-        RETURNING id, title_zh, title_en, province, city, district, spot_name,
+        RETURNING id, title_zh, title_en, country, province, city, district, spot_name,
                   status::text AS status, featured, author_id, space_id
         "#,
     )

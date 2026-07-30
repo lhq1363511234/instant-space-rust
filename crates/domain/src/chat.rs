@@ -14,7 +14,10 @@ pub struct ChatMessage {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatAccessState {
     pub space_id: Uuid,
+    /// Chinese display name; the canonical name that always exists.
     pub space_name: String,
+    /// English display name when present, so the client can localize the title.
+    pub space_name_en: Option<String>,
     pub is_public: bool,
     pub allowed: bool,
     pub password_version: Option<i32>,

@@ -117,6 +117,15 @@ pub fn Header() -> impl IntoView {
             <div class="shell-sidebar-spacer"></div>
 
             <div class="shell-sidebar-bottom">
+                <a
+                    href="/inspace/about"
+                    class=move || if shell_nav_active(&pathname.get(), "about") { "shell-utility-link shell-about-link is-active" } else { "shell-utility-link shell-about-link" }
+                    aria-current=move || shell_nav_active(&pathname.get(), "about").then_some("page")
+                    on:click=move |_| drawer_open.set(false)
+                >
+                    <ShellIcon name="info" />
+                    <span><b>{move || t(locale.get(), "关于 inspace", "About inspace")}</b><small>{move || t(locale.get(), "愿景与主理人招募", "Vision and host call")}</small></span>
+                </a>
                 <Suspense fallback=move || view! {
                     <div class="shell-account-skeleton" aria-hidden="true"><span></span><span></span></div>
                 }>
@@ -417,6 +426,7 @@ fn ShellIcon(name: &'static str) -> impl IntoView {
         "menu" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg> }.into_any(),
         "panel" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M14 9l-3 3 3 3"/></svg> }.into_any(),
         "layers" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4-8 4-8-4zM4 12l8 4 8-4M4 17l8 4 8-4"/></svg> }.into_any(),
+        "info" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v7M12 7h.01"/></svg> }.into_any(),
         "logout" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg> }.into_any(),
         _ => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg> }.into_any(),
     }
@@ -447,6 +457,7 @@ fn shell_nav_active(pathname: &str, section: &str) -> bool {
         "my-spaces" => {
             normalized.starts_with("/inspace/my-spaces") || normalized.starts_with("/my-spaces")
         }
+        "about" => normalized.starts_with("/inspace/about") || normalized.starts_with("/about"),
         _ => false,
     }
 }
@@ -462,6 +473,8 @@ fn mobile_bottom_class(pathname: &str) -> &'static str {
 fn shell_page_title(pathname: &str, locale: Locale) -> &'static str {
     if pathname.contains("/admin") {
         t(locale, "管理员后台", "Admin console")
+    } else if pathname.contains("/about") {
+        t(locale, "关于 inspace", "About inspace")
     } else if pathname.contains("/my-spaces") {
         t(locale, "用户工作台", "Workspace")
     } else if pathname.contains("/guides") {
@@ -480,6 +493,8 @@ fn shell_page_title(pathname: &str, locale: Locale) -> &'static str {
 fn shell_page_hint(pathname: &str, locale: Locale) -> &'static str {
     if pathname.contains("/admin") {
         t(locale, "运营、内容与系统", "Operations and system")
+    } else if pathname.contains("/about") {
+        t(locale, "愿景与空间主理人", "Vision and local hosts")
     } else if pathname.contains("/my-spaces") {
         t(locale, "管理你的空间", "Manage your spaces")
     } else if pathname.contains("/guides") {

@@ -54,6 +54,13 @@ pub struct UpdateSpaceInput {
     pub lat: f64,
     pub lng: f64,
     pub is_public: bool,
+    pub custom_type: Option<String>,
+    pub description_zh: Option<String>,
+    pub description_en: Option<String>,
+    pub tag_zh: Option<String>,
+    pub tag_en: Option<String>,
+    pub host_bio_zh: Option<String>,
+    pub host_bio_en: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -98,7 +105,7 @@ pub async fn list_home_spaces(
     let rows = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE status IN ('active', 'expired')
           AND ($1::text IS NULL OR name_zh ILIKE '%' || $1 || '%' OR name_en ILIKE '%' || $1 || '%')
@@ -121,7 +128,8 @@ pub async fn list_home_spaces(
             OR district ILIKE $5
             OR spot_name ILIKE $5
           )
-        ORDER BY (CASE WHEN resident THEN 10 ELSE 0 END) DESC, created_at DESC
+        ORDER BY home_weight DESC, (CASE WHEN resident THEN 10 ELSE 0 END) DESC,
+                 online_count DESC, created_at DESC
         "#,
     )
     .bind(filter.q)
@@ -180,7 +188,7 @@ pub async fn list_home_spaces_page(
     let rows = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE status IN ('active', 'expired')
           AND (
@@ -198,7 +206,8 @@ pub async fn list_home_spaces_page(
           AND ($3::text IS NULL OR country ILIKE $3 OR province ILIKE $3 OR city ILIKE $3)
           AND ($4::text IS NULL OR province ILIKE $4 OR city ILIKE $4 OR district ILIKE $4)
           AND ($5::text IS NULL OR city ILIKE $5 OR district ILIKE $5 OR spot_name ILIKE $5)
-        ORDER BY (CASE WHEN resident THEN 10 ELSE 0 END) DESC, created_at DESC, id DESC
+        ORDER BY home_weight DESC, (CASE WHEN resident THEN 10 ELSE 0 END) DESC,
+                 online_count DESC, created_at DESC, id DESC
         LIMIT $6 OFFSET $7
         "#,
     )
@@ -228,7 +237,7 @@ pub async fn list_host_spaces(
     let rows = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE host_user_id = $1
           AND status <> 'archived'
@@ -246,7 +255,7 @@ pub async fn list_manageable_spaces(pool: &PgPool) -> Result<Vec<SpaceSummary>, 
     let rows = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE status <> 'archived'
         ORDER BY created_at DESC
@@ -301,7 +310,7 @@ pub async fn list_admin_spaces_page(
     let rows = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE (
             $1::text IS NULL
@@ -347,7 +356,7 @@ pub async fn list_all_spaces_admin(pool: &PgPool) -> Result<Vec<SpaceSummary>, s
     let rows = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         ORDER BY created_at DESC
         "#,
@@ -365,7 +374,7 @@ pub async fn get_space_summary(
     let row = sqlx::query(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-               lat, lng, is_public, status::text AS status, expires_at, online_count
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE id = $1
           AND status <> 'archived'
@@ -375,7 +384,58 @@ pub async fn get_space_summary(
     .fetch_optional(pool)
     .await?;
 
-    row.map(row_to_space_summary).transpose()
+    row.map(|row| row_to_space_summary_ref(&row)).transpose()
+}
+
+pub async fn get_space_detail(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+) -> Result<Option<instant_domain::spaces::SpaceDetail>, sqlx::Error> {
+    // One query for the whole detail view: the summary columns plus the extra
+    // fields the card wall needs (description, tags, community, custom type),
+    // and the host's display name via a left join so unclaimed Spaces still work.
+    let row = sqlx::query(
+        r#"
+        SELECT s.id, s.name_zh, s.name_en, s.space_type::text AS space_type, s.country, s.province, s.city, s.district,
+               s.spot_name, s.address_line, s.lat, s.lng, s.is_public, s.status::text AS status, s.expires_at, s.online_count, s.home_weight,
+               s.description_zh, s.description_en, s.tag_zh, s.tag_en, s.discord_group, s.qq_group, s.password_version,
+               s.custom_type, s.host_bio_zh, s.host_bio_en, s.created_at, u.name AS host_name
+        FROM spaces s
+        LEFT JOIN users u ON u.id = s.host_user_id
+        WHERE s.id = $1
+          AND s.status <> 'archived'
+        "#,
+    )
+    .bind(space_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let Some(row) = row else {
+        return Ok(None);
+    };
+
+    let summary = row_to_space_summary_ref(&row)?;
+    let created_at: Option<time::OffsetDateTime> = row.try_get("created_at")?;
+    let created_at = created_at.and_then(|dt| {
+        dt.format(&time::format_description::well_known::Rfc3339)
+            .ok()
+    });
+
+    Ok(Some(instant_domain::spaces::SpaceDetail {
+        summary,
+        description_zh: row.try_get("description_zh")?,
+        description_en: row.try_get("description_en")?,
+        tag_zh: row.try_get("tag_zh")?,
+        tag_en: row.try_get("tag_en")?,
+        discord_group: row.try_get("discord_group")?,
+        qq_group: row.try_get("qq_group")?,
+        password_version: row.try_get("password_version")?,
+        custom_type: row.try_get("custom_type")?,
+        host_bio_zh: row.try_get("host_bio_zh")?,
+        host_bio_en: row.try_get("host_bio_en")?,
+        host_name: row.try_get("host_name")?,
+        created_at,
+    }))
 }
 
 pub async fn space_password_hash(
@@ -503,10 +563,17 @@ pub async fn update_host_space(
             lat = $10,
             lng = $11,
             is_public = $12,
+            custom_type = $13,
+            description_zh = $14,
+            description_en = $15,
+            tag_zh = $16,
+            tag_en = $17,
+            host_bio_zh = $18,
+            host_bio_en = $19,
             updated_at = now()
         WHERE id = $1
         RETURNING id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-                  lat, lng, is_public, status::text AS status, expires_at, online_count
+                  lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         "#,
     )
     .bind(space_id)
@@ -521,6 +588,13 @@ pub async fn update_host_space(
     .bind(input.lat)
     .bind(input.lng)
     .bind(input.is_public)
+    .bind(input.custom_type)
+    .bind(input.description_zh)
+    .bind(input.description_en)
+    .bind(input.tag_zh)
+    .bind(input.tag_en)
+    .bind(input.host_bio_zh)
+    .bind(input.host_bio_en)
     .fetch_one(pool)
     .await?;
 
@@ -540,7 +614,7 @@ pub async fn set_space_status(
             updated_at = now()
         WHERE id = $1
         RETURNING id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
-                  lat, lng, is_public, status::text AS status, expires_at, online_count
+                  lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         "#,
     )
     .bind(space_id)
@@ -549,6 +623,57 @@ pub async fn set_space_status(
     .await?;
 
     row_to_space_summary(row)
+}
+
+/// An operator-controlled editorial value used to decide which real Spaces
+/// appear on the homepage. It is intentionally separate from views or likes:
+/// the product must not pretend popularity it has not measured.
+pub async fn set_home_weight(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+    home_weight: i32,
+) -> Result<SpaceSummary, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        UPDATE spaces
+        SET home_weight = $2,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
+                  lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
+        "#,
+    )
+    .bind(space_id)
+    .bind(home_weight)
+    .fetch_one(pool)
+    .await?;
+
+    row_to_space_summary(row)
+}
+
+/// A deliberately small homepage selection. If no operator has assigned a
+/// weight yet, the secondary ordering still supplies a useful first view while
+/// exposing no fake "hotness" numbers to visitors.
+pub async fn list_featured_home_spaces(
+    pool: &PgPool,
+    limit: i64,
+) -> Result<Vec<SpaceSummary>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
+               lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
+        FROM spaces
+        WHERE status IN ('active', 'expired')
+        ORDER BY home_weight DESC, (CASE WHEN resident THEN 10 ELSE 0 END) DESC,
+                 online_count DESC, created_at DESC, id DESC
+        LIMIT $1
+        "#,
+    )
+    .bind(limit.clamp(1, 12))
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter().map(row_to_space_summary).collect()
 }
 
 pub async fn rotate_space_password(
@@ -687,7 +812,168 @@ pub async fn reject_resident_application(
     Ok(())
 }
 
+/// A logged-in user applies to become the host of an unclaimed Space. Re-applying
+/// after a rejection resets the row to pending; a duplicate pending apply is a
+/// no-op. Returns true when a claim now sits pending.
+pub async fn apply_host_claim(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+    user_id: uuid::Uuid,
+    message: Option<String>,
+) -> Result<bool, sqlx::Error> {
+    // Guard: only Spaces that are still unclaimed accept applications.
+    let taken: Option<uuid::Uuid> = sqlx::query("SELECT host_user_id FROM spaces WHERE id = $1")
+        .bind(space_id)
+        .fetch_optional(pool)
+        .await?
+        .and_then(|row| row.try_get("host_user_id").ok().flatten());
+    if taken.is_some() {
+        return Ok(false);
+    }
+
+    let result = sqlx::query(
+        r#"
+        INSERT INTO space_host_claims (space_id, user_id, message, status)
+        VALUES ($1, $2, $3, 'pending')
+        ON CONFLICT (space_id, user_id)
+        DO UPDATE SET status = 'pending',
+                      message = EXCLUDED.message,
+                      created_at = now(),
+                      decided_at = NULL
+        "#,
+    )
+    .bind(space_id)
+    .bind(user_id)
+    .bind(message)
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+/// Whether this user already has a pending claim on this Space — used to show
+/// the "application submitted" state instead of the apply button.
+pub async fn host_claim_status(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+    user_id: uuid::Uuid,
+) -> Result<Option<String>, sqlx::Error> {
+    let row =
+        sqlx::query("SELECT status FROM space_host_claims WHERE space_id = $1 AND user_id = $2")
+            .bind(space_id)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?;
+
+    row.map(|row| row.try_get("status")).transpose()
+}
+
+/// Admin-only: the review queue of pending host claims, oldest first, joined
+/// with the Space name and the applicant's contact.
+pub async fn list_host_claims(
+    pool: &PgPool,
+) -> Result<Vec<instant_domain::admin::HostClaimApplication>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT c.id AS claim_id, c.space_id, s.name_zh, s.name_en,
+               c.user_id AS applicant_id, u.email AS applicant_email, u.name AS applicant_name,
+               c.message, c.created_at
+        FROM space_host_claims c
+        JOIN spaces s ON s.id = c.space_id
+        LEFT JOIN users u ON u.id = c.user_id
+        WHERE c.status = 'pending'
+        ORDER BY c.created_at ASC
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(|row| {
+            let created_at: time::OffsetDateTime = row.try_get("created_at")?;
+            let created_at = created_at
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_default();
+            Ok(instant_domain::admin::HostClaimApplication {
+                claim_id: row.try_get("claim_id")?,
+                space_id: row.try_get("space_id")?,
+                name_zh: row.try_get("name_zh")?,
+                name_en: row.try_get("name_en")?,
+                applicant_id: row.try_get("applicant_id")?,
+                applicant_email: row.try_get("applicant_email")?,
+                applicant_name: row.try_get("applicant_name")?,
+                message: row.try_get("message")?,
+                created_at,
+            })
+        })
+        .collect()
+}
+
+/// Admin-only: approve a claim. Assigns the Space's host, marks this claim
+/// approved and every other pending claim on the same Space rejected. Returns
+/// the applicant id that became host, or None if the claim was already decided.
+pub async fn approve_host_claim(
+    pool: &PgPool,
+    claim_id: uuid::Uuid,
+) -> Result<Option<(uuid::Uuid, uuid::Uuid)>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    let row = sqlx::query(
+        "SELECT space_id, user_id FROM space_host_claims WHERE id = $1 AND status = 'pending' FOR UPDATE",
+    )
+    .bind(claim_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    let Some(row) = row else {
+        tx.rollback().await?;
+        return Ok(None);
+    };
+    let space_id: uuid::Uuid = row.try_get("space_id")?;
+    let user_id: uuid::Uuid = row.try_get("user_id")?;
+
+    sqlx::query("UPDATE spaces SET host_user_id = $2, updated_at = now() WHERE id = $1")
+        .bind(space_id)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query(
+        "UPDATE space_host_claims SET status = 'approved', decided_at = now() WHERE id = $1",
+    )
+    .bind(claim_id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        "UPDATE space_host_claims SET status = 'rejected', decided_at = now() WHERE space_id = $1 AND id <> $2 AND status = 'pending'",
+    )
+    .bind(space_id)
+    .bind(claim_id)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(Some((space_id, user_id)))
+}
+
+/// Admin-only: reject a single pending claim.
+pub async fn reject_host_claim(pool: &PgPool, claim_id: uuid::Uuid) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query(
+        "UPDATE space_host_claims SET status = 'rejected', decided_at = now() WHERE id = $1 AND status = 'pending'",
+    )
+    .bind(claim_id)
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected() > 0)
+}
+
 fn row_to_space_summary(row: sqlx::postgres::PgRow) -> Result<SpaceSummary, sqlx::Error> {
+    row_to_space_summary_ref(&row)
+}
+
+fn row_to_space_summary_ref(row: &sqlx::postgres::PgRow) -> Result<SpaceSummary, sqlx::Error> {
     Ok(SpaceSummary {
         id: row.try_get("id")?,
         name_zh: row.try_get("name_zh")?,
@@ -705,6 +991,7 @@ fn row_to_space_summary(row: sqlx::postgres::PgRow) -> Result<SpaceSummary, sqlx
         status: status_from_db(row.try_get::<String, _>("status")?.as_str()),
         expires_at: row.try_get("expires_at")?,
         online_count: row.try_get("online_count")?,
+        home_weight: row.try_get("home_weight")?,
     })
 }
 

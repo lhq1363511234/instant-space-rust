@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const BASE = 'https://opctoai.com/inspace';
+const ID = '2d5fbb15-c108-57b0-a42d-857702fac329';
+const b = await chromium.launch();
+const c = await b.newContext({ viewport: { width: 1440, height: 1000 } });
+const p = await c.newPage();
+await p.goto(`${BASE}/spaces/${ID}`, { waitUntil: 'networkidle' });
+await p.waitForTimeout(1200);
+await p.screenshot({ path: 'output/playwright/space-cardwall-desktop-v83.png', fullPage: true });
+await b.close();
+console.log('shot saved');

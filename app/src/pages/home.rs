@@ -1,16 +1,24 @@
-use instant_domain::site::{HomePageConfig, LocalizedText};
+use instant_domain::{
+    site::{HomePageConfig, LocalizedText},
+    spaces::SpaceType,
+};
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 
 use crate::{
     components::space_form::{provide_create_space_modal, use_create_space_modal},
     i18n::{use_i18n, Locale},
-    server::site::get_public_home_config,
+    server::{
+        site::get_public_home_config,
+        spaces::{
+            list_home_featured_spaces, list_home_featured_stories, HomeStoryView, SpaceMarker,
+        },
+    },
 };
 
-/// Public product homepage. Content and controlled design tokens come from the
-/// published site-page configuration; code defaults keep the page available if
-/// the database or configuration is unavailable.
+/// Public product homepage. The editable hero stays in the site-page
+/// configuration. Editorial selections below it come from real Spaces and
+/// traces, never fabricated activity counters.
 #[component]
 pub fn HomePage() -> impl IntoView {
     let config = Resource::new(
@@ -31,7 +39,6 @@ pub fn HomePage() -> impl IntoView {
 fn HomePageContent(config: HomePageConfig) -> impl IntoView {
     let locale = use_i18n().locale;
     let create_modal = use_create_space_modal().unwrap_or_else(provide_create_space_modal);
-
     let theme_style = format!(
         "--home-primary:{};--home-deep:{};--home-bg:{};",
         config.theme.primary, config.theme.deep, config.theme.background
@@ -40,36 +47,27 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
         "page inspace-home theme-{} density-{} hero-layout-{}",
         config.theme.preset, config.theme.density, config.theme.hero_layout
     );
-
     let seo_title = config.seo.title.clone();
     let seo_description = config.seo.description.clone();
     let hero = config.hero;
     let journey = config.journey;
-    let guide = config.guide;
     let host = config.host;
 
     view! {
         <Title text=move || localize(locale.get(), &seo_title) />
         <Meta name="description" content=move || localize(locale.get(), &seo_description) />
         <main id="main-content" class=page_class style=theme_style>
-            <div class="inspace-home-modules">
+            <div class="inspace-home-modules home-discovery-flow">
                 {hero.visible.then(|| {
                     let eyebrow = hero.eyebrow.clone();
                     let title = hero.title.clone();
                     let body = hero.body.clone();
-                    let note = hero.note.clone();
-                    let sample_location = hero.sample_location.clone();
-                    let sample_title = hero.sample_title.clone();
-                    let sample_body = hero.sample_body.clone();
-                    let sample_guide_label = hero.sample_guide_label.clone();
-                    let sample_question = hero.sample_question.clone();
-                    let sample_presence = hero.sample_presence.clone();
                     let primary_label = hero.primary_label.clone();
                     let secondary_label = hero.secondary_label.clone();
                     let primary_url = hero.primary_url.clone();
                     let secondary_url = hero.secondary_url.clone();
                     view! {
-                        <section class="survey-hero" style=format!("order:{}", hero.order) aria-labelledby="inspace-home-title">
+                        <section class="survey-hero home-record-hero" style=format!("order:{}", hero.order) aria-labelledby="inspace-home-title">
                             <div class="survey-hero-copy">
                                 <p class="survey-kicker">
                                     <span class="survey-kicker-mark" aria-hidden="true"></span>
@@ -81,35 +79,14 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                                     <a class="button button-primary" href=primary_url>{move || localize(locale.get(), &primary_label)}</a>
                                     <a class="button button-secondary" href=secondary_url>{move || localize(locale.get(), &secondary_label)}</a>
                                 </div>
-                                <p class="survey-note">{move || localize(locale.get(), &note)}</p>
                             </div>
-                            <figure class="survey-sheet" aria-label=move || match locale.get() { Locale::Zh => "空间记录示例（示意内容）", Locale::En => "Example space record (illustrative)" }>
-                                <figcaption class="survey-sheet-head">
-                                    <span class="survey-sheet-ref">{move || localize(locale.get(), &sample_location)}</span>
-                                    <span class="survey-sheet-stamp">{move || match locale.get() { Locale::Zh => "示例", Locale::En => "SAMPLE" }}</span>
-                                </figcaption>
-                                <div class="survey-sheet-body">
-                                    <h2 class="survey-sheet-title">{move || localize(locale.get(), &sample_title)}</h2>
-                                    <p class="survey-sheet-lede">{move || localize(locale.get(), &sample_body)}</p>
-                                    <dl class="survey-record">
-                                        <div>
-                                            <dt>{move || match locale.get() { Locale::Zh => "攻略", Locale::En => "Guide" }}</dt>
-                                            <dd>{move || localize(locale.get(), &sample_guide_label)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt>{move || match locale.get() { Locale::Zh => "现场提问", Locale::En => "Asked on site" }}</dt>
-                                            <dd>{move || localize(locale.get(), &sample_question)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt>{move || match locale.get() { Locale::Zh => "此刻", Locale::En => "Right now" }}</dt>
-                                            <dd>{move || localize(locale.get(), &sample_presence)}</dd>
-                                        </div>
-                                    </dl>
-                                </div>
-                            </figure>
                         </section>
                     }
                 })}
+
+                <HomeExampleCarousel />
+                <HomeFeaturedSpaces />
+                <HomeFeaturedStories />
 
                 {journey.visible.then(|| {
                     let title = journey.title.clone();
@@ -121,7 +98,7 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                     let help_title = journey.help_title.clone();
                     let help_body = journey.help_body.clone();
                     view! {
-                        <section class="survey-passage" style=format!("order:{}", journey.order) aria-labelledby="inspace-journey-title">
+                        <section class="survey-passage home-journey" style=format!("order:{}", journey.order) aria-labelledby="inspace-journey-title">
                             <header class="survey-passage-head">
                                 <h2 id="inspace-journey-title">{move || localize(locale.get(), &title)}</h2>
                                 <p>{move || localize(locale.get(), &body)}</p>
@@ -135,103 +112,24 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                     }
                 })}
 
-                <section class="survey-field" style="order:25" aria-labelledby="inspace-field-title">
-                    <header class="survey-field-head">
-                        <p class="survey-kicker"><span class="survey-kicker-mark" aria-hidden="true"></span>{move || match locale.get() { Locale::Zh => "地点，不是分类", Locale::En => "Places, not categories" }}</p>
-                        <h2 id="inspace-field-title">{move || match locale.get() { Locale::Zh => "一个空间，对应地面上的一处。", Locale::En => "One space, one place on the ground." }}</h2>
-                        <p class="survey-field-lede">{move || match locale.get() {
-                            Locale::Zh => "外滩的江风、里斯本的坡道、北村的巷口——每一处都值得有一份自己的长期记录。",
-                            Locale::En => "A riverfront, a hill tram, a lane between old houses — each deserves a record that keeps getting better.",
-                        }}</p>
-                    </header>
-                    <ul class="survey-field-strip" data-parallax-strip>
-                        <FieldPlate slug="place-bund" zh="上海 · 外滩" en="Shanghai · The Bund" depth="0.16" />
-                        <FieldPlate slug="place-alley" zh="里斯本 · 电车坡道" en="Lisbon · Tram hill" depth="0.30" />
-                        <FieldPlate slug="place-lane" zh="首尔 · 北村巷" en="Seoul · Bukchon lane" depth="0.09" />
-                        <FieldPlate slug="place-canal" zh="威尼斯 · 水巷" en="Venice · Canal" depth="0.24" />
-                        <FieldPlate slug="place-harbour" zh="港湾 · 夜灯" en="Harbour · Night lights" depth="0.12" />
-                        <FieldPlate slug="place-lake" zh="山口 · 观景点" en="Pass · Viewpoint" depth="0.27" />
-                    </ul>
-                </section>
-
-                <section class="survey-keep" style="order:26" aria-labelledby="inspace-keep-title">
-                    <header class="survey-keep-head">
-                        <p class="survey-kicker"><span class="survey-kicker-mark" aria-hidden="true"></span>{move || match locale.get() { Locale::Zh => "地点会记住", Locale::En => "A place remembers" }}</p>
-                        <h2 id="inspace-keep-title">{move || match locale.get() {
-                            Locale::Zh => "真实的地方，都有人留下过东西。",
-                            Locale::En => "Real places all carry something somebody left.",
-                        }}</h2>
-                        <p class="survey-keep-lede">{move || match locale.get() {
-                            Locale::Zh => "旅馆前台那本写满的簿子、山顶栏杆上锈住的锁、墙角一句只有两个人看得懂的话。空间把这件事接了下来。",
-                            Locale::En => "The filled-in book at a hostel desk, the rusted lock on a summit rail, a line in a corner that only two people understand. A Space keeps doing that.",
-                        }}</p>
-                    </header>
-
-                    <div class="survey-keep-pair">
-                        <article class="survey-keep-item">
-                            <h3>{move || match locale.get() { Locale::Zh => "留痕", Locale::En => "Traces" }}</h3>
-                            <p>{move || match locale.get() {
-                                Locale::Zh => "写给之后来这儿的人：今天的天气、排到几点、哪条路封了。人走了，字留在地点名下。",
-                                Locale::En => "Written for whoever comes next: today’s weather, how long the queue ran, which path was shut. You leave; the line stays with the place.",
-                            }}</p>
-                            <p class="survey-keep-note">{move || match locale.get() {
-                                Locale::Zh => "现场口令写在这儿的 WiFi 名字里——人不在，就抄不到。",
-                                Locale::En => "The on-site code is in the WiFi name here. If you are not in the room, you cannot copy it.",
-                            }}</p>
-                        </article>
-                        <article class="survey-keep-item">
-                            <h3>{move || match locale.get() { Locale::Zh => "时间胶囊", Locale::En => "Time capsules" }}</h3>
-                            <p>{move || match locale.get() {
-                                Locale::Zh => "把一封信埋在这个地点，只给一个人。口令你亲口告诉他，服务器只留哈希，谁也读不出来。",
-                                Locale::En => "Bury a letter at this place for one person. You tell them the passphrase yourself; the server keeps only a hash and cannot read it back.",
-                            }}</p>
-                            <ol class="survey-keep-steps">
-                                <li>{move || match locale.get() { Locale::Zh => "你在这里埋下，并设定多近算「到了」。", Locale::En => "You bury it here and set how close counts as arriving." }}</li>
-                                <li>{move || match locale.get() { Locale::Zh => "他必须真的走到这个地点。", Locale::En => "They have to actually walk to the place." }}</li>
-                                <li>{move || match locale.get() { Locale::Zh => "说对那句话，信才打开——只此一次。", Locale::En => "Say the right words and it opens — once, for good." }}</li>
-                            </ol>
-                        </article>
-                    </div>
-                </section>
-
-                {guide.visible.then(|| {
-                    let eyebrow = guide.eyebrow.clone();
-                    let title = guide.title.clone();
-                    let body = guide.body.clone();
-                    let visual_route = guide.visual_route.clone();
-                    let visual_warning = guide.visual_warning.clone();
-                    let visual_live = guide.visual_live.clone();
-                    let cta_label = guide.cta_label.clone();
-                    let cta_url = guide.cta_url.clone();
-                    view! {
-                        <section class="survey-plate" style=format!("order:{}", guide.order) aria-labelledby="inspace-guide-title">
-                            <div class="survey-plate-copy">
-                                <p class="survey-kicker"><span class="survey-kicker-mark" aria-hidden="true"></span>{move || localize(locale.get(), &eyebrow)}</p>
-                                <h2 id="inspace-guide-title">{move || localize(locale.get(), &title)}</h2>
-                                <p>{move || localize(locale.get(), &body)}</p>
-                                <a class="button button-primary" href=cta_url>{move || localize(locale.get(), &cta_label)}</a>
-                            </div>
-                            <table class="survey-log">
-                                <caption>{move || match locale.get() { Locale::Zh => "一份空间攻略的实际条目（示意）", Locale::En => "Entries from one space guide (illustrative)" }}</caption>
-                                <tbody>
-                                    <tr><th scope="row">{move || match locale.get() { Locale::Zh => "路线", Locale::En => "Route" }}</th><td>{move || localize(locale.get(), &visual_route)}</td></tr>
-                                    <tr><th scope="row">{move || match locale.get() { Locale::Zh => "避坑", Locale::En => "Warning" }}</th><td>{move || localize(locale.get(), &visual_warning)}</td></tr>
-                                    <tr><th scope="row">{move || match locale.get() { Locale::Zh => "现场", Locale::En => "Live" }}</th><td>{move || localize(locale.get(), &visual_live)}</td></tr>
-                                </tbody>
-                            </table>
-                        </section>
-                    }
-                })}
-
                 {host.visible.then(|| {
                     let title = host.title.clone();
                     let body = host.body.clone();
                     let cta_label = host.cta_label.clone();
                     view! {
-                        <section id="create" class="survey-colophon" style=format!("order:{}", host.order)>
-                            <h2>{move || localize(locale.get(), &title)}</h2>
-                            <p>{move || localize(locale.get(), &body)}</p>
-                            <button type="button" class="button button-secondary" on:click=move |_| create_modal.open.set(true)>{move || localize(locale.get(), &cta_label)}</button>
+                        <section id="create" class="survey-colophon home-host-call" style=format!("order:{}", host.order)>
+                            <div>
+                                <h2>{move || localize(locale.get(), &title)}</h2>
+                                <p>{move || localize(locale.get(), &body)}</p>
+                                <p class="survey-host-open-call">{move || match locale.get() {
+                                    Locale::Zh => "空间主理人招募中。真正熟悉这里的人，最适合替这个地点留下第一份长期记录。",
+                                    Locale::En => "Space hosts are wanted. The people who know a place are the right people to keep its first long record.",
+                                }}</p>
+                            </div>
+                            <div class="survey-host-actions">
+                                <button type="button" class="button button-primary" on:click=move |_| create_modal.open.set(true)>{move || localize(locale.get(), &cta_label)}</button>
+                                <a class="button button-quiet" href="/inspace/about#hosts">{move || match locale.get() { Locale::Zh => "了解主理人计划", Locale::En => "About the host programme" }}</a>
+                            </div>
                         </section>
                     }
                 })}
@@ -240,35 +138,404 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
     }
 }
 
-/// One photograph in the field strip. `depth` is read by the parallax script:
-/// larger values drift further, so the strip reads as ground rather than as a
-/// flat row of cards. The image itself is decorative — the caption carries the
-/// meaning, so `alt` stays empty and the figcaption is the accessible label.
+/// Four practical examples make the abstract idea of a Space tangible. They
+/// are deliberately illustrative, labelled as examples, and never presented as
+/// real activity or testimonials.
 #[component]
-fn FieldPlate(
-    slug: &'static str,
-    zh: &'static str,
-    en: &'static str,
-    depth: &'static str,
-) -> impl IntoView {
+fn HomeExampleCarousel() -> impl IntoView {
     let locale = use_i18n().locale;
     view! {
-        <li class="survey-field-plate" data-depth=depth>
-            <figure>
-                <img
-                    src=format!("/vendor/img/{slug}-720.webp")
-                    srcset=format!("/vendor/img/{slug}-720.webp 720w, /vendor/img/{slug}-1080.webp 1080w")
-                    sizes="(max-width: 720px) 78vw, (max-width: 1099px) 42vw, 27vw"
-                    width="720"
-                    height="480"
-                    loading="lazy"
-                    decoding="async"
-                    alt=""
+        <section class="home-examples" style="order:20" data-home-carousel aria-roledescription="carousel" aria-label=move || match locale.get() {
+            Locale::Zh => "空间示例",
+            Locale::En => "Space examples",
+        }>
+            <div class="home-examples-head">
+                <div>
+                    <h2>{move || match locale.get() { Locale::Zh => "一个地点，可以留下些什么？", Locale::En => "What can a place keep?" }}</h2>
+                    <p>{move || match locale.get() {
+                        Locale::Zh => "不是再多一张介绍页，而是让到过这里的人，把有用的事情留在地点名下。",
+                        Locale::En => "Not another profile page. A Space keeps useful things with the place for the next person.",
+                    }}</p>
+                </div>
+                <div class="home-carousel-controls">
+                    <button type="button" class="home-carousel-arrow" data-home-carousel-prev aria-label=move || match locale.get() { Locale::Zh => "查看上一个示例", Locale::En => "Previous example" }>{"←"}</button>
+                    <button type="button" class="home-carousel-arrow" data-home-carousel-next aria-label=move || match locale.get() { Locale::Zh => "查看下一个示例", Locale::En => "Next example" }>{"→"}</button>
+                </div>
+            </div>
+            <div class="home-carousel-viewport">
+                <ExampleSlide
+                    id="home-example-0"
+                    tab_id="home-example-tab-0"
+                    active=true
+                    image="/vendor/img/place-lake-1080.webp"
+                    kind_zh="景点空间"
+                    kind_en="Landmark Space"
+                    title_zh="一座山的路线，不必每次从头问起。"
+                    title_en="A mountain route should not start from zero each time."
+                    body_zh="日出前从哪条路上，风大时在哪里停，后来的人都能在到达之前看见。"
+                    body_en="Which path to take before sunrise and where to stop in wind can be there before the next arrival."
+                    action_zh="看景点空间"
+                    action_en="Explore landmarks"
+                    href="/inspace/explore"
                 />
-                <figcaption>{move || match locale.get() { Locale::Zh => zh, Locale::En => en }}</figcaption>
-            </figure>
-        </li>
+                <ExampleSlide
+                    id="home-example-1"
+                    tab_id="home-example-tab-1"
+                    active=false
+                    image="/vendor/img/place-alley-1080.webp"
+                    kind_zh="美食空间"
+                    kind_en="Food Space"
+                    title_zh="一家小店，留下它真正的营业节奏。"
+                    title_en="A small restaurant keeps its real rhythm."
+                    body_zh="主理人写清招牌和时间，熟客补上怎么点、怎么吃，以及这家店为什么值得再来。"
+                    body_en="The host records the signatures and hours. Regulars add how to order, eat, and return."
+                    action_zh="看美食空间"
+                    action_en="Explore food spaces"
+                    href="/inspace/explore"
+                />
+                <ExampleSlide
+                    id="home-example-2"
+                    tab_id="home-example-tab-2"
+                    active=false
+                    image="/vendor/img/place-lane-1080.webp"
+                    kind_zh="公园空间"
+                    kind_en="Park Space"
+                    title_zh="每天路过的人，最懂一座公园。"
+                    title_en="Daily visitors know a park best."
+                    body_zh="哪扇门先开，花什么时候盛，傍晚哪里安静。这些日常经验终于有了留下来的地方。"
+                    body_en="Which gate opens first, when flowers peak, where dusk is quiet. Daily knowledge finally has a home."
+                    action_zh="看公园空间"
+                    action_en="Explore parks"
+                    href="/inspace/explore"
+                />
+                <ExampleSlide
+                    id="home-example-3"
+                    tab_id="home-example-tab-3"
+                    active=false
+                    image="/vendor/img/place-harbour-1080.webp"
+                    kind_zh="公司空间"
+                    kind_en="Company Space"
+                    title_zh="一串地址，也可以成为一段被看见的来路。"
+                    title_en="An address can hold the story of how a company arrived here."
+                    body_zh="它在做什么，怎么进门，由谁接待，经历过什么，都能从这个地点开始被讲清楚。"
+                    body_en="What it does, how to enter, who welcomes visitors, and what it has lived through can begin at this place."
+                    action_zh="创建一个空间"
+                    action_en="Create a Space"
+                    href="/inspace/my-spaces"
+                />
+            </div>
+            <div class="home-carousel-tabs" role="tablist" aria-label=move || match locale.get() { Locale::Zh => "切换空间示例", Locale::En => "Choose a space example" }>
+                <button id="home-example-tab-0" type="button" role="tab" aria-controls="home-example-0" aria-selected="true" tabindex="0" data-home-carousel-dot data-home-carousel-index="0">{move || match locale.get() { Locale::Zh => "景点", Locale::En => "Landmark" }}</button>
+                <button id="home-example-tab-1" type="button" role="tab" aria-controls="home-example-1" aria-selected="false" tabindex="-1" data-home-carousel-dot data-home-carousel-index="1">{move || match locale.get() { Locale::Zh => "美食", Locale::En => "Food" }}</button>
+                <button id="home-example-tab-2" type="button" role="tab" aria-controls="home-example-2" aria-selected="false" tabindex="-1" data-home-carousel-dot data-home-carousel-index="2">{move || match locale.get() { Locale::Zh => "公园", Locale::En => "Park" }}</button>
+                <button id="home-example-tab-3" type="button" role="tab" aria-controls="home-example-3" aria-selected="false" tabindex="-1" data-home-carousel-dot data-home-carousel-index="3">{move || match locale.get() { Locale::Zh => "公司", Locale::En => "Company" }}</button>
+            </div>
+        </section>
     }
+}
+
+#[component]
+fn ExampleSlide(
+    id: &'static str,
+    tab_id: &'static str,
+    active: bool,
+    image: &'static str,
+    kind_zh: &'static str,
+    kind_en: &'static str,
+    title_zh: &'static str,
+    title_en: &'static str,
+    body_zh: &'static str,
+    body_en: &'static str,
+    action_zh: &'static str,
+    action_en: &'static str,
+    href: &'static str,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let class = if active {
+        "home-example-slide is-active"
+    } else {
+        "home-example-slide"
+    };
+    let aria_hidden = if active { "false" } else { "true" };
+    let link_tabindex = if active { "0" } else { "-1" };
+    view! {
+        <article id=id class=class role="tabpanel" aria-labelledby=tab_id data-home-carousel-slide aria-hidden=aria_hidden>
+            <figure>
+                <img src=image width="1080" height="720" loading="lazy" decoding="async" alt=move || match locale.get() { Locale::Zh => kind_zh, Locale::En => kind_en } />
+            </figure>
+            <div class="home-example-copy">
+                <p>{move || match locale.get() { Locale::Zh => kind_zh, Locale::En => kind_en }}</p>
+                <h3>{move || match locale.get() { Locale::Zh => title_zh, Locale::En => title_en }}</h3>
+                <p>{move || match locale.get() { Locale::Zh => body_zh, Locale::En => body_en }}</p>
+                <a href=href tabindex=link_tabindex>{move || match locale.get() { Locale::Zh => action_zh, Locale::En => action_en }}</a>
+            </div>
+        </article>
+    }
+}
+
+#[component]
+fn HomeFeaturedSpaces() -> impl IntoView {
+    let locale = use_i18n().locale;
+    let spaces = Resource::new(
+        || (),
+        |_| async move { list_home_featured_spaces(5).await.unwrap_or_default() },
+    );
+    view! {
+        <section class="home-featured-spaces" style="order:30" aria-labelledby="home-featured-spaces-title">
+            <header class="home-content-head">
+                <div>
+                    <p class="survey-kicker"><span class="survey-kicker-mark" aria-hidden="true"></span>{move || match locale.get() { Locale::Zh => "正在被看见的地点", Locale::En => "Places in view" }}</p>
+                    <h2 id="home-featured-spaces-title">{move || match locale.get() { Locale::Zh => "热门空间", Locale::En => "Featured Spaces" }}</h2>
+                </div>
+                <a href="/inspace/explore">{move || match locale.get() { Locale::Zh => "查看全部空间", Locale::En => "Browse all Spaces" }}</a>
+            </header>
+            <Suspense fallback=move || view! { <div class="home-space-skeleton" aria-label="Loading featured spaces"><span></span><span></span><span></span></div> }>
+                {move || Suspend::new(async move {
+                    let items = spaces.await;
+                    view! { <FeaturedSpaceShelf items=items /> }
+                })}
+            </Suspense>
+        </section>
+    }
+}
+
+#[component]
+fn FeaturedSpaceShelf(items: Vec<SpaceMarker>) -> impl IntoView {
+    let locale = use_i18n().locale;
+    if items.is_empty() {
+        return view! {
+            <div class="home-empty-note">
+                <p>{move || match locale.get() {
+                    Locale::Zh => "第一批地点正在整理中。你熟悉的地方，也可以从你开始。",
+                    Locale::En => "The first places are being prepared. A place you know can begin with you.",
+                }}</p>
+                <a href="/inspace/my-spaces">{move || match locale.get() { Locale::Zh => "创建空间", Locale::En => "Create a Space" }}</a>
+            </div>
+        }.into_any();
+    }
+    let indexed_items = items.into_iter().enumerate().collect::<Vec<_>>();
+    let has_attributed_artwork = indexed_items
+        .iter()
+        .any(|(_, space)| known_space_artwork(space).is_some());
+
+    view! {
+        <div class="home-space-shelf">
+            <For
+                each=move || indexed_items.clone()
+                key=|(index, space)| format!("{}-{}", index, space.id)
+                children=move |(index, space)| {
+                    let artwork = space_artwork(&space);
+                    let image = artwork.src;
+                    let image_style = format!("object-position:{};", artwork.position);
+                    let href = format!("/inspace/spaces/{}", space.id);
+                    let title = space.name_zh.clone();
+                    let aria_title = title.clone();
+                    let location = space_location(&space);
+                    let aria_location = location.clone();
+                    let kind = space_type_label(&space.space_type);
+                    let class = if index == 0 { "home-space-item is-leading" } else { "home-space-item" };
+                    view! {
+                        <article class=class>
+                            <a href=href aria-label=move || format!("{} {}", aria_title, aria_location)>
+                                <img src=image style=image_style width="1080" height="720" loading="lazy" decoding="async" alt="" />
+                                <div>
+                                    <p>{move || match locale.get() { Locale::Zh => kind.0, Locale::En => kind.1 }}</p>
+                                    <h3>{title}</h3>
+                                    <span>{location}</span>
+                                </div>
+                            </a>
+                        </article>
+                    }
+                }
+            />
+        </div>
+        {has_attributed_artwork.then(|| view! { <HomePhotoAttributions /> })}
+    }.into_any()
+}
+
+#[component]
+fn HomePhotoAttributions() -> impl IntoView {
+    let locale = use_i18n().locale;
+    view! {
+        <details class="home-photo-attributions">
+            <summary>{move || match locale.get() {
+                Locale::Zh => "精选地点图片来源与许可",
+                Locale::En => "Featured image credits and licenses",
+            }}</summary>
+            <ul>
+                <li>
+                    <a href="https://commons.wikimedia.org/wiki/File:The_Bund_in_Shanghai.jpg" target="_blank" rel="noreferrer">
+                        "外滩：GillyBerlin，CC BY 2.0，Wikimedia Commons"
+                    </a>
+                </li>
+                <li>
+                    <a href="https://commons.wikimedia.org/wiki/File:Forbidden_city_06.jpg" target="_blank" rel="noreferrer">
+                        "故宫：Jacob Ehnmark，CC BY 2.0，Wikimedia Commons"
+                    </a>
+                </li>
+                <li>
+                    <a href="https://commons.wikimedia.org/wiki/File:Potala_Palace_-_Lhasa,_Tibet.jpg" target="_blank" rel="noreferrer">
+                        "布达拉宫：cattan2011，CC BY 2.0，Wikimedia Commons"
+                    </a>
+                </li>
+                <li>
+                    <a href="https://commons.wikimedia.org/wiki/File:China_Hangzhou_Westlake-2.jpg" target="_blank" rel="noreferrer">
+                        "西湖：Jacob Ehnmark，CC BY 2.0，Wikimedia Commons"
+                    </a>
+                </li>
+                <li>
+                    <a href="https://commons.wikimedia.org/wiki/File:Bayi_Square,_Nanchang.jpg" target="_blank" rel="noreferrer">
+                        "八一广场：钉钉，CC BY-SA 4.0，Wikimedia Commons"
+                    </a>
+                </li>
+            </ul>
+        </details>
+    }
+}
+
+#[component]
+fn HomeFeaturedStories() -> impl IntoView {
+    let locale = use_i18n().locale;
+    let stories = Resource::new(
+        || (),
+        |_| async move { list_home_featured_stories(3).await.unwrap_or_default() },
+    );
+    view! {
+        <section class="home-featured-stories" style="order:40" aria-labelledby="home-featured-stories-title">
+            <header class="home-content-head">
+                <div>
+                    <h2 id="home-featured-stories-title">{move || match locale.get() { Locale::Zh => "热门故事", Locale::En => "Featured stories" }}</h2>
+                    <p>{move || match locale.get() { Locale::Zh => "只放真实留下的话。没有合适的故事，就不替地点编一个。", Locale::En => "Only real words left at a place appear here. We do not invent stories for it." }}</p>
+                </div>
+            </header>
+            <Suspense fallback=move || view! { <div class="home-story-skeleton"><span></span><span></span></div> }>
+                {move || Suspend::new(async move {
+                    let items = stories.await;
+                    view! { <FeaturedStoryShelf items=items /> }
+                })}
+            </Suspense>
+        </section>
+    }
+}
+
+#[component]
+fn FeaturedStoryShelf(items: Vec<HomeStoryView>) -> impl IntoView {
+    let locale = use_i18n().locale;
+    if items.is_empty() {
+        return view! {
+            <div class="home-story-empty">
+                <p>{move || match locale.get() {
+                    Locale::Zh => "这里暂时没有值得推荐的公开故事。第一句，留给真的到过那里的人。",
+                    Locale::En => "There is no public story worth featuring yet. The first line belongs to someone who has really been there.",
+                }}</p>
+                <a href="/inspace/map">{move || match locale.get() { Locale::Zh => "去地图找一个地点", Locale::En => "Find a place on the map" }}</a>
+            </div>
+        }.into_any();
+    }
+
+    view! {
+        <div class="home-story-shelf">
+            <For
+                each=move || items.clone()
+                key=|story| story.id.clone()
+                children=move |story| {
+                    let href = format!("/inspace/spaces/{}#stories", story.space_id);
+                    let place = story.space_name_zh.clone();
+                    let body = story.body.clone();
+                    let author = story.author_name.clone();
+                    let date = story.created_at.clone();
+                    let city = story.city.clone().unwrap_or_default();
+                    let proof = story.proof;
+                    view! {
+                        <article class="home-story-item">
+                            <a href=href>
+                                <blockquote>{body}</blockquote>
+                                <footer>
+                                    <strong>{place}</strong>
+                                    <span>{move || format!("{}  {}  {}", city, proof.label(locale.get() == Locale::Zh), date)}</span>
+                                    <span>{author}</span>
+                                </footer>
+                            </a>
+                        </article>
+                    }
+                }
+            />
+        </div>
+    }.into_any()
+}
+
+#[derive(Clone, Copy)]
+struct SpaceArtwork {
+    src: &'static str,
+    position: &'static str,
+}
+
+fn known_space_artwork(space: &SpaceMarker) -> Option<SpaceArtwork> {
+    match space.name_zh.trim() {
+        "外滩" => Some(SpaceArtwork {
+            src: "/vendor/img/featured/bund.webp",
+            position: "50% 62%",
+        }),
+        "故宫" => Some(SpaceArtwork {
+            src: "/vendor/img/featured/forbidden-city.webp",
+            position: "50% 61%",
+        }),
+        "布达拉宫" => Some(SpaceArtwork {
+            src: "/vendor/img/featured/potala.webp",
+            position: "50% 65%",
+        }),
+        "西湖" => Some(SpaceArtwork {
+            src: "/vendor/img/featured/west-lake.webp",
+            position: "50% 56%",
+        }),
+        "八一广场" => Some(SpaceArtwork {
+            src: "/vendor/img/featured/bayi-square.webp",
+            position: "50% 59%",
+        }),
+        _ => None,
+    }
+}
+
+fn space_artwork(space: &SpaceMarker) -> SpaceArtwork {
+    known_space_artwork(space).unwrap_or_else(|| SpaceArtwork {
+        src: space_type_image(&space.space_type),
+        position: "50% 50%",
+    })
+}
+
+fn space_type_image(space_type: &SpaceType) -> &'static str {
+    match space_type {
+        SpaceType::Scenic => "/vendor/img/place-lake-1080.webp",
+        SpaceType::Food => "/vendor/img/place-alley-1080.webp",
+        SpaceType::Park => "/vendor/img/place-lane-1080.webp",
+        SpaceType::Transit => "/vendor/img/place-harbour-1080.webp",
+        SpaceType::Event => "/vendor/img/place-canal-1080.webp",
+        SpaceType::Custom => "/vendor/img/place-bund-1080.webp",
+    }
+}
+
+fn space_type_label(space_type: &SpaceType) -> (&'static str, &'static str) {
+    match space_type {
+        SpaceType::Scenic => ("景点空间", "Landmark Space"),
+        SpaceType::Food => ("美食空间", "Food Space"),
+        SpaceType::Park => ("公园空间", "Park Space"),
+        SpaceType::Transit => ("交通空间", "Transit Space"),
+        SpaceType::Event => ("活动空间", "Event Space"),
+        SpaceType::Custom => ("地点空间", "Place Space"),
+    }
+}
+
+fn space_location(space: &SpaceMarker) -> String {
+    [
+        space.province.as_deref(),
+        space.city.as_deref(),
+        space.spot_name.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|value| !value.trim().is_empty())
+    .collect::<Vec<_>>()
+    .join(" / ")
 }
 
 fn localize(locale: Locale, value: &LocalizedText) -> String {

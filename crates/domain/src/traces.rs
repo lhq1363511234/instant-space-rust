@@ -82,6 +82,21 @@ pub struct Trace {
     pub can_delete: bool,
 }
 
+/// A real, readable trace selected for the public home page. "Featured" is
+/// determined by the parent Space's editorial weight, then honest presence and
+/// recency. It deliberately carries no invented likes, reads, or rankings.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FeaturedStory {
+    pub id: Uuid,
+    pub space_id: Uuid,
+    pub space_name_zh: String,
+    pub city: Option<String>,
+    pub body: String,
+    pub author_name: String,
+    pub proof: PresenceProof,
+    pub created_at: OffsetDateTime,
+}
+
 /// The standing record of a place: how much has accumulated, and who was first.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpaceChronicle {
@@ -121,6 +136,18 @@ impl CapsuleSummary {
     pub fn is_sealed(&self) -> bool {
         self.opened_at.is_none()
     }
+}
+
+/// The result of trying to bury a capsule. Expected presence failures are
+/// data, not transport errors, so the browser can explain them without a 500.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CapsuleSealResult {
+    Sealed { id: String },
+    OnsiteCodeRequired,
+    LocationRequired,
+    TooFar { distance_m: f64, radius_m: i32 },
+    SpaceLocationUnavailable,
 }
 
 /// The result of trying to open a capsule. Each failure says exactly one thing,

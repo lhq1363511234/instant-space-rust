@@ -29,6 +29,12 @@
   --song-celadon-500: #87978a;
   --song-celadon-200: #dce3dc;
   --song-celadon-100: #edf1ec;
+  --song-water-700: #456b74;
+  --song-water-500: #7f9da2;
+  --song-plum-700: #526d54;
+  --song-plum-500: #829981;
+  --song-stone-700: #746a5a;
+  --song-clay-700: #875a46;
   --song-cinnabar-700: #8e3327;
   --song-cinnabar-600: #a43b2d;
   --song-cinnabar-100: #f1e3df;
@@ -46,6 +52,10 @@
   --song-accent-soft: var(--song-celadon-100);
   --song-seal: var(--song-cinnabar-600);
   --song-focus: var(--song-cinnabar-700);
+  --song-link: var(--song-water-700);
+  --song-meta: var(--song-stone-700);
+  --song-success: var(--song-plum-700);
+  --song-warm: var(--song-clay-700);
 
   /* spacing · larger jumps create hierarchy instead of boxes */
   --song-space-1: 4px;
@@ -76,7 +86,22 @@
   --vermilion: var(--song-seal);
   --vermilion-ink: var(--song-cinnabar-700);
   --vermilion-wash: var(--song-cinnabar-100);
-  --survey-blue: var(--song-celadon-700);
+  --survey-blue: var(--song-water-700);
+
+  /* Legacy palettes are remapped here so every page inherits the same
+     ink / water / plum / seal language instead of reverting to SaaS blue. */
+  --color-fg: var(--song-text);
+  --color-ink-950: var(--song-text);
+  --color-ink-900: var(--song-text);
+  --color-ink-800: var(--song-ink-800);
+  --color-ink-700: var(--song-text-soft);
+  --color-ink-500: var(--song-text-faint);
+  --color-muted-fg: var(--song-text-faint);
+  --color-primary: var(--song-seal);
+  --color-primary-fg: var(--song-paper-0);
+  --color-accent: var(--song-link);
+  --color-success: var(--song-success);
+  --color-danger: var(--song-cinnabar-700);
 
   --is-bg: var(--song-bg);
   --is-surface: var(--song-surface);
@@ -195,6 +220,58 @@ button {
 .survey-kicker-mark {
   background: var(--song-accent) !important;
   box-shadow: none !important;
+}
+
+/* Text colour is semantic, not decorative: ink for reading, water for paths,
+   celadon for classification, plum for confirmation, cinnabar for attention. */
+main :where(a:not(.button):not(.shell-nav-link):not(.shell-utility-link):not(.shell-login-link)) {
+  color: var(--song-link) !important;
+  text-decoration-color: color-mix(in srgb, var(--song-link) 42%, transparent);
+  text-underline-offset: 4px;
+}
+main :where(a:not(.button):not(.shell-nav-link):not(.shell-utility-link):not(.shell-login-link)):hover,
+main :where(a:not(.button):not(.shell-nav-link):not(.shell-utility-link):not(.shell-login-link)):focus-visible {
+  color: var(--song-seal) !important;
+  text-decoration-color: currentColor;
+}
+
+.space-type-label,
+.space-detail-visibility,
+.space-fact-key,
+.space-badge,
+.chat-realtime-status,
+.guide-list-enter,
+.directory-result-bar span,
+.my-space-summary {
+  color: var(--song-accent) !important;
+}
+
+.space-directory-location,
+.space-meta-line,
+.space-coordinates,
+.guide-list-meta,
+.chat-message-meta,
+.my-space-expiry,
+.my-space-content-hint,
+.space-entry-card-desc,
+.space-fact-prose-muted {
+  color: var(--song-meta) !important;
+}
+
+.space-host-role,
+.space-host-claim-status,
+.form-success,
+.status-approved,
+.status-published {
+  color: var(--song-success) !important;
+}
+
+.my-space-danger-warning,
+.error,
+.form-error,
+.status-rejected,
+.status-archived {
+  color: var(--song-cinnabar-700) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1400,4 +1477,171 @@ body .map-workspace-bar > div:first-child {
   body .map-workspace-bar > div:first-child { max-width: 180px; }
   body .map-workspace-bar h1 { font-size: 1.05rem !important; }
   body .map-workspace-count { font-size: .74rem !important; }
+}
+
+/* ============================================================================
+   Taste audit · 2026-07-28
+   ----------------------------------------------------------------------------
+   Final ownership for the homepage hero. Earlier Song rules used viewport-wide
+   display type and an 8.5em measure, which forced the Chinese headline into
+   five desktop lines and four phone lines after the app shell reduced the real
+   canvas. Keep the editorial voice, but restore a readable first viewport.
+   ========================================================================== */
+.inspace-home .survey-hero {
+  grid-template-columns: minmax(0, 1.28fr) minmax(300px, .72fr) !important;
+  gap: clamp(44px, 6vw, 86px) !important;
+}
+
+.inspace-home .survey-hero-copy {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.inspace-home .survey-hero h1 {
+  max-width: 13.5em !important;
+  font-size: clamp(2.65rem, 3.55vw, 3.85rem) !important;
+  line-height: 1.04 !important;
+  white-space: normal !important;
+  text-wrap: balance;
+}
+
+@media (min-width: 1100px) and (max-width: 1399px) {
+  .inspace-home .survey-hero h1 {
+    max-width: 14em !important;
+    font-size: clamp(2.7rem, 4.35vw, 3.55rem) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .inspace-home .survey-hero {
+    gap: 36px !important;
+  }
+
+  .inspace-home .survey-hero h1 {
+    max-width: none !important;
+    font-size: clamp(1.9rem, 8.15vw, 2.35rem) !important;
+    line-height: 1.08 !important;
+    white-space: normal !important;
+    text-wrap: balance;
+  }
+}
+
+@media (max-width: 720px) {
+  .inspace-home .survey-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11. Whole-site Song colour finish pass
+   --------------------------------------------------------------------------
+   This is intentionally semantic, not rainbow text. It catches legacy page
+   classes that own colour with later or more specific rules. */
+.shell-nav-copy small,
+.shell-utility-link small,
+.shell-account-copy small,
+.shell-topbar-path,
+.admin-site-version span,
+.admin-version-items small,
+.admin-guide-stats span,
+.admin-guide-row-head,
+.admin-guide-space-cell span,
+.admin-guide-workflow,
+.admin-audit-table th,
+.admin-audit-table td,
+.backoffice-nav-copy small,
+.guide-browser-note,
+.guide-writing-rule p,
+.guide-filter-heading span,
+.guide-list > li > small,
+.guide-list > li > span:not(.guide-list-enter),
+.space-directory-location,
+.space-directory-status,
+.space-detail-header .space-app-header-desc,
+.space-meta-line,
+.space-tools-disclosure > summary small,
+.space-entry-card-desc,
+.space-fact-key,
+.space-fact-prose-muted,
+.space-host-bio,
+.chat-message-meta,
+.my-space-card > div:first-child p,
+.my-space-expiry,
+.my-space-content-hint,
+.related-guide-actions-empty,
+.home-photo-attributions,
+.home-photo-attributions a {
+  color: var(--song-meta) !important;
+}
+
+.shell-nav-link.is-active b,
+.shell-utility-link.is-active b,
+.shell-mobile-nav a.is-active,
+.admin-guide-space-cell a:hover,
+.guide-browser .guide-list-link:hover strong,
+.space-directory-enter,
+.guide-list-enter,
+.my-space-pagination > span,
+.home-content-head > a,
+.home-story-empty > a,
+.home-empty-note > a {
+  color: var(--song-seal) !important;
+}
+
+.admin-guide-space-cell a,
+.guide-browser .guide-list-link strong,
+.guide-standalone-link,
+.guide-clear-button,
+.space-entry-card-go,
+.space-panel-back,
+.space-tools-disclosure > summary,
+.related-guide-main a,
+.my-space-card h2 a,
+.home-photo-attributions summary {
+  color: var(--song-link) !important;
+}
+
+.admin-guide-stats strong,
+.admin-site-version strong,
+.space-entry-card-label,
+.space-fact-value,
+.space-host-name,
+.space-host-vacant-title,
+.chat-message-author,
+.my-space-card h2,
+.related-guide-main strong {
+  color: var(--song-text) !important;
+}
+
+.space-type-label,
+.space-detail-visibility,
+.space-badge,
+.chat-realtime-status,
+.guide-filter-heading strong,
+.workspace-guidance-steps strong,
+.admin-home-weight label,
+.theme-preset.is-active,
+.filter-chip.is-active {
+  color: var(--song-accent) !important;
+}
+
+.form-success,
+.space-host-role,
+.space-host-claim-status,
+.status-approved,
+.status-published,
+.admin-status-approved,
+.admin-status-published {
+  color: var(--song-success) !important;
+}
+
+.error,
+.form-error,
+.my-space-danger-warning,
+.status-rejected,
+.status-archived,
+.admin-status-rejected,
+.admin-status-archived,
+.button-danger-light {
+  color: var(--song-cinnabar-700) !important;
 }
