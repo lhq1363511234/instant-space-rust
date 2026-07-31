@@ -109,7 +109,7 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260728-hyperframes-taste-v3" />
         <Stylesheet id="song-css" href="/style/song-system.css?v=20260730-song-colour-v13" />
         <Stylesheet id="about-css" href="/style/about.css?v=20260729-about-v5" />
-        <Stylesheet id="directory-css" href="/style/directory-system.css?v=20260728-directory-v3" />
+        <Stylesheet id="directory-css" href="/style/directory-system.css?v=20260730-directory-v4" />
         <Stylesheet id="space-experience-css" href="/style/space-experience.css?v=20260729-space-experience-v2" />
         <Stylesheet id="home-reframe-css" href="/style/home-reframe.css?v=20260729-home-restore-record-v1" />
         <Stylesheet id="home-discovery-css" href="/style/home-discovery.css?v=20260730-home-discovery-v10" />

@@ -1,9 +1,6 @@
 #![cfg_attr(not(feature = "ssr"), allow(dead_code))]
 
-use instant_domain::{
-    guides::{GuideDetail, GuideSection, GuideStatus, GuideSummary},
-    locations::LocationNode,
-};
+use instant_domain::guides::{GuideDetail, GuideSection, GuideStatus, GuideSummary};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -656,41 +653,60 @@ pub async fn list_guide_countries() -> Result<Vec<String>, ServerFnError> {
 }
 
 #[server(ListProvinces, "/inspace/api")]
-pub async fn list_provinces() -> Result<Vec<LocationNode>, ServerFnError> {
+pub async fn list_provinces(country: Option<String>) -> Result<Vec<String>, ServerFnError> {
     let pool = crate::server::db_pool().await?;
-
-    instant_db::locations::provinces(&pool)
+    instant_db::guides::published_guide_provinces(&pool, clean_optional(country))
         .await
         .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
 #[server(ListCities, "/inspace/api")]
-pub async fn list_cities(province: String) -> Result<Vec<String>, ServerFnError> {
+pub async fn list_cities(
+    country: Option<String>,
+    province: Option<String>,
+) -> Result<Vec<String>, ServerFnError> {
     let pool = crate::server::db_pool().await?;
-
-    instant_db::locations::cities(&pool, province)
-        .await
-        .map_err(|err| ServerFnError::new(err.to_string()))
+    instant_db::guides::published_guide_cities(
+        &pool,
+        clean_optional(country),
+        clean_optional(province),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
 #[server(ListDistricts, "/inspace/api")]
-pub async fn list_districts(province: String, city: String) -> Result<Vec<String>, ServerFnError> {
+pub async fn list_districts(
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+) -> Result<Vec<String>, ServerFnError> {
     let pool = crate::server::db_pool().await?;
-
-    instant_db::locations::districts(&pool, province, city)
-        .await
-        .map_err(|err| ServerFnError::new(err.to_string()))
+    instant_db::guides::published_guide_districts(
+        &pool,
+        clean_optional(country),
+        clean_optional(province),
+        clean_optional(city),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
 #[server(ListSpots, "/inspace/api")]
 pub async fn list_spots(
-    province: String,
-    city: String,
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
     district: Option<String>,
 ) -> Result<Vec<String>, ServerFnError> {
     let pool = crate::server::db_pool().await?;
-
-    instant_db::locations::spots(&pool, province, city, district)
-        .await
-        .map_err(|err| ServerFnError::new(err.to_string()))
+    instant_db::guides::published_guide_spots(
+        &pool,
+        clean_optional(country),
+        clean_optional(province),
+        clean_optional(city),
+        clean_optional(district),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
 }

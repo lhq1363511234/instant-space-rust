@@ -152,6 +152,70 @@ pub async fn published_guide_countries(pool: &PgPool) -> Result<Vec<String>, sql
     rows.into_iter().map(|row| row.try_get("country")).collect()
 }
 
+pub async fn published_guide_provinces(
+    pool: &PgPool,
+    country: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT province AS value FROM guides WHERE status='published' AND ($1::text IS NULL OR country=$1) AND province<>'' ORDER BY province",
+    )
+    .bind(country)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
+pub async fn published_guide_cities(
+    pool: &PgPool,
+    country: Option<String>,
+    province: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT city AS value FROM guides WHERE status='published' AND ($1::text IS NULL OR country=$1) AND ($2::text IS NULL OR province=$2) AND city<>'' ORDER BY city",
+    )
+    .bind(country)
+    .bind(province)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
+pub async fn published_guide_districts(
+    pool: &PgPool,
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT district AS value FROM guides WHERE status='published' AND ($1::text IS NULL OR country=$1) AND ($2::text IS NULL OR province=$2) AND ($3::text IS NULL OR city=$3) AND district IS NOT NULL AND district<>'' ORDER BY district",
+    )
+    .bind(country)
+    .bind(province)
+    .bind(city)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
+pub async fn published_guide_spots(
+    pool: &PgPool,
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+    district: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT spot_name AS value FROM guides WHERE status='published' AND ($1::text IS NULL OR country=$1) AND ($2::text IS NULL OR province=$2) AND ($3::text IS NULL OR city=$3) AND ($4::text IS NULL OR district=$4) AND spot_name IS NOT NULL AND spot_name<>'' ORDER BY spot_name",
+    )
+    .bind(country)
+    .bind(province)
+    .bind(city)
+    .bind(district)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
 pub async fn list_published_guides_page(
     pool: &PgPool,
     q: Option<String>,
@@ -165,7 +229,7 @@ pub async fn list_published_guides_page(
 ) -> Result<PaginatedGuides, sqlx::Error> {
     // Split the free-text query into keywords and require every keyword to
     // match at least one field. A single ILIKE on the whole phrase would miss
-    // "\u5357\u660c \u6ed5\u738b\u9601" because the stored title has no space between the two
+    // "南昌 滕王阁" because the stored title has no space between the two
     // words; token-wise AND matching handles multi-word searches instead.
     let tokens: Option<Vec<String>> = q.as_ref().map(|value| {
         value

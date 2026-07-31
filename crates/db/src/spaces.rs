@@ -9,6 +9,8 @@ pub struct SpaceFilter {
     pub country: Option<String>,
     pub province: Option<String>,
     pub city: Option<String>,
+    pub district: Option<String>,
+    pub spot_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -149,73 +151,70 @@ pub async fn list_home_spaces_page(
     limit: i64,
     offset: i64,
 ) -> Result<PaginatedSpaces, sqlx::Error> {
-    let q = filter.q;
+    let tokens = filter.q.as_ref().map(|value| {
+        value
+            .split_whitespace()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>()
+    });
+    let tokens = tokens.filter(|items| !items.is_empty());
     let space_type = filter.space_type.map(space_type_to_db);
     let country = filter.country;
     let province = filter.province;
     let city = filter.city;
+    let district = filter.district;
+    let spot_name = filter.spot_name;
 
-    let total: i64 = sqlx::query_scalar(
-        r#"
-        SELECT count(*)::bigint
-        FROM spaces
+    const FILTER: &str = r#"
         WHERE status IN ('active', 'expired')
           AND (
-            $1::text IS NULL
-            OR name_zh ILIKE '%' || $1 || '%'
-            OR name_en ILIKE '%' || $1 || '%'
-            OR country ILIKE '%' || $1 || '%'
-            OR province ILIKE '%' || $1 || '%'
-            OR city ILIKE '%' || $1 || '%'
-            OR district ILIKE '%' || $1 || '%'
-            OR spot_name ILIKE '%' || $1 || '%'
-            OR address_line ILIKE '%' || $1 || '%'
+            $1::text[] IS NULL
+            OR NOT EXISTS (
+              SELECT 1 FROM unnest($1::text[]) tok
+              WHERE concat_ws(
+                ' ', name_zh, name_en, country, province, city, district,
+                spot_name, address_line, custom_type, description_zh, description_en,
+                tag_zh, tag_en
+              ) NOT ILIKE '%' || tok || '%'
+            )
           )
           AND ($2::text IS NULL OR space_type::text = $2)
-          AND ($3::text IS NULL OR country ILIKE $3 OR province ILIKE $3 OR city ILIKE $3)
-          AND ($4::text IS NULL OR province ILIKE $4 OR city ILIKE $4 OR district ILIKE $4)
-          AND ($5::text IS NULL OR city ILIKE $5 OR district ILIKE $5 OR spot_name ILIKE $5)
-        "#,
-    )
-    .bind(q.clone())
-    .bind(space_type.clone())
-    .bind(country.clone())
-    .bind(province.clone())
-    .bind(city.clone())
-    .fetch_one(pool)
-    .await?;
+          AND ($3::text IS NULL OR country = $3)
+          AND ($4::text IS NULL OR province = $4)
+          AND ($5::text IS NULL OR city = $5)
+          AND ($6::text IS NULL OR district = $6)
+          AND ($7::text IS NULL OR spot_name = $7)
+    "#;
 
-    let rows = sqlx::query(
+    let total: i64 = sqlx::query_scalar(&format!("SELECT count(*)::bigint FROM spaces {FILTER}"))
+        .bind(tokens.clone())
+        .bind(space_type.clone())
+        .bind(country.clone())
+        .bind(province.clone())
+        .bind(city.clone())
+        .bind(district.clone())
+        .bind(spot_name.clone())
+        .fetch_one(pool)
+        .await?;
+
+    let rows = sqlx::query(&format!(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
                lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
-        WHERE status IN ('active', 'expired')
-          AND (
-            $1::text IS NULL
-            OR name_zh ILIKE '%' || $1 || '%'
-            OR name_en ILIKE '%' || $1 || '%'
-            OR country ILIKE '%' || $1 || '%'
-            OR province ILIKE '%' || $1 || '%'
-            OR city ILIKE '%' || $1 || '%'
-            OR district ILIKE '%' || $1 || '%'
-            OR spot_name ILIKE '%' || $1 || '%'
-            OR address_line ILIKE '%' || $1 || '%'
-          )
-          AND ($2::text IS NULL OR space_type::text = $2)
-          AND ($3::text IS NULL OR country ILIKE $3 OR province ILIKE $3 OR city ILIKE $3)
-          AND ($4::text IS NULL OR province ILIKE $4 OR city ILIKE $4 OR district ILIKE $4)
-          AND ($5::text IS NULL OR city ILIKE $5 OR district ILIKE $5 OR spot_name ILIKE $5)
+        {FILTER}
         ORDER BY home_weight DESC, (CASE WHEN resident THEN 10 ELSE 0 END) DESC,
                  online_count DESC, created_at DESC, id DESC
-        LIMIT $6 OFFSET $7
-        "#,
-    )
-    .bind(q)
+        LIMIT $8 OFFSET $9
+        "#
+    ))
+    .bind(tokens)
     .bind(space_type)
     .bind(country)
     .bind(province)
     .bind(city)
+    .bind(district)
+    .bind(spot_name)
     .bind(limit)
     .bind(offset)
     .fetch_all(pool)
@@ -228,6 +227,99 @@ pub async fn list_home_spaces_page(
             .collect::<Result<Vec<_>, _>>()?,
         total,
     })
+}
+
+/// Filter options are derived from currently discoverable Spaces. This avoids
+/// offering countries or cities that lead to an empty directory.
+pub async fn discoverable_space_countries(pool: &PgPool) -> Result<Vec<String>, sqlx::Error> {
+    distinct_space_values(
+        pool,
+        "SELECT DISTINCT country AS value FROM spaces WHERE status IN ('active','expired') AND country IS NOT NULL AND country <> '' ORDER BY country",
+        None,
+        None,
+    )
+    .await
+}
+
+pub async fn discoverable_space_provinces(
+    pool: &PgPool,
+    country: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    distinct_space_values(
+        pool,
+        "SELECT DISTINCT province AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND province IS NOT NULL AND province <> '' ORDER BY province",
+        country,
+        None,
+    )
+    .await
+}
+
+pub async fn discoverable_space_cities(
+    pool: &PgPool,
+    country: Option<String>,
+    province: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT city AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND city IS NOT NULL AND city <> '' ORDER BY city",
+    )
+    .bind(country)
+    .bind(province)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
+pub async fn discoverable_space_districts(
+    pool: &PgPool,
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT district AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND ($3::text IS NULL OR city = $3) AND district IS NOT NULL AND district <> '' ORDER BY district",
+    )
+    .bind(country)
+    .bind(province)
+    .bind(city)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
+pub async fn discoverable_space_spots(
+    pool: &PgPool,
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+    district: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT DISTINCT spot_name AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND ($3::text IS NULL OR city = $3) AND ($4::text IS NULL OR district = $4) AND spot_name IS NOT NULL AND spot_name <> '' ORDER BY spot_name",
+    )
+    .bind(country)
+    .bind(province)
+    .bind(city)
+    .bind(district)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
+}
+
+async fn distinct_space_values(
+    pool: &PgPool,
+    sql: &str,
+    first: Option<String>,
+    second: Option<String>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let mut query = sqlx::query(sql);
+    if sql.contains("$1") {
+        query = query.bind(first);
+    }
+    if sql.contains("$2") {
+        query = query.bind(second);
+    }
+    let rows = query.fetch_all(pool).await?;
+    rows.into_iter().map(|row| row.try_get("value")).collect()
 }
 
 pub async fn list_host_spaces(
@@ -1005,6 +1097,18 @@ fn space_type_to_db(space_type: SpaceType) -> String {
         SpaceType::Custom => "custom",
     }
     .to_string()
+}
+
+/// Permanently delete a Space and everything attached to it. Related rows
+/// (guides, chat messages, traces, capsules, host claims, resident
+/// applications) are removed by their ON DELETE CASCADE / SET NULL foreign
+/// keys; the agent API is the current caller.
+pub async fn delete_space(pool: &PgPool, space_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM spaces WHERE id = $1")
+        .bind(space_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 fn space_type_from_db(value: &str) -> SpaceType {

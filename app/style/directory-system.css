@@ -246,6 +246,32 @@ body .explore-filter-line .filter-chip.is-active::after {
   transform: scaleX(1);
 }
 
+body .explore-location-filters {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto !important;
+  gap: clamp(14px, 2vw, 28px) !important;
+  align-items: end !important;
+}
+
+body .explore-location-filters select {
+  width: 100%;
+  min-height: var(--directory-control-height) !important;
+  padding: 0 30px 0 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--directory-rule-strong) !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  color: var(--directory-ink) !important;
+  font-size: .9rem !important;
+  box-shadow: none !important;
+}
+
+body .explore-location-filters select:focus-visible {
+  outline: 0;
+  border-bottom-color: var(--directory-accent) !important;
+  box-shadow: 0 2px 0 var(--directory-accent) !important;
+}
+
 body .explore-clear-button,
 body .guide-clear-button {
   min-height: 44px !important;
@@ -326,7 +352,7 @@ body .guide-filter-heading span {
 
 body .guide-browser .filter-row {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   gap: clamp(14px, 2vw, 28px) !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -477,17 +503,23 @@ body .guide-browser .guide-list > li:focus-within .guide-list-enter {
 
 body .guide-browser .guide-list > li {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(130px, .25fr) 58px auto !important;
-  gap: 20px !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 16px !important;
   align-items: center !important;
   min-height: 82px !important;
-  padding: 18px 2px !important;
+  padding: 0 2px !important;
 }
 
 body .guide-browser .guide-list > li > .guide-list-link {
-  display: block !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, .25fr) 58px !important;
+  gap: 20px !important;
+  align-items: center !important;
   min-width: 0;
-  padding: 0 !important;
+  min-height: 82px;
+  padding: 18px 0 !important;
+  color: inherit;
+  text-decoration: none;
 }
 
 body .guide-browser .guide-list > li > .guide-list-link strong {
@@ -502,10 +534,15 @@ body .guide-browser .guide-list > li > .guide-list-link strong {
   white-space: nowrap;
 }
 
-body .guide-browser .guide-list > li > span:not(.guide-list-enter) {
+body .guide-browser .guide-list-location {
   color: var(--directory-ink-faint) !important;
   font-size: .82rem !important;
   white-space: nowrap;
+}
+
+body .guide-browser .guide-list-link:focus-visible {
+  outline: 2px solid var(--directory-accent);
+  outline-offset: 4px;
 }
 
 body .guide-browser .guide-list-actions {
@@ -688,7 +725,8 @@ body .directory-empty strong {
     align-items: start;
   }
 
-  body .guide-browser .filter-row {
+  body .guide-browser .filter-row,
+  body .explore-location-filters {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 12px !important;
   }
@@ -726,33 +764,39 @@ body .directory-empty strong {
 
   body .guide-browser .guide-list > li {
     grid-template-columns: minmax(0, 1fr) auto !important;
-    gap: 6px 12px !important;
+    gap: 10px !important;
     min-height: 0 !important;
-    padding: 20px 0 !important;
+    padding: 0 !important;
   }
 
   body .guide-browser .guide-list > li > .guide-list-link {
-    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 6px 12px !important;
+    min-height: 84px;
+    padding: 18px 0 !important;
   }
 
   body .guide-browser .guide-list > li > .guide-list-link strong {
+    grid-column: 1;
+    grid-row: 1;
     white-space: normal;
   }
 
-  body .guide-browser .guide-list > li > span:not(.guide-list-enter) {
+  body .guide-browser .guide-list-location {
     grid-column: 1;
     grid-row: 2;
   }
 
-  body .guide-list-enter {
+  body .guide-browser .guide-list-enter {
     grid-column: 2;
     grid-row: 1 / span 2;
     align-self: center;
   }
 
   body .guide-browser .guide-list-actions {
-    grid-column: 1 / -1;
-    margin-top: 8px !important;
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0 !important;
   }
 
   body .directory-pagination {
@@ -793,13 +837,6 @@ body .directory-empty strong {
   }
 }
 
-/* Final specificity repair against legacy guide-row grid ownership. */
-body .guide-browser .guide-list > li > .guide-list-enter {
-  grid-column: 3 !important;
-  grid-row: 1 !important;
-  justify-self: end;
-}
-
 @media (max-width: 720px) {
   body .guide-browser .page-head.directory-hero h1 {
     max-width: none !important;
@@ -807,20 +844,4 @@ body .guide-browser .guide-list > li > .guide-list-enter {
     text-wrap: wrap !important;
   }
 
-  body .guide-browser .guide-list > li > .guide-list-link {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-  }
-
-  body .guide-browser .guide-list > li > span:not(.guide-list-enter) {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-  }
-
-  body .guide-browser .guide-list > li > .guide-list-enter {
-    grid-column: 2 !important;
-    grid-row: 1 / span 2 !important;
-    align-self: center;
-    justify-self: end;
-  }
 }

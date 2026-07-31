@@ -147,6 +147,8 @@ pub async fn list_spaces(
             country: clean_optional(country),
             province: clean_optional(province),
             city: clean_optional(city),
+            district: None,
+            spot_name: None,
         },
     )
     .await
@@ -159,6 +161,11 @@ pub async fn list_spaces(
 pub async fn list_space_page(
     q: Option<String>,
     space_type: Option<SpaceType>,
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+    district: Option<String>,
+    spot_name: Option<String>,
     page: i32,
     page_size: i32,
 ) -> Result<SpacePageResult, ServerFnError> {
@@ -168,7 +175,11 @@ pub async fn list_space_page(
     let filter = SpaceFilter {
         q: clean_optional(q),
         space_type,
-        ..Default::default()
+        country: clean_optional(country),
+        province: clean_optional(province),
+        city: clean_optional(city),
+        district: clean_optional(district),
+        spot_name: clean_optional(spot_name),
     };
     let fetch = |page: i32| {
         let pool = pool.clone();
@@ -205,6 +216,75 @@ pub async fn list_space_page(
         page_size,
         total_pages,
     })
+}
+
+#[server(ListSpaceFilterCountries, "/inspace/api")]
+pub async fn list_space_filter_countries() -> Result<Vec<String>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    instant_db::spaces::discoverable_space_countries(&pool)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+#[server(ListSpaceFilterProvinces, "/inspace/api")]
+pub async fn list_space_filter_provinces(
+    country: Option<String>,
+) -> Result<Vec<String>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    instant_db::spaces::discoverable_space_provinces(&pool, clean_optional(country))
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+#[server(ListSpaceFilterCities, "/inspace/api")]
+pub async fn list_space_filter_cities(
+    country: Option<String>,
+    province: Option<String>,
+) -> Result<Vec<String>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    instant_db::spaces::discoverable_space_cities(
+        &pool,
+        clean_optional(country),
+        clean_optional(province),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+#[server(ListSpaceFilterDistricts, "/inspace/api")]
+pub async fn list_space_filter_districts(
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+) -> Result<Vec<String>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    instant_db::spaces::discoverable_space_districts(
+        &pool,
+        clean_optional(country),
+        clean_optional(province),
+        clean_optional(city),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+#[server(ListSpaceFilterSpots, "/inspace/api")]
+pub async fn list_space_filter_spots(
+    country: Option<String>,
+    province: Option<String>,
+    city: Option<String>,
+    district: Option<String>,
+) -> Result<Vec<String>, ServerFnError> {
+    let pool = crate::server::db_pool().await?;
+    instant_db::spaces::discoverable_space_spots(
+        &pool,
+        clean_optional(country),
+        clean_optional(province),
+        clean_optional(city),
+        clean_optional(district),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
 }
 
 #[server(ListHomeFeaturedSpaces, "/inspace/api")]

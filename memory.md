@@ -1163,3 +1163,16 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
   - 1440×900、390×844：首页当前可见图片正常、无横向溢出。
   - 攻略国家筛选 + `南昌 滕王阁` 返回 1 篇并可点击进入详情。
   - 无 hydration panic、console error、HTTP >=400、横向溢出、未标记表单字段或小于 44px 的主内容交互控件。
+
+## 2026-07-31 — Agent API 补全：详情 + 删除端点
+
+- 用户反馈此前 Agent API 不完整：只有列表/创建/更新，读不回完整正文、删不掉对象。补齐 4 个端点（`app/src/agent_api.rs`，路由加 `get(...).delete(...)`）：
+  - `GET /api/spaces/:id`（spaces:read）→ 返回 `SpaceDetail` 完整详情
+  - `DELETE /api/spaces/:id`（spaces:write）→ 物理删除，级联清志/聊天/故事/胶囊/认领
+  - `GET /api/guides/:id`（guides:read）→ 返回 `GuideDetail`（含 summary/content/sections/images）
+  - `DELETE /api/guides/:id`（guides:write）→ 物理删除
+- 新增 db 函数 `instant_db::spaces::delete_space`（`crates/db/src/spaces.rs`）；guides 侧复用既有 `delete_guide_row`。外键全部 `ON DELETE CASCADE/SET NULL`，删空间行即可级联。
+- 关键陷阱：`GuideSection` 字段名是 `type/title_zh/content_zh/images`，不是 `heading_zh/body_zh`（Agent 或本人传错字段名会静默丢弃 sections）。
+- 部署：仅服务端改动，WASM v91 不变、无需重建 WASM。release 二进制已安装重启，`/health ok`、`/ready 200`。
+- 端到端验证：建空间 201 → GET 详情 200（含描述/标签）→ 建志 201 → GET 详情 200（sections 原样返回）→ DELETE 志 204 → DELETE 空间 204 → 删除后再 GET 404 → 只读 scope 删除 403。临时 Key/数据全部清理，残留 0。
+- 文档已更新：`docs/AGENT_REST_API.md`（详情/删除端点表 + sections 字段说明）。

@@ -96,3 +96,30 @@ curl -X POST \
 ```
 
 常见状态：`400` 参数错误、`401` Key 缺失/无效、`403` scope 或归属不足、`404` 对象不存在、`429` 限流、`500` 服务端错误。
+
+## 详情与删除（2026-07-31 补齐）
+
+| 方法 | 路径 | Scope | 作用 |
+|---|---|---|---|
+| GET | `/api/spaces/:id` | `spaces:read` | 读取空间完整详情（描述、标签、主理人信息等） |
+| DELETE | `/api/spaces/:id` | `spaces:write` | 永久删除空间及其全部关联数据（志、聊天、故事、胶囊等，走级联删除） |
+| GET | `/api/guides/:id` | `guides:read` | 读取志的完整内容（摘要、正文、分段 sections、图片） |
+| DELETE | `/api/guides/:id` | `guides:write` | 永久删除志 |
+
+详情接口返回的 `GuideDetail.sections` 字段结构：
+
+```json
+{
+  "id": "section_0",
+  "type": "text",
+  "title_zh": "第一节",
+  "title_en": null,
+  "content_zh": "第一段内容",
+  "content_en": null,
+  "images": ["https://example.com/a.jpg"]
+}
+```
+
+> 创建/更新志时 `sections` 请使用上述字段名（`type` / `title_zh` / `content_zh` / `images`），不要使用 `heading_zh` / `body_zh`。
+
+删除是物理删除（级联清除关联数据），不可恢复；如需“下线”而非删除，把志 `status` 改为 `archived`。

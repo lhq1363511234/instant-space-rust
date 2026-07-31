@@ -2,7 +2,7 @@ use axum::{
     extract::{ConnectInfo, Path, Query},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, patch},
+    routing::get,
     Json, Router,
 };
 use instant_auth::{generate_password_code, hash_password, verify_password};
@@ -24,9 +24,9 @@ const KEY_PREFIX_LEN: usize = 16;
 pub fn router() -> Router<leptos::prelude::LeptosOptions> {
     Router::<leptos::prelude::LeptosOptions>::new()
         .route("/api/spaces", get(list_spaces).post(create_space))
-        .route("/api/spaces/:id", patch(update_space))
+        .route("/api/spaces/:id", get(get_space).patch(update_space).delete(delete_space))
         .route("/api/guides", get(list_guides).post(create_guide))
-        .route("/api/guides/:id", patch(update_guide))
+        .route("/api/guides/:id", get(get_guide).patch(update_guide).delete(delete_guide))
 }
 
 #[derive(Debug, Serialize)]
@@ -818,6 +818,129 @@ async fn update_guide(
     )
     .await;
     Ok(Json(updated))
+}
+
+
+async fn get_space(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    connect: Option<ConnectInfo<SocketAddr>>,
+) -> ApiResult<Json<instant_domain::spaces::SpaceDetail>> {
+    let principal = authenticate(&headers, "spaces:read").await?;
+    let pool = db_pool().await.map_err(ApiError::internal)?;
+    if !instant_db::agent_api::user_manages_space(&pool, principal.user_id, id)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        return Err(ApiError::not_found("space not found"));
+    }
+    let detail = instant_db::spaces::get_space_detail(&pool, id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or_else(|| ApiError::not_found("space not found"))?;
+    let sid = id.to_string();
+    audit(
+        &principal,
+        "GET",
+        "/api/spaces/:id",
+        StatusCode::OK,
+        Some("space"),
+        Some(&sid),
+        connect.map(|v| v.0),
+    )
+    .await;
+    Ok(Json(detail))
+}
+
+async fn delete_space(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    connect: Option<ConnectInfo<SocketAddr>>,
+) -> ApiResult<StatusCode> {
+    let principal = authenticate(&headers, "spaces:write").await?;
+    let pool = db_pool().await.map_err(ApiError::internal)?;
+    if !instant_db::agent_api::user_manages_space(&pool, principal.user_id, id)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        return Err(ApiError::not_found("space not found"));
+    }
+    instant_db::spaces::delete_space(&pool, id)
+        .await
+        .map_err(ApiError::internal)?;
+    let sid = id.to_string();
+    audit(
+        &principal,
+        "DELETE",
+        "/api/spaces/:id",
+        StatusCode::NO_CONTENT,
+        Some("space"),
+        Some(&sid),
+        connect.map(|v| v.0),
+    )
+    .await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn get_guide(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    connect: Option<ConnectInfo<SocketAddr>>,
+) -> ApiResult<Json<instant_domain::guides::GuideDetail>> {
+    let principal = authenticate(&headers, "guides:read").await?;
+    let pool = db_pool().await.map_err(ApiError::internal)?;
+    if !instant_db::agent_api::user_manages_guide(&pool, principal.user_id, id)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        return Err(ApiError::not_found("guide not found"));
+    }
+    let detail = instant_db::guides::get_guide(&pool, id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or_else(|| ApiError::not_found("guide not found"))?;
+    let gid = id.to_string();
+    audit(
+        &principal,
+        "GET",
+        "/api/guides/:id",
+        StatusCode::OK,
+        Some("guide"),
+        Some(&gid),
+        connect.map(|v| v.0),
+    )
+    .await;
+    Ok(Json(detail))
+}
+
+async fn delete_guide(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    connect: Option<ConnectInfo<SocketAddr>>,
+) -> ApiResult<StatusCode> {
+    let principal = authenticate(&headers, "guides:write").await?;
+    let pool = db_pool().await.map_err(ApiError::internal)?;
+    if !instant_db::agent_api::user_manages_guide(&pool, principal.user_id, id)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        return Err(ApiError::not_found("guide not found"));
+    }
+    instant_db::guides::delete_guide_row(&pool, id)
+        .await
+        .map_err(ApiError::internal)?;
+    let gid = id.to_string();
+    audit(
+        &principal,
+        "DELETE",
+        "/api/guides/:id",
+        StatusCode::NO_CONTENT,
+        Some("guide"),
+        Some(&gid),
+        connect.map(|v| v.0),
+    )
+    .await;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn clean(value: Option<String>) -> Option<String> {

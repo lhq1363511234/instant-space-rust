@@ -21,44 +21,40 @@ pub fn GuideBrowser() -> impl IntoView {
         |_| async move { list_guide_countries().await.unwrap_or_default() },
     );
     let provinces = Resource::new(
-        || (),
-        |_| async move { list_provinces().await.unwrap_or_default() },
+        move || selected_country.get(),
+        |country| async move { list_provinces(country).await.unwrap_or_default() },
     );
     let cities = Resource::new(
-        move || selected_province.get(),
-        |province| async move {
-            match province {
-                Some(province) => list_cities(province).await.unwrap_or_default(),
-                None => Vec::new(),
-            }
-        },
+        move || (selected_country.get(), selected_province.get()),
+        |(country, province)| async move { list_cities(country, province).await.unwrap_or_default() },
     );
     let districts = Resource::new(
-        move || (selected_province.get(), selected_city.get()),
-        |(province, city)| async move {
-            match (province, city) {
-                (Some(province), Some(city)) => {
-                    list_districts(province, city).await.unwrap_or_default()
-                }
-                _ => Vec::new(),
-            }
+        move || {
+            (
+                selected_country.get(),
+                selected_province.get(),
+                selected_city.get(),
+            )
+        },
+        |(country, province, city)| async move {
+            list_districts(country, province, city)
+                .await
+                .unwrap_or_default()
         },
     );
     let spots = Resource::new(
         move || {
             (
+                selected_country.get(),
                 selected_province.get(),
                 selected_city.get(),
                 selected_district.get(),
             )
         },
-        |(province, city, district)| async move {
-            match (province, city) {
-                (Some(province), Some(city)) => list_spots(province, city, district)
-                    .await
-                    .unwrap_or_default(),
-                _ => Vec::new(),
-            }
+        |(country, province, city, district)| async move {
+            list_spots(country, province, city, district)
+                .await
+                .unwrap_or_default()
         },
     );
     let query_input = RwSignal::new(String::new());
@@ -225,9 +221,9 @@ pub fn GuideBrowser() -> impl IntoView {
                             view! {
                                 <For
                                     each=move || items.clone()
-                                    key=|item| item.province.clone()
+                                    key=|item| item.clone()
                                     children=move |item| view! {
-                                        <option value=item.province.clone()>{item.province.clone()}</option>
+                                        <option value=item.clone()>{item.clone()}</option>
                                     }
                                 />
                             }
@@ -380,9 +376,9 @@ fn GuideResults(result: GuidePageResult, page: RwSignal<i32>) -> impl IntoView {
                     <li>
                         <a class="guide-list-link" href=href>
                             <strong>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</strong>
+                            <span class="guide-list-location">{location}</span>
+                            <span class="guide-list-enter">{move || t(locale.get(), "阅读", "Read")}</span>
                         </a>
-                        <span>{location}</span>
-                        <span class="guide-list-enter" aria-hidden="true">{move || t(locale.get(), "阅读", "Read")}</span>
                         {can_edit.then(|| view! {
                             <div class="guide-list-actions">
                                 <a class="button button-secondary-light" href=edit_href>{move || t(locale.get(), "编辑", "Edit")}</a>

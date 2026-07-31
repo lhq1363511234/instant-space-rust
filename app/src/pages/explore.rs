@@ -1,10 +1,15 @@
 use instant_domain::spaces::SpaceType;
 use leptos::prelude::*;
+use leptos_router::hooks::use_query_map;
 
 use crate::{
     components::space_form::{provide_create_space_modal, use_create_space_modal},
     i18n::{localize_optional, t, use_i18n},
-    server::spaces::{list_space_page, SpaceMarker, SpacePageResult},
+    server::spaces::{
+        list_space_filter_cities, list_space_filter_countries, list_space_filter_districts,
+        list_space_filter_provinces, list_space_filter_spots, list_space_page, SpaceMarker,
+        SpacePageResult,
+    },
 };
 
 const PAGE_SIZE: i32 = 20;
@@ -14,17 +19,102 @@ const PAGE_SIZE: i32 = 20;
 #[component]
 pub fn ExplorePage() -> impl IntoView {
     let locale = use_i18n().locale;
-    let query_input = RwSignal::new(String::new());
-    let applied_query = RwSignal::new(String::new());
+    let query_map = use_query_map();
+    let initial_query = query_map.with_untracked(|params| params.get("q").unwrap_or_default());
+    let query_input = RwSignal::new(initial_query.clone());
+    let applied_query = RwSignal::new(initial_query);
     let selected_type = RwSignal::new(None::<SpaceType>);
+    let selected_country = RwSignal::new(None::<String>);
+    let selected_province = RwSignal::new(None::<String>);
+    let selected_city = RwSignal::new(None::<String>);
+    let selected_district = RwSignal::new(None::<String>);
+    let selected_spot = RwSignal::new(None::<String>);
     let page = RwSignal::new(1i32);
     let modal = use_create_space_modal().unwrap_or_else(provide_create_space_modal);
 
+    let countries = Resource::new(
+        || (),
+        |_| async move { list_space_filter_countries().await.unwrap_or_default() },
+    );
+    let provinces = Resource::new(
+        move || selected_country.get(),
+        |country| async move {
+            list_space_filter_provinces(country)
+                .await
+                .unwrap_or_default()
+        },
+    );
+    let cities = Resource::new(
+        move || (selected_country.get(), selected_province.get()),
+        |(country, province)| async move {
+            list_space_filter_cities(country, province)
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    let districts = Resource::new(
+        move || {
+            (
+                selected_country.get(),
+                selected_province.get(),
+                selected_city.get(),
+            )
+        },
+        |(country, province, city)| async move {
+            list_space_filter_districts(country, province, city)
+                .await
+                .unwrap_or_default()
+        },
+    );
+    let spots = Resource::new(
+        move || {
+            (
+                selected_country.get(),
+                selected_province.get(),
+                selected_city.get(),
+                selected_district.get(),
+            )
+        },
+        |(country, province, city, district)| async move {
+            list_space_filter_spots(country, province, city, district)
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    Effect::new(move |previous: Option<()>| {
+        selected_type.track();
+        selected_country.track();
+        selected_province.track();
+        selected_city.track();
+        selected_district.track();
+        selected_spot.track();
+        applied_query.track();
+        if previous.is_some() {
+            page.set(1);
+        }
+    });
+
     let spaces = Resource::new(
-        move || (applied_query.get(), selected_type.get(), page.get()),
-        |(query, kind, page)| async move {
+        move || {
+            (
+                applied_query.get(),
+                selected_type.get(),
+                selected_country.get(),
+                selected_province.get(),
+                selected_city.get(),
+                selected_district.get(),
+                selected_spot.get(),
+                page.get(),
+            )
+        },
+        |(query, kind, country, province, city, district, spot, page)| async move {
             let query = (!query.trim().is_empty()).then_some(query);
-            list_space_page(query, kind, page, PAGE_SIZE).await
+            list_space_page(
+                query, kind, country, province, city, district, spot, page, PAGE_SIZE,
+            )
+            .await
         },
     );
 
@@ -65,8 +155,100 @@ pub fn ExplorePage() -> impl IntoView {
                         </div>
                     </label>
                     <div class="explore-filter-line">
-                        <span>{move || t(locale.get(), "再按类型缩小范围", "Then narrow by type")}</span>
+                        <span>{move || t(locale.get(), "先选类型，再按地点逐级缩小", "Choose a type, then narrow by place")}</span>
                         <div class="filter-chip-row">{space_type_buttons(locale, selected_type, page)}</div>
+                    </div>
+                    <div class="explore-location-filters">
+                        <select
+                            aria-label=move || t(locale.get(), "国家或地区", "Country or region")
+                            prop:value=move || selected_country.get().unwrap_or_default()
+                            on:change=move |ev| {
+                                let value = event_target_value(&ev);
+                                selected_country.set((!value.is_empty()).then_some(value));
+                                selected_province.set(None);
+                                selected_city.set(None);
+                                selected_district.set(None);
+                                selected_spot.set(None);
+                            }
+                        >
+                            <option value="">{move || t(locale.get(), "全部国家 / 地区", "All countries / regions")}</option>
+                            <Suspense fallback=move || view! { <option>{move || t(locale.get(), "加载中", "Loading")}</option> }>
+                                {move || Suspend::new(async move {
+                                    let items = countries.await;
+                                    view! { <For each=move || items.clone() key=|item| item.clone() children=move |item| view! { <option value=item.clone()>{item.clone()}</option> } /> }
+                                })}
+                            </Suspense>
+                        </select>
+                        <select
+                            aria-label=move || t(locale.get(), "省份或地区", "Province or region")
+                            prop:value=move || selected_province.get().unwrap_or_default()
+                            on:change=move |ev| {
+                                let value = event_target_value(&ev);
+                                selected_province.set((!value.is_empty()).then_some(value));
+                                selected_city.set(None);
+                                selected_district.set(None);
+                                selected_spot.set(None);
+                            }
+                        >
+                            <option value="">{move || t(locale.get(), "全部省份 / 地区", "All provinces / regions")}</option>
+                            <Suspense fallback=move || view! { <option>{move || t(locale.get(), "加载中", "Loading")}</option> }>
+                                {move || Suspend::new(async move {
+                                    let items = provinces.await;
+                                    view! { <For each=move || items.clone() key=|item| item.clone() children=move |item| view! { <option value=item.clone()>{item.clone()}</option> } /> }
+                                })}
+                            </Suspense>
+                        </select>
+                        <select
+                            aria-label=move || t(locale.get(), "城市", "City")
+                            prop:value=move || selected_city.get().unwrap_or_default()
+                            on:change=move |ev| {
+                                let value = event_target_value(&ev);
+                                selected_city.set((!value.is_empty()).then_some(value));
+                                selected_district.set(None);
+                                selected_spot.set(None);
+                            }
+                        >
+                            <option value="">{move || t(locale.get(), "全部城市", "All cities")}</option>
+                            <Suspense fallback=move || view! { <option>{move || t(locale.get(), "加载中", "Loading")}</option> }>
+                                {move || Suspend::new(async move {
+                                    let items = cities.await;
+                                    view! { <For each=move || items.clone() key=|item| item.clone() children=move |item| view! { <option value=item.clone()>{item.clone()}</option> } /> }
+                                })}
+                            </Suspense>
+                        </select>
+                        <select
+                            aria-label=move || t(locale.get(), "区域", "District")
+                            prop:value=move || selected_district.get().unwrap_or_default()
+                            on:change=move |ev| {
+                                let value = event_target_value(&ev);
+                                selected_district.set((!value.is_empty()).then_some(value));
+                                selected_spot.set(None);
+                            }
+                        >
+                            <option value="">{move || t(locale.get(), "全部区域", "All districts")}</option>
+                            <Suspense fallback=move || view! { <option>{move || t(locale.get(), "加载中", "Loading")}</option> }>
+                                {move || Suspend::new(async move {
+                                    let items = districts.await;
+                                    view! { <For each=move || items.clone() key=|item| item.clone() children=move |item| view! { <option value=item.clone()>{item.clone()}</option> } /> }
+                                })}
+                            </Suspense>
+                        </select>
+                        <select
+                            aria-label=move || t(locale.get(), "具体地点", "Exact place")
+                            prop:value=move || selected_spot.get().unwrap_or_default()
+                            on:change=move |ev| {
+                                let value = event_target_value(&ev);
+                                selected_spot.set((!value.is_empty()).then_some(value));
+                            }
+                        >
+                            <option value="">{move || t(locale.get(), "全部地点", "All places")}</option>
+                            <Suspense fallback=move || view! { <option>{move || t(locale.get(), "加载中", "Loading")}</option> }>
+                                {move || Suspend::new(async move {
+                                    let items = spots.await;
+                                    view! { <For each=move || items.clone() key=|item| item.clone() children=move |item| view! { <option value=item.clone()>{item.clone()}</option> } /> }
+                                })}
+                            </Suspense>
+                        </select>
                         <button
                             class="explore-clear-button"
                             type="button"
@@ -74,6 +256,11 @@ pub fn ExplorePage() -> impl IntoView {
                                 query_input.set(String::new());
                                 applied_query.set(String::new());
                                 selected_type.set(None);
+                                selected_country.set(None);
+                                selected_province.set(None);
+                                selected_city.set(None);
+                                selected_district.set(None);
+                                selected_spot.set(None);
                                 page.set(1);
                             }
                         >
