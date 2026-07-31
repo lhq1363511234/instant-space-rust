@@ -5,7 +5,10 @@ use crate::components::private_verify::PrivateVerify;
 use crate::components::space_share::SpaceSharePanel;
 use crate::components::space_traces::{CarveButton, SpaceTraces};
 use crate::i18n::{localize_optional, t, use_i18n};
-use crate::server::chat::{check_space_access, list_chat_messages, send_chat_message};
+use crate::server::chat::{
+    check_space_access, list_chat_messages, list_space_helps, raise_space_help,
+    resolve_space_help, send_chat_message,
+};
 use crate::server::guides::list_space_guides;
 use crate::server::spaces::{
     apply_host_claim, get_space_detail, my_host_claim, HostClaimState, SpaceDetailView, SpaceMarker,
@@ -571,6 +574,9 @@ pub fn SpaceChatPage() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
     let message_body = RwSignal::new(String::new());
     let send_error = RwSignal::new(None::<String>);
+    let help_body = RwSignal::new(String::new());
+    let help_error = RwSignal::new(None::<String>);
+    let show_help_form = RwSignal::new(false);
 
     let access = Resource::new(
         move || (space_id.get(), refresh.get()),
@@ -593,10 +599,57 @@ pub fn SpaceChatPage() -> impl IntoView {
         },
     );
 
+    let helps = Resource::new(
+        move || (space_id.get(), refresh.get()),
+        |(space_id, _)| async move {
+            if space_id.is_empty() {
+                Vec::new()
+            } else {
+                list_space_helps(space_id).await.unwrap_or_default()
+            }
+        },
+    );
+
+    let raise_help = Action::new(move |body: &String| {
+        let space_id = space_id.get();
+        let body = body.clone();
+        async move { raise_space_help(space_id, body).await }
+    });
+    let resolve_help = Action::new(move |help_id: &String| {
+        let help_id = help_id.clone();
+        async move { resolve_space_help(help_id).await }
+    });
+
     let send = Action::new(move |body: &String| {
         let space_id = space_id.get();
         let body = body.clone();
         async move { send_chat_message(space_id, body).await }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = raise_help.value().get() {
+            match result {
+                Ok(_) => {
+                    help_body.set(String::new());
+                    show_help_form.set(false);
+                    help_error.set(None);
+                    refresh.update(|value| *value += 1);
+                }
+                Err(err) => help_error.set(Some(err.to_string())),
+            }
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = resolve_help.value().get() {
+            match result {
+                Ok(_) => {
+                    help_error.set(None);
+                    refresh.update(|value| *value += 1);
+                }
+                Err(err) => help_error.set(Some(err.to_string())),
+            }
+        }
     });
 
     Effect::new(move |_| {
@@ -684,8 +737,14 @@ pub fn SpaceChatPage() -> impl IntoView {
                                                                     children=move |message| {
                                                                         let (day, clock) = split_chat_stamp(message.created_at);
                                                                         let monogram = sender_monogram(&message.sender);
+                                                                        let kind_class = match message.kind {
+                                                                            instant_domain::chat::ChatMessageKind::System => "chat-message--system",
+                                                                            instant_domain::chat::ChatMessageKind::Help => "chat-message--help",
+                                                                            instant_domain::chat::ChatMessageKind::HelpResolved => "chat-message--help-resolved",
+                                                                            instant_domain::chat::ChatMessageKind::Text => "",
+                                                                        };
                                                                         view! {
-                                                                            <article class="chat-message" data-message-id=message.id.to_string()>
+                                                                            <article class=move || format!("chat-message {kind_class}") data-message-id=message.id.to_string()>
                                                                                 <span class="chat-avatar" aria-hidden="true">{monogram}</span>
                                                                                 <div class="chat-message-body">
                                                                                     <p class="chat-message-meta">
@@ -710,6 +769,80 @@ pub fn SpaceChatPage() -> impl IntoView {
                                             })
                                         }}
                                     </Suspense>
+
+                                    <div class="chat-help-panel" aria-label=move || t(locale.get(), "求助", "Help")>
+                                        <div class="chat-help-head">
+                                            <button
+                                                class="chat-help-toggle"
+                                                type="button"
+                                                on:click=move |_| show_help_form.update(|value| *value = !*value)
+                                            >
+                                                {move || if show_help_form.get() {
+                                                    t(locale.get(), "收起求助", "Close help form").to_string()
+                                                } else {
+                                                    t(locale.get(), "现场求助", "Ask for help").to_string()
+                                                }}
+                                            </button>
+                                            {move || help_error.get().map(|message| view! { <p class="error">{message}</p> })}
+                                        </div>
+                                        {move || show_help_form.get().then(|| view! {
+                                            <form
+                                                class="chat-help-form"
+                                                on:submit=move |ev| {
+                                                    ev.prevent_default();
+                                                    raise_help.dispatch(help_body.get());
+                                                }
+                                            >
+                                                <input
+                                                    aria-label=move || t(locale.get(), "描述你需要的帮助", "Describe the help you need")
+                                                    placeholder=move || t(locale.get(), "例：卫生间在哪？轮椅能进吗？", "e.g. Where is the toilet? Wheelchair accessible?")
+                                                    prop:value=move || help_body.get()
+                                                    on:input=move |ev| help_body.set(event_target_value(&ev))
+                                                />
+                                                <button
+                                                    class="button button-primary"
+                                                    type="submit"
+                                                    disabled=move || help_body.get().trim().is_empty()
+                                                >
+                                                    {move || t(locale.get(), "发布求助", "Post help")}
+                                                </button>
+                                            </form>
+                                        })}
+                                        <Suspense fallback=move || view! { <span></span> }>
+                                            {move || Suspend::new(async move {
+                                                let active = helps.await;
+                                                if active.is_empty() {
+                                                    view! {}.into_any()
+                                                } else {
+                                                    view! {
+                                                        <ul class="chat-help-list">
+                                                            <For
+                                                                each=move || active.clone()
+                                                                key=|help| help.id
+                                                                children=move |help| {
+                                                                    let requester = help.requester_name.clone().unwrap_or_else(|| t(locale.get_untracked(), "现场访客", "On-site visitor").to_string());
+                                                                    let help_id = help.id.to_string();
+                                                                    view! {
+                                                                        <li class="chat-help-item">
+                                                                            <span class="chat-help-body">{help.body.clone()}</span>
+                                                                            <small class="chat-help-requester">{requester}</small>
+                                                                            <button
+                                                                                class="button button-secondary-light chat-help-resolve"
+                                                                                type="button"
+                                                                                on:click=move |_| { resolve_help.dispatch(help_id.clone()); }
+                                                                            >
+                                                                                {move || t(locale.get(), "已解决", "Resolved")}
+                                                                            </button>
+                                                                        </li>
+                                                                    }
+                                                                }
+                                                            />
+                                                        </ul>
+                                                    }.into_any()
+                                                }
+                                            })}
+                                        </Suspense>
+                                    </div>
 
                                     <form
                                         class="chat-compose"

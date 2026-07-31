@@ -12,7 +12,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use futures_util::{SinkExt, StreamExt};
-use instant_domain::chat::ChatMessage;
+use instant_domain::chat::{ChatMessage, ChatMessageKind};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -43,9 +43,20 @@ pub enum ServerEvent {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClientEvent {
-    Message { body: String },
+    Message {
+        body: String,
+        #[serde(default)]
+        kind: Option<String>,
+    },
     Ping,
 }
+
+/// Hard ceiling on simultaneous connections in one room. Public spaces can
+/// draw a crowd; past this the socket is refused with a clear error instead of
+/// degrading every connection in the room (Phase 6 connection cap).
+const MAX_ROOM_ONLINE: usize = 300;
+/// Minimum interval between messages from one connection (Phase 6 rate limit).
+const MIN_SEND_INTERVAL: std::time::Duration = std::time::Duration::from_millis(400);
 
 static CHAT_HUB: OnceLock<ChatHub> = OnceLock::new();
 
@@ -92,6 +103,11 @@ impl ChatHub {
             rooms.remove(&space_id);
         }
         online
+    }
+
+    pub async fn online_count(&self, space_id: Uuid) -> usize {
+        let rooms = self.rooms.lock().await;
+        rooms.get(&space_id).map(|room| room.online).unwrap_or(0)
     }
 
     pub async fn publish_message(&self, space_id: Uuid, message: ChatMessage) {
@@ -147,6 +163,11 @@ pub async fn space_socket(
         "Guest".to_string()
     };
 
+    // Phase 6 connection cap: refuse new sockets when the room is at capacity.
+    if hub().online_count(space_id).await >= MAX_ROOM_ONLINE {
+        return Err((StatusCode::SERVICE_UNAVAILABLE, "room is full, try again later"));
+    }
+
     Ok(ws
         .on_upgrade(move |socket| client_loop(socket, pool, space_id, sender_name, access_version))
         .into_response())
@@ -170,6 +191,7 @@ async fn client_loop(
     let _ = instant_db::chat::set_online_count(&pool, space_id, online as i32).await;
 
     let (mut outgoing, mut incoming) = socket.split();
+    let mut last_send = std::time::Instant::now() - MIN_SEND_INTERVAL;
 
     if let Ok(messages) = instant_db::chat::list_messages(&pool, space_id).await {
         if send_event(&mut outgoing, &ServerEvent::History { messages })
@@ -199,7 +221,12 @@ async fn client_loop(
                             ClientEvent::Ping => {
                                 if outgoing.send(Message::Pong(Vec::new())).await.is_err() { break; }
                             }
-                            ClientEvent::Message { body } => {
+                            ClientEvent::Message { body, kind } => {
+                                if last_send.elapsed() < MIN_SEND_INTERVAL {
+                                    let _ = send_error(&mut outgoing, "rate_limited", "Please slow down").await;
+                                    continue;
+                                }
+                                last_send = std::time::Instant::now();
                                 let body = body.trim().to_string();
                                 if body.is_empty() {
                                     let _ = send_error(&mut outgoing, "message_required", "Message is required").await;
@@ -209,6 +236,12 @@ async fn client_loop(
                                     let _ = send_error(&mut outgoing, "message_too_long", "Message is too long").await;
                                     continue;
                                 }
+                                let message_kind = match kind.as_deref() {
+                                    Some("help") => ChatMessageKind::Help,
+                                    Some("help_resolved") => ChatMessageKind::HelpResolved,
+                                    Some("system") => ChatMessageKind::System,
+                                    _ => ChatMessageKind::Text,
+                                };
 
                                 let Some(meta) = instant_db::spaces::space_access_meta(&pool, space_id).await.ok().flatten() else {
                                     let _ = send_error(&mut outgoing, "space_not_found", "Space no longer exists").await;
@@ -228,6 +261,7 @@ async fn client_loop(
                                     sender_name.clone(),
                                     body,
                                     meta.password_version,
+                                    message_kind,
                                 ).await {
                                     Ok(message) => hub.publish_message(space_id, message).await,
                                     Err(_) => {

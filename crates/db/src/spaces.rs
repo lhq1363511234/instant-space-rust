@@ -1,5 +1,5 @@
 use instant_domain::admin::ResidentApplication;
-use instant_domain::spaces::{SpaceStatus, SpaceSummary, SpaceType};
+use instant_domain::spaces::{SpaceMember, SpaceStatus, SpaceSummary, SpaceType};
 use sqlx::{PgPool, Row};
 
 #[derive(Debug, Default, Clone)]
@@ -1207,4 +1207,102 @@ mod tests {
             .await
             .expect("cleanup user");
     }
+}
+
+/// A person admitted to a Space with an explicit role. Roles are a coarse
+/// trust ladder: `member` (participant) and `host` (can manage members).
+
+
+/// Everyone admitted to a Space, newest first. Joining through a session
+/// records `member`; the Space manager can raise or remove roles.
+pub async fn list_space_members(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+) -> Result<Vec<SpaceMember>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT m.id, m.space_id, m.user_id, m.role, m.created_at,
+               u.email, u.name AS display_name
+        FROM space_members m
+        JOIN users u ON u.id = m.user_id
+        WHERE m.space_id = $1
+        ORDER BY m.created_at DESC
+        "#,
+    )
+    .bind(space_id)
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter().map(row_to_space_member).collect()
+}
+
+/// Admit a user to a Space or change their role. Returns the updated member.
+pub async fn set_space_member(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+    user_id: uuid::Uuid,
+    role: &str,
+) -> Result<SpaceMember, sqlx::Error> {
+    let role = if role == "host" { "host" } else { "member" };
+    let row = sqlx::query(
+        r#"
+        WITH upsert AS (
+          INSERT INTO space_members (space_id, user_id, role)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (space_id, user_id)
+          DO UPDATE SET role = EXCLUDED.role
+          RETURNING id, space_id, user_id, role, created_at
+        )
+        SELECT m.id, m.space_id, m.user_id, m.role, m.created_at,
+               u.email, u.name AS display_name
+        FROM upsert m
+        JOIN users u ON u.id = m.user_id
+        "#,
+    )
+    .bind(space_id)
+    .bind(user_id)
+    .bind(role)
+    .fetch_one(pool)
+    .await?;
+
+    row_to_space_member(row)
+}
+
+fn row_to_space_member(row: sqlx::postgres::PgRow) -> Result<SpaceMember, sqlx::Error> {
+    Ok(SpaceMember {
+        id: row.try_get("id")?,
+        space_id: row.try_get("space_id")?,
+        user_id: row.try_get("user_id")?,
+        role: row.try_get("role")?,
+        created_at: row
+            .try_get::<time::OffsetDateTime, _>("created_at")?
+            .to_string(),
+        email: row.try_get("email")?,
+        display_name: row.try_get("display_name")?,
+    })
+}
+
+/// Remove a member from a Space. Returns true when a row was actually deleted.
+pub async fn remove_space_member(
+    pool: &PgPool,
+    space_id: uuid::Uuid,
+    user_id: uuid::Uuid,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("DELETE FROM space_members WHERE space_id = $1 AND user_id = $2")
+        .bind(space_id)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected() > 0)
+}
+
+/// Resolve a user by exact email; used by the manager UI to admit people.
+pub async fn find_user_id_by_email(
+    pool: &PgPool,
+    email: &str,
+) -> Result<Option<uuid::Uuid>, sqlx::Error> {
+    sqlx::query_scalar("SELECT id FROM users WHERE lower(email) = lower($1)")
+        .bind(email)
+        .fetch_optional(pool)
+        .await
 }

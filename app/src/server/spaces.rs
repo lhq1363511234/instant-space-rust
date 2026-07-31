@@ -669,17 +669,17 @@ pub async fn update_my_space(
 
 #[server(CloseMySpace, "/inspace/api")]
 pub async fn close_my_space(space_id: String) -> Result<SpaceMarker, ServerFnError> {
-    set_my_space_status(space_id, SpaceStatus::Closed).await
+    set_my_space_status(space_id, SpaceStatus::Closed, "close_space").await
 }
 
 #[server(ReactivateMySpace, "/inspace/api")]
 pub async fn reactivate_my_space(space_id: String) -> Result<SpaceMarker, ServerFnError> {
-    set_my_space_status(space_id, SpaceStatus::Active).await
+    set_my_space_status(space_id, SpaceStatus::Active, "reactivate_space").await
 }
 
 #[server(DeleteMySpace, "/inspace/api")]
 pub async fn delete_my_space(space_id: String) -> Result<SpaceMarker, ServerFnError> {
-    set_my_space_status(space_id, SpaceStatus::Archived).await
+    set_my_space_status(space_id, SpaceStatus::Archived, "delete_space").await
 }
 
 #[server(ArchiveMySpaceTemplate, "/inspace/api")]
@@ -697,6 +697,15 @@ pub async fn archive_my_space_template(space_id: String) -> Result<SpaceMarker, 
         let updated = set_space_status(&pool, space_uuid, SpaceStatus::Template)
             .await
             .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let _ = instant_db::admin::record_audit(
+            &pool,
+            Some(user.id),
+            Some(&user.email),
+            "archive_space_template",
+            "space",
+            Some(&space_id),
+            Some("archived as reusable template"),
+        );
         Ok(to_marker(updated))
     }
 
@@ -772,6 +781,15 @@ pub async fn regenerate_space_password(
             .map_err(|err| ServerFnError::new(err.to_string()))?;
         let hotspot_name =
             hotspot_name(&password).map_err(|err| ServerFnError::new(err.to_string()))?;
+        let _ = instant_db::admin::record_audit(
+            &pool,
+            Some(user.id),
+            Some(&user.email),
+            "regenerate_space_password",
+            "space",
+            Some(&space_id),
+            Some(&format!("password_version -> {password_version}")),
+        );
 
         Ok(PasswordRotationResult {
             password,
@@ -790,6 +808,7 @@ pub async fn regenerate_space_password(
 async fn set_my_space_status(
     space_id: String,
     status: SpaceStatus,
+    action: &'static str,
 ) -> Result<SpaceMarker, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
@@ -800,6 +819,15 @@ async fn set_my_space_status(
         let updated = set_space_status(&pool, space_uuid, status)
             .await
             .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let _ = instant_db::admin::record_audit(
+            &pool,
+            Some(user.id),
+            Some(&user.email),
+            action,
+            "space",
+            Some(&space_id),
+            Some(&format!("status -> {:?}", updated.status)),
+        );
         Ok(to_marker(updated))
     }
 
@@ -953,5 +981,105 @@ mod tests {
         let marker = to_marker(summary);
         assert!(!marker.is_public);
         assert_eq!(marker.name_zh, "私密茶室");
+    }
+}
+
+#[server(ListMySpaceMembers, "/inspace/api")]
+pub async fn list_my_space_members(
+    space_id: String,
+) -> Result<Vec<instant_domain::spaces::SpaceMember>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let space_uuid = parse_space_id(&space_id)?;
+        let user = require_space_manager(space_uuid).await?;
+        let pool = crate::server::db_pool().await?;
+        ensure_space_manager(&pool, space_uuid, &user).await?;
+        instant_db::spaces::list_space_members(&pool, space_uuid)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(AddMySpaceMember, "/inspace/api")]
+pub async fn add_my_space_member(
+    space_id: String,
+    email: String,
+    role: String,
+) -> Result<instant_domain::spaces::SpaceMember, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let space_uuid = parse_space_id(&space_id)?;
+        let user = require_space_manager(space_uuid).await?;
+        let pool = crate::server::db_pool().await?;
+        ensure_space_manager(&pool, space_uuid, &user).await?;
+        let member_user_id =
+            instant_db::spaces::find_user_id_by_email(&pool, email.trim())
+                .await
+                .map_err(|err| ServerFnError::new(err.to_string()))?
+                .ok_or_else(|| ServerFnError::new("no user with that email"))?;
+        let member = instant_db::spaces::set_space_member(&pool, space_uuid, member_user_id, role.trim())
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let _ = instant_db::admin::record_audit(
+            &pool,
+            Some(user.id),
+            Some(&user.email),
+            "add_space_member",
+            "space",
+            Some(&space_id),
+            Some(&format!("member {} role {}", email.trim(), member.role)),
+        );
+        Ok(member)
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+#[server(RemoveMySpaceMember, "/inspace/api")]
+pub async fn remove_my_space_member(
+    space_id: String,
+    email: String,
+) -> Result<bool, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let space_uuid = parse_space_id(&space_id)?;
+        let user = require_space_manager(space_uuid).await?;
+        let pool = crate::server::db_pool().await?;
+        ensure_space_manager(&pool, space_uuid, &user).await?;
+        let member_user_id =
+            instant_db::spaces::find_user_id_by_email(&pool, email.trim())
+                .await
+                .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let removed = match member_user_id {
+            Some(id) => instant_db::spaces::remove_space_member(&pool, space_uuid, id)
+                .await
+                .map_err(|err| ServerFnError::new(err.to_string()))?,
+            None => false,
+        };
+        if removed {
+            let _ = instant_db::admin::record_audit(
+                &pool,
+                Some(user.id),
+                Some(&user.email),
+                "remove_space_member",
+                "space",
+                Some(&space_id),
+                Some(&format!("member {}", email.trim())),
+            );
+        }
+        Ok(removed)
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
     }
 }

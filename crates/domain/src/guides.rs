@@ -78,3 +78,43 @@ pub struct GuideDetail {
     pub created_at: String,
     pub updated_at: String,
 }
+
+/// A frozen snapshot of one guide at one point in time (Phase 4 content
+/// versioning). Hosts and admins can review the history and restore any
+/// version, which rewrites the guide row from the snapshot.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuideVersion {
+    pub id: Uuid,
+    pub guide_id: Uuid,
+    pub version_no: i32,
+    pub title_zh: String,
+    pub title_en: Option<String>,
+    pub summary_zh: Option<String>,
+    pub summary_en: Option<String>,
+    pub content_zh: Option<String>,
+    pub content_en: Option<String>,
+    #[serde(default)]
+    pub sections: Vec<GuideSection>,
+    #[serde(default)]
+    pub images: Vec<String>,
+    pub cover_image_url: Option<String>,
+    pub edited_by: Option<Uuid>,
+    pub edited_by_name: Option<String>,
+    pub created_at: String,
+}
+
+/// Paged guide result shared by the directory and the admin console.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct PaginatedGuides {
+    pub items: Vec<GuideSummary>,
+    pub total: i64,
+}
+
+/// Aggregate status counts for the admin console stat cards.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct GuideStatusCounts {
+    pub total: i64,
+    pub published: i64,
+    pub drafts: i64,
+    pub archived: i64,
+}

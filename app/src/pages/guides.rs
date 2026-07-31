@@ -3,12 +3,16 @@ use leptos::prelude::*;
 use leptos_router::hooks::{use_location, use_params_map};
 use url::Url;
 
+#[cfg(feature = "hydrate")]
+use wasm_bindgen::JsCast;
+
 use crate::components::guide_browser::GuideBrowser;
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::{
     auth::current_session,
     guides::{
-        create_guide_draft, delete_guide, get_guide_detail, get_guide_for_edit, update_guide,
+        create_guide_draft, delete_guide, get_guide_detail, get_guide_for_edit, list_guide_versions,
+        restore_guide_version, update_guide,
     },
     spaces::{get_space_for_guide, list_spaces, SpaceMarker},
 };
@@ -405,10 +409,15 @@ pub fn GuideEditorPage() -> impl IntoView {
         }
     });
     let delete_feedback = delete;
+    let versions_reload = RwSignal::new(0u32);
+    let version_guide_id = Memo::new(move |_| {
+        saved_guide_id.get().unwrap_or_else(|| edit_guide_id.get())
+    });
 
     Effect::new(move |_| {
         if let Some(Ok(summary)) = save_feedback.value().get() {
             saved_guide_id.set(Some(summary.id.to_string()));
+            versions_reload.set(versions_reload.get() + 1);
         }
     });
 
@@ -441,6 +450,7 @@ pub fn GuideEditorPage() -> impl IntoView {
                                     delete.dispatch(());
                                 })
                             />
+                            <GuideVersionHistory guide_id=version_guide_id reload=versions_reload />
                         }.into_any()
                     }
                 })}
@@ -477,6 +487,7 @@ fn GuideEditor(
     on_delete: Callback<()>,
 ) -> impl IntoView {
     let locale = use_i18n().locale;
+    let confirm_delete = RwSignal::new(false);
 
     let update_text = move |apply: fn(&mut GuideDraft, String), value: String| {
         guide.update(|draft| apply(draft, value));
@@ -669,7 +680,24 @@ fn GuideEditor(
                     <button class="button button-primary" type="button" on:click=move |_| on_save.run(GuideStatus::Published)>{move || t(locale.get(), "保存并发布", "Save and publish")}</button>
                     <button class="button button-danger" type="button" on:click=move |_| on_save.run(GuideStatus::Archived)>{move || t(locale.get(), "取消发布", "Unpublish")}</button>
                     {is_edit.then(|| view! {
-                        <button class="button button-danger" type="button" on:click=move |_| on_delete.run(())>{move || t(locale.get(), "删除攻略", "Delete guide")}</button>
+                        <button
+                            class="button button-danger"
+                            type="button"
+                            on:click=move |_| {
+                                if confirm_delete.get() {
+                                    confirm_delete.set(false);
+                                    on_delete.run(());
+                                } else {
+                                    confirm_delete.set(true);
+                                }
+                            }
+                        >
+                            {move || if confirm_delete.get() {
+                                t(locale.get(), "确认永久删除？", "Confirm permanent delete?").to_string()
+                            } else {
+                                t(locale.get(), "删除攻略", "Delete guide").to_string()
+                            }}
+                        </button>
                     })}
                 </div>
             </form>
@@ -798,9 +826,13 @@ fn ImageManager(
     let locale = use_i18n().locale;
     let url_input = RwSignal::new(String::new());
     let error = RwSignal::new(None::<String>);
+    let upload_error = RwSignal::new(None::<String>);
+    let uploading = RwSignal::new(false);
+    let input_id = format!("guide-media-input-{}", uuid::Uuid::new_v4().simple());
     let add_images = images.clone();
     let preview_images = images.clone();
     let remove_source_images = images.clone();
+    let upload_images = images.clone();
     let add = move |_| {
         let candidate = url_input.get().trim().to_string();
         if candidate.is_empty() {
@@ -824,13 +856,110 @@ fn ImageManager(
         on_change.run(next);
     };
 
+    // Open the native file picker. The input is hidden but stays in the DOM so
+    // the change event carries the chosen File object.
+    let trigger_picker = {
+        let _input_id = input_id.clone();
+        move |_| {
+            #[cfg(feature = "hydrate")]
+            if let Some(el) = leptos::prelude::document().get_element_by_id(&_input_id) {
+                let _ = el.unchecked_into::<web_sys::HtmlInputElement>().click();
+            }
+        }
+    };
+
     view! {
         <div class="image-manager">
             <div class="image-manager-row">
                 <input aria-label=aria_label.clone() placeholder="https://example.com/photo.jpg" prop:value=move || url_input.get() on:input=move |ev| url_input.set(event_target_value(&ev)) />
                 <button class="button button-secondary-light" type="button" on:click=add>{move || t(locale.get(), "添加图片", "Add image")}</button>
+                <button class="button button-secondary-light" type="button" on:click=trigger_picker>
+                    {move || if uploading.get() {
+                        t(locale.get(), "上传中…", "Uploading…").to_string()
+                    } else {
+                        t(locale.get(), "上传图片", "Upload image").to_string()
+                    }}
+                </button>
+                <input
+                    id=input_id.clone()
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                    class="visually-hidden"
+                    aria-hidden="true"
+                    tabindex="-1"
+                    on:change=move |_ev| {
+                        #[cfg(feature = "hydrate")]
+                        {
+                            let input = event_target::<web_sys::HtmlInputElement>(&_ev);
+                            let Some(file) = input.files().and_then(|files| files.item(0)) else {
+                                return;
+                            };
+                            if let Some(elem) = leptos::prelude::document().get_element_by_id(&input_id) {
+                                elem.unchecked_into::<web_sys::HtmlInputElement>().set_value("");
+                            }
+                            upload_error.set(None);
+                            uploading.set(true);
+                            let images = upload_images.clone();
+                            leptos::task::spawn_local(async move {
+                                let outcome: Result<String, String> = async {
+                                    let form = web_sys::FormData::new()
+                                        .map_err(|_| t(locale.get(), "无法创建上传表单", "Cannot build upload form").to_string())?;
+                                    form.append_with_blob("file", &file)
+                                        .map_err(|_| t(locale.get(), "无法读取文件", "Cannot read file").to_string())?;
+                                    let opts = web_sys::RequestInit::new();
+                                    opts.set_method("POST");
+                                    opts.set_body(&form.into());
+                                    let request = web_sys::Request::new_with_str_and_init(
+                                        "/inspace/api/media/upload",
+                                        &opts,
+                                    )
+                                    .map_err(|_| t(locale.get(), "无法创建上传请求", "Cannot build upload request").to_string())?;
+                                    let response = wasm_bindgen_futures::JsFuture::from(
+                                        leptos::prelude::window().fetch_with_request(&request),
+                                    )
+                                    .await
+                                    .map_err(|_| t(locale.get(), "网络错误，上传失败", "Network error during upload").to_string())?;
+                                    let response: web_sys::Response = response.unchecked_into();
+                                    let status = response.status();
+                                    let text = wasm_bindgen_futures::JsFuture::from(
+                                        response.text().map_err(|_| t(locale.get(), "读取响应失败", "Cannot read response").to_string())?,
+                                    )
+                                    .await
+                                    .map_err(|_| t(locale.get(), "读取响应失败", "Cannot read response").to_string())?
+                                    .as_string()
+                                    .ok_or_else(|| t(locale.get(), "读取响应失败", "Cannot read response").to_string())?;
+                                    if status != 200 {
+                                        let message = serde_json::from_str::<serde_json::Value>(&text)
+                                            .ok()
+                                            .and_then(|value| value["error"].as_str().map(ToOwned::to_owned))
+                                            .unwrap_or_else(|| t(locale.get(), "上传失败", "Upload failed").to_string());
+                                        return Err(message);
+                                    }
+                                    let url = serde_json::from_str::<serde_json::Value>(&text)
+                                        .ok()
+                                        .and_then(|value| value["url"].as_str().map(ToOwned::to_owned))
+                                        .ok_or_else(|| t(locale.get(), "上传响应缺少地址", "Upload response missing URL").to_string())?;
+                                    Ok(url)
+                                }
+                                .await;
+                                uploading.set(false);
+                                match outcome {
+                                    Ok(url) => {
+                                        let mut next = images.clone();
+                                        if !next.iter().any(|existing| existing == &url) {
+                                            next.push(url);
+                                        }
+                                        on_change.run(next);
+                                    }
+                                    Err(message) => upload_error.set(Some(message)),
+                                }
+                            });
+                        }
+                    }
+                />
             </div>
             {move || error.get().map(|message| view! { <p class="error">{message}</p> })}
+            {move || upload_error.get().map(|message| view! { <p class="error">{message}</p> })}
             {if images.is_empty() {
                 view! {
                     <div class="empty-state compact-empty">
@@ -946,4 +1075,98 @@ fn space_option_label(space: &SpaceMarker) -> String {
 fn optional_text(value: String) -> Option<String> {
     let value = value.trim().to_string();
     (!value.is_empty()).then_some(value)
+}
+
+/// Phase 4 content versioning: show a guide's snapshot history and let the
+/// editor restore any version. Restoring snapshots the pre-restore state, so
+/// nothing is lost.
+#[component]
+fn GuideVersionHistory(
+    guide_id: Memo<String>,
+    reload: RwSignal<u32>,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let versions = Resource::new(
+        move || (guide_id.get(), reload.get()),
+        |(id, _)| async move {
+            if id.is_empty() {
+                Vec::new()
+            } else {
+                list_guide_versions(id).await.unwrap_or_default()
+            }
+        },
+    );
+    let restore = Action::new(move |version_no: &i32| {
+        let guide_id = guide_id.get_untracked();
+        let version_no = *version_no;
+        async move { restore_guide_version(guide_id, version_no).await }
+    });
+    let restore_feedback = restore;
+
+    view! {
+        <section class="guide-editor-card guide-versions" aria-label=move || t(locale.get(), "攻略版本历史", "Guide version history")>
+            <h2>{move || t(locale.get(), "版本历史", "Version history")}</h2>
+            <p>{move || t(locale.get(), "每次保存都会冻结一份快照，编辑失误可随时回退。", "Every save freezes a snapshot; revert any mistake at any time.")}</p>
+            <Suspense fallback=move || view! { <div class="space-list-skeleton"><span></span><span></span></div> }>
+                {move || Suspend::new(async move {
+                    let items = versions.await;
+                    if items.is_empty() {
+                        view! { <div class="empty-state compact-empty"><span>{move || t(locale.get(), "暂无版本记录。", "No versions yet.")}</span></div> }.into_any()
+                    } else {
+                        view! {
+                            <ol class="guide-version-list">
+                                <For
+                                    each=move || items.clone()
+                                    key=|version| format!("{}-{}", version.id, version.version_no)
+                                    children=move |version| {
+                                        let version_for_button = version.version_no;
+                                        let title = if version.title_zh.trim().is_empty() {
+                                            t(locale.get(), "(无标题)", "(untitled)").to_string()
+                                        } else {
+                                            version.title_zh.clone()
+                                        };
+                                        view! {
+                                            <li class="guide-version-row">
+                                                <span class="guide-version-no">"v" {version.version_no}</span>
+                                                <div class="guide-version-main">
+                                                    <strong>{title}</strong>
+                                                    <span class="guide-version-meta">
+                                                        {move || {
+                                                            let mut parts = Vec::new();
+                                                            if let Some(name) = version.edited_by_name.clone() {
+                                                                parts.push(name);
+                                                            }
+                                                            parts.push(version.created_at.clone());
+                                                            parts.join(" · ")
+                                                        }}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    class="button button-secondary-light"
+                                                    type="button"
+                                                    on:click=move |_| { restore.dispatch(version_for_button); }
+                                                >
+                                                    {move || t(locale.get(), "恢复此版本", "Restore")}
+                                                </button>
+                                            </li>
+                                        }
+                                    }
+                                />
+                            </ol>
+                        }.into_any()
+                    }
+                })}
+            </Suspense>
+            {move || restore_feedback.value().get().map(|result| match result {
+                Ok(_summary) => view! {
+                    <div class="form-success">
+                        {move || t(locale.get(), "已恢复到该版本。", "Restored to that version.")}
+                        " "
+                        {move || t(locale.get(), "当前页面内容已过期，请刷新查看。", "The editor still shows the old content; refresh to reload it.")}
+                    </div>
+                }.into_any(),
+                Err(err) => view! { <p class="error">{err.to_string()}</p> }.into_any(),
+            })}
+        </section>
+    }
 }

@@ -1181,3 +1181,61 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 
 - 新增 `docs/AGENT_API_TUTORIAL.md`（284 行，口语化中文教程）：从建 Key → 建空间 → 写攻略（含 sections 正确字段名提醒）→ 读回 → 搜索 → PATCH 更新/发布 → DELETE 清理，附 curl 与 Python 完整示例、错误码速查、运营流程模板。
 - `docs/AGENT_REST_API.md` 保留为技术参考（字段全表/错误码），教程面向"怎么用"。
+
+## 2026-07-31 — Phase 1 统一错误反馈模型（feedback 模块）
+
+- 新增 `app/src/feedback.rs`：全局 Feedback 上下文（Success/Error/Info），`use_feedback()` 提供 `success/error/info/dismiss`，消息 4.5s 自动消失；`FeedbackToasts` 全局 toast 轨渲染在 `App` 的 `app-main` 内。
+- 依赖：workspace 与 app 增加 `gloo-timers`（仅 hydrate feature）；定时器用 `leptos::task::spawn_local`（不是 `leptos::prelude::spawn_local`）。
+- 已迁移：`space_form`（建空间成功、关联攻略成功）、`auth`（登录/注册成功）发统一 toast；表单内联错误保留（就近可读原则：成功走全局、错误就近）。
+- CSS：`app-shell.css?v=20260731-shell-feedback-v5` 新增 `.feedback-rail/.feedback-toast`（底部居中、success/error/info 三态、reduced-motion 支持）。
+- 检查：`cargo check --all-targets` 与 wasm32 hydrate check 均通过。
+
+## 2026-07-31 — Phase 2 主理人空间管理：操作审计闭环
+
+- 空间管理动作现写入 `admin_audit_log`：close_space / reactivate_space / delete_space（`set_my_space_status` 增加 action 参数）、archive_space_template、regenerate_space_password（含新 password_version）。
+- 描述/标签/有效期编辑已存在（`update_my_space` + host 编辑表单），该项视为已闭环。
+- 未做（属白皮书 Phase 2 长期项，非本轮工程缺口）：商家/创作者认领流程、`space_templates` 数据闭环。
+
+## 2026-07-31 — Phase 3 私密空间与访问：成员角色最小闭环
+
+- `space_members` 表已有外键，补产品闭环：
+  - db（`crates/db/src/spaces.rs`）：`SpaceMember`（含 email/display_name）、`list_space_members`、`set_space_member`（upsert，role 仅 member/host 两档）、`remove_space_member`、`find_user_id_by_email`。
+  - server（`app/src/server/spaces.rs`）：`list_my_space_members`、`add_my_space_member`（按邮箱，校验空间管理者）、`remove_my_space_member`，管理动作写 `admin_audit_log`。
+  - UI：`ManageSpacePanel` 新增 `SpaceMembersPanel`（按邮箱邀请、角色选择、成员列表、移除；成功/失败走统一 feedback toast）。
+- `crates/db/Cargo.toml` 增加 `serde.workspace = true`（SpaceMember derive）。
+- 样式：`workspace.css?v=20260731-members-v18` 新增 `.space-members-*`（桌面/手机双布局，44px 控件）。
+- 未做（属权限中心长期项）：QR/GPS/Discord 证明强度分级、消息级权限、角色细粒度权限矩阵。
+
+## 2026-07-31 — Phase 4-7 全面实现（工程缺口闭环）
+
+### Phase 4 攻略媒体资产
+- 新增迁移 `20260731000300_guide_versions.sql`：`guide_versions` 表（每次创建/编辑自动快照，版本号递增，UNIQUE(guide_id, version_no)）。
+- db（`crates/db/src/guides.rs`）：`snapshot_guide_version` / `list_guide_versions` / `restore_guide_version`（恢复前先快照当前态，恢复不丢数据；保留 status/featured/归属）。
+- server：创建/更新攻略后自动写快照；新增 `list_guide_versions`、`restore_guide_version`（编辑者或管理员）。
+- UI：攻略编辑器新增「版本历史」卡片（列表 + 恢复按钮）；删除攻略改为两步确认。
+- 媒体上传：新增 `app/src/media.rs` 裸 Axum 路由 `POST /api/media/upload`（同时注册 `/inspace/api/media/upload`，session cookie 鉴权，mime 限 jpeg/png/webp/gif/avif，大小 ≤10MB，存 `uploads/`），`/uploads` ServeDir 提供访问；`ImageManager` 加「上传图片」按钮（FormData + fetch，需要 web-sys File/FormData/Blob/Url + wasm-bindgen-futures/js-sys）。
+- 注意：nginx `/inspace/api` 需 `client_max_body_size 12m` 才能传大图；上传 URL 返回 `/inspace/uploads/<uuid>.<ext>`。
+
+### Phase 5 后台运营
+- 攻略后台改服务端分页/搜索/状态筛选（`list_admin_guides_page` + db `list_all_guides_admin_page`，每页 20，含总数）；统计卡片走 `guide_status_counts`。
+- CSV 导出：db `export_spaces_csv` / `export_guides_csv`（转义正确）；server `export_admin_csv(kind)`；UI `ExportCsvButton`（Blob 下载，仅管理员）；空间/攻略后台各一个按钮。
+- 危险操作确认统一：攻略删除两步确认；空间删除已有两步确认（Phase 2 完成）。
+
+### Phase 6 实时互动
+- 迁移 `20260731000400_chat_kind_and_helps.sql`：`chat_messages.kind`（text/system/help/help_resolved）+ `helps.requester_name` / `resolved_at` + 聊天索引。
+- domain：`ChatMessageKind`、`ChatMessage.kind`、`SpaceHelp`；db：`insert_message` 带 kind，helps 的 `create_help/resolve_help/list_active_helps`。
+- realtime：房间连接上限 300（升级前拒绝）、每连接 400ms 消息限流、WS 消息支持 kind。
+- 求助闭环：聊天页「现场求助」表单 + 活跃求助列表 + 「已解决」按钮；发起/解决都会写入聊天室 system/help 消息并广播。
+- CSS：`.chat-help-*`、`.chat-message--help/system/help-resolved`（ui-system.css）。
+
+### Phase 7 生产化
+- 迁移漂移检测：`instant_db::verify_schema_contract(pool)`（信息模式校验 15 张关键表的表/列契约），启动时调用，漂移打 ERROR 日志（不阻断启动）。
+- importer：`--import --pg URL` 真实导入旧 SQLite（用户/空间/攻略动态列映射、稳定 UUIDv5、space_type 归一化、密码占位哈希），目标库已有数据则拒绝（幂等防重）。
+- CI：`.github/workflows/ci.yml`（fmt + workspace check + wasm hydrate check + 单测）。
+- 备份文档：`docs/BACKUP_AND_RECOVERY.md`（pg_dump + uploads 目录、14 天保留、恢复演练步骤）。
+
+### 编译与部署要点
+- `cargo check --workspace --all-targets` 与 wasm32 hydrate check（`--no-default-features --features hydrate`）均通过。
+- 类型注意：分页/统计/成员类型必须放 `instant_domain`（`PaginatedGuides`/`GuideStatusCounts`/`SpaceMember`），否则 hydrate 编译报找不到 instant_db。
+- WASM 版本：前端与服务端都变了，v91 → v92（`app/src/main.rs` `.output_name` 与 `scripts/build-wasm.mjs` OUTPUT_NAME 同步）。
+- 部署顺序：`CARGO_BUILD_JOBS=3 cargo build --release` → `node scripts/build-wasm.mjs` → 安装二进制 → nginx 加 `/inspace/api` 的 client_max_body_size → reload → restart → 日志确认 `schema contract verified`。

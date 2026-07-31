@@ -1,22 +1,38 @@
 use instant_domain::guides::{GuideStatus, GuideSummary};
 use leptos::prelude::*;
 
+#[cfg(feature = "hydrate")]
+use wasm_bindgen::JsCast;
+
 use crate::components::admin_nav::AdminNav;
 use crate::i18n::{t, use_i18n, Locale};
 use crate::server::auth::current_session;
-use crate::server::guides::{list_admin_guides, set_guide_status_admin};
+use crate::server::guides::{
+    get_admin_guide_stats, list_admin_guides_page, set_guide_status_admin,
+};
 
 #[component]
 pub fn AdminGuidesPage() -> impl IntoView {
     let locale = use_i18n().locale;
     let reload = RwSignal::new(0u32);
+    let query = RwSignal::new(String::new());
+    let status_filter = RwSignal::new(String::new());
+    let page = RwSignal::new(1i32);
     let session = Resource::new(
         || (),
         |_| async move { current_session().await.ok().flatten() },
     );
-    let guides = Resource::new(
+    let stats = Resource::new(
         move || reload.get(),
-        |_| async move { list_admin_guides().await.unwrap_or_default() },
+        |_| async move { get_admin_guide_stats().await.ok() },
+    );
+    let guides = Resource::new(
+        move || (query.get(), status_filter.get(), page.get(), reload.get()),
+        |(query, status, page, _)| async move {
+            list_admin_guides_page(query, status, page, 20)
+                .await
+                .unwrap_or_default()
+        },
     );
 
     view! {
@@ -33,11 +49,27 @@ pub fn AdminGuidesPage() -> impl IntoView {
                         <AdminNav />
                         <section class="admin-guide-workspace">
                             <header class="admin-guide-head">
-                                <div><p class="eyebrow">"GUIDE OPERATIONS"</p><h1>{move || t(locale.get(), "空间攻略管理", "Space guide management")}</h1><p>{move || t(locale.get(), "管理攻略从草稿到发布的全过程，并清楚看到它属于哪个真实空间。攻略是讨论的共同上下文，不是孤立文章。", "Manage guides from draft to publication and see which real Space each guide belongs to. A guide is shared context for discussion, not an isolated article.")}</p></div>
-                                <a class="button button-primary" href="/inspace/admin/guides/new">{move || t(locale.get(), "新建空间攻略", "New space guide")}</a>
+                                <div><p class="eyebrow">"GUIDE OPERATIONS"</p><h1>{move || t(locale.get(), "空间攻略管理", "Space guide management")}</h1><p>{move || t(locale.get(), "管理攻略从草稿到发布的全过程，并清楚看到它属于哪个真实空间。列表按页加载，不会一次塞进上万条。", "Manage guides from draft to publication and see which real Space each guide belongs to. Results are paginated instead of loading ten thousand rows at once.")}</p></div>
+                                <div class="admin-guide-head-actions">
+                                    <a class="button button-primary" href="/inspace/admin/guides/new">{move || t(locale.get(), "新建空间攻略", "New space guide")}</a>
+                                    <ExportCsvButton kind="guides" />
+                                </div>
                             </header>
                             <Suspense fallback=move || view! { <div class="space-list-skeleton"><span></span><span></span></div> }>
-                                {move || Suspend::new(async move { view! { <AdminGuideList items=guides.await reload=reload /> } })}
+                                {move || Suspend::new(async move {
+                                    let stats = stats.await;
+                                    let result = guides.await;
+                                    view! {
+                                        <AdminGuideList
+                                            stats=stats
+                                            result=result
+                                            query=query
+                                            status_filter=status_filter
+                                            page=page
+                                            reload=reload
+                                        />
+                                    }
+                                })}
                             </Suspense>
                         </section>
                     }.into_any()
@@ -48,68 +80,157 @@ pub fn AdminGuidesPage() -> impl IntoView {
 }
 
 #[component]
-fn AdminGuideList(items: Vec<GuideSummary>, reload: RwSignal<u32>) -> impl IntoView {
+fn AdminGuideList(
+    stats: Option<instant_domain::guides::GuideStatusCounts>,
+    result: instant_domain::guides::PaginatedGuides,
+    query: RwSignal<String>,
+    status_filter: RwSignal<String>,
+    page: RwSignal<i32>,
+    reload: RwSignal<u32>,
+) -> impl IntoView {
     let locale = use_i18n().locale;
-    let query = RwSignal::new(String::new());
-    let status_filter = RwSignal::new(String::new());
-
-    let total = items.len();
-    let published = items
-        .iter()
-        .filter(|g| g.status == GuideStatus::Published)
-        .count();
-    let drafts = items
-        .iter()
-        .filter(|g| g.status == GuideStatus::Draft)
-        .count();
-    let archived = items
-        .iter()
-        .filter(|g| g.status == GuideStatus::Archived)
-        .count();
-
-    let all = items.clone();
-    let filtered = Memo::new(move |_| {
-        let q = query.get().trim().to_lowercase();
-        let sf = status_filter.get();
-        all.iter()
-            .filter(|guide| {
-                if !sf.is_empty() && status_key(guide.status) != sf {
-                    return false;
-                }
-                q.is_empty()
-                    || guide.title_zh.to_lowercase().contains(&q)
-                    || guide
-                        .title_en
-                        .as_deref()
-                        .unwrap_or("")
-                        .to_lowercase()
-                        .contains(&q)
-                    || guide_location(guide).to_lowercase().contains(&q)
-            })
-            .cloned()
-            .collect::<Vec<_>>()
-    });
+    let first = if result.total == 0 {
+        0
+    } else {
+        (page.get() - 1) * 20 + 1
+    };
+    let last = if result.total == 0 {
+        0
+    } else {
+        first + result.items.len() as i32 - 1
+    };
+    let current_page = page.get();
+    let total_pages = ((result.total as i32) + 19) / 20;
+    let items = result.items;
+    let s_total = stats.clone();
+    let s_published = stats.clone();
+    let s_drafts = stats.clone();
+    let s_archived = stats.clone();
 
     view! {
         <div class="admin-guide-stats" aria-label=move || t(locale.get(), "攻略统计", "Guide statistics")>
-            <article><span>{move || t(locale.get(), "全部攻略", "All guides")}</span><strong>{total}</strong></article>
-            <article><span>{move || t(locale.get(), "已发布", "Published")}</span><strong>{published}</strong></article>
-            <article><span>{move || t(locale.get(), "待完善草稿", "Drafts")}</span><strong>{drafts}</strong></article>
-            <article><span>{move || t(locale.get(), "已归档", "Archived")}</span><strong>{archived}</strong></article>
+            <article><span>{move || t(locale.get(), "全部攻略", "All guides")}</span><strong>{move || s_total.as_ref().map(|s| s.total).unwrap_or(0)}</strong></article>
+            <article><span>{move || t(locale.get(), "已发布", "Published")}</span><strong>{move || s_published.as_ref().map(|s| s.published).unwrap_or(0)}</strong></article>
+            <article><span>{move || t(locale.get(), "待完善草稿", "Drafts")}</span><strong>{move || s_drafts.as_ref().map(|s| s.drafts).unwrap_or(0)}</strong></article>
+            <article><span>{move || t(locale.get(), "已归档", "Archived")}</span><strong>{move || s_archived.as_ref().map(|s| s.archived).unwrap_or(0)}</strong></article>
         </div>
         <div class="admin-guide-toolbar">
-            <input type="search" placeholder=move || t(locale.get(), "搜索攻略标题、地点或空间", "Search title, place, or Space") prop:value=move || query.get() on:input=move |ev| query.set(event_target_value(&ev)) />
-            <select aria-label=move || t(locale.get(), "攻略状态", "Guide status") prop:value=move || status_filter.get() on:change=move |ev| status_filter.set(event_target_value(&ev))>
-                <option value="">{move || t(locale.get(), "全部状态", "All statuses")}</option><option value="draft">{move || t(locale.get(), "草稿", "Draft")}</option><option value="published">{move || t(locale.get(), "已发布", "Published")}</option><option value="archived">{move || t(locale.get(), "已归档", "Archived")}</option>
+            <input
+                type="search"
+                placeholder=move || t(locale.get(), "搜索攻略标题、地点或空间", "Search title, place, or Space")
+                prop:value=move || query.get()
+                on:input=move |ev| {
+                    query.set(event_target_value(&ev));
+                    page.set(1);
+                }
+            />
+            <select
+                aria-label=move || t(locale.get(), "攻略状态", "Guide status")
+                prop:value=move || status_filter.get()
+                on:change=move |ev| {
+                    status_filter.set(event_target_value(&ev));
+                    page.set(1);
+                }
+            >
+                <option value="">{move || t(locale.get(), "全部状态", "All statuses")}</option>
+                <option value="draft">{move || t(locale.get(), "草稿", "Draft")}</option>
+                <option value="published">{move || t(locale.get(), "已发布", "Published")}</option>
+                <option value="archived">{move || t(locale.get(), "已归档", "Archived")}</option>
             </select>
         </div>
-        <div class="admin-guide-table" role="table" aria-label=move || t(locale.get(), "空间攻略列表", "Space guide list")>
-            <div class="admin-guide-row admin-guide-row-head" role="row"><span>{move || t(locale.get(), "攻略", "Guide")}</span><span>{move || t(locale.get(), "所属空间", "Space")}</span><span>{move || t(locale.get(), "状态", "Status")}</span><span>{move || t(locale.get(), "操作", "Actions")}</span></div>
-            <Show when=move || !filtered.get().is_empty() fallback=move || view! { <div class="empty-state"><strong>{move || t(locale.get(), "没有符合条件的攻略", "No matching guides")}</strong></div> }>
-                <For each=move || filtered.get() key=|guide| format!("{}-{:?}", guide.id, guide.status) children=move |guide| view! { <AdminGuideRow guide=guide reload=reload /> } />
-            </Show>
+        <div class="admin-list-summary">
+            <strong>{move || format!("{}–{}", first, last)}</strong>
+            <span>{move || format!("{} {}", t(locale.get(), "条，共", "of"), result.total)}</span>
         </div>
+        {if items.is_empty() {
+            view! {
+                <section class="empty-state">
+                    <strong>{move || t(locale.get(), "没有符合条件的攻略", "No matching guides")}</strong>
+                    <span>{move || t(locale.get(), "换一个关键词，或切换状态筛选。", "Try another search or status filter.")}</span>
+                </section>
+            }.into_any()
+        } else {
+            view! {
+                <div class="admin-guide-table" role="table" aria-label=move || t(locale.get(), "空间攻略列表", "Space guide list")>
+                    <div class="admin-guide-row admin-guide-row-head" role="row"><span>{move || t(locale.get(), "攻略", "Guide")}</span><span>{move || t(locale.get(), "所属空间", "Space")}</span><span>{move || t(locale.get(), "状态", "Status")}</span><span>{move || t(locale.get(), "操作", "Actions")}</span></div>
+                    <For
+                        each=move || items.clone()
+                        key=|guide| format!("{}-{:?}", guide.id, guide.status)
+                        children=move |guide| view! { <AdminGuideRow guide=guide reload=reload /> }
+                    />
+                </div>
+            }.into_any()
+        }}
+        <nav class="admin-pagination" aria-label=move || t(locale.get(), "攻略分页", "Guide pagination")>
+            <button class="button button-secondary-light" type="button" disabled={current_page <= 1} on:click=move |_| page.set(1)>
+                {move || t(locale.get(), "首页", "First")}
+            </button>
+            <button class="button button-secondary-light" type="button" disabled={current_page <= 1} on:click=move |_| page.update(|value| *value = (*value - 1).max(1))>
+                {move || t(locale.get(), "上一页", "Previous")}
+            </button>
+            <span>{move || format!("{} / {}", current_page, total_pages.max(1))}</span>
+            <button class="button button-secondary-light" type="button" disabled={current_page >= total_pages || total_pages == 0} on:click=move |_| page.update(|value| *value += 1)>
+                {move || t(locale.get(), "下一页", "Next")}
+            </button>
+            <button class="button button-secondary-light" type="button" disabled={current_page >= total_pages || total_pages == 0} on:click=move |_| page.set(total_pages)>
+                {move || t(locale.get(), "末页", "Last")}
+            </button>
+        </nav>
         <aside class="admin-guide-workflow"><strong>{move || t(locale.get(), "讨论沉淀工作流", "Discussion-to-guide workflow")}</strong><span>{move || t(locale.get(), "空间讨论 → 标记有效回答 → 主理人整理 → 攻略版本审核 → 发布", "Space discussion → mark useful answer → host edits → review guide version → publish")}</span></aside>
+    }
+}
+
+/// Phase 5: admin CSV export. Downloads a full-table CSV via a Blob on the
+/// client so operators can review or archive everything offline.
+#[component]
+pub fn ExportCsvButton(kind: &'static str) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let state = RwSignal::new(None::<Result<String, String>>);
+    let download = move |_| {
+        let kind = kind;
+        state.set(Some(Err(t(locale.get(), "导出中…", "Exporting…").to_string())));
+        leptos::task::spawn_local(async move {
+            let outcome = match crate::server::admin::export_admin_csv(kind.to_string()).await {
+                Ok(csv) => Ok(csv),
+                Err(err) => Err(err.to_string()),
+            };
+            state.set(Some(outcome));
+        });
+    };
+
+    Effect::new(move |_| {
+        if let Some(Ok(_csv)) = state.get() {
+            #[cfg(feature = "hydrate")]
+            {
+                let bytes = js_sys::Uint8Array::from(_csv.as_bytes());
+                let blob = web_sys::Blob::new_with_u8_array_sequence(&js_sys::Array::of1(&bytes))
+                    .ok()
+                    .and_then(|blob| {
+                        web_sys::Url::create_object_url_with_blob(&blob).ok()
+                    });
+                if let Some(url) = blob {
+                    let anchor = leptos::prelude::document()
+                        .create_element("a")
+                        .ok()
+                        .and_then(|element| element.dyn_into::<web_sys::HtmlAnchorElement>().ok());
+                    if let Some(anchor) = anchor {
+                        anchor.set_href(&url);
+                        anchor.set_download(&format!("inspace-{kind}.csv"));
+                        anchor.click();
+                    }
+                }
+            }
+            state.set(None);
+        }
+    });
+
+    view! {
+        <button class="button button-secondary-light" type="button" on:click=download disabled=move || state.get().is_some()>
+            {move || match state.get() {
+                Some(Err(message)) => message,
+                _ => t(locale.get(), "导出 CSV", "Export CSV").to_string(),
+            }}
+        </button>
     }
 }
 

@@ -36,7 +36,12 @@
     list.querySelector('.empty-state')?.remove();
 
     const article = document.createElement('article');
-    article.className = 'chat-message';
+    const kindClass = {
+      system: 'chat-message--system',
+      help: 'chat-message--help',
+      help_resolved: 'chat-message--help-resolved',
+    }[message.kind] || '';
+    article.className = ['chat-message', kindClass].filter(Boolean).join(' ');
     article.dataset.messageId = String(message.id);
 
     const senderName = message.sender || text('访客', 'Guest');

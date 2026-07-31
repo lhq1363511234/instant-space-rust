@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 
 use crate::app_state::refresh_session;
+use crate::feedback::use_feedback;
 use crate::i18n::{t, use_i18n};
 use crate::server::auth::{current_session, login_user, register_user, role_label};
 
@@ -12,6 +13,7 @@ pub fn LoginPage() -> impl IntoView {
     let password = RwSignal::new(String::new());
     let name = RwSignal::new(String::new());
     let auth_error = RwSignal::new(None::<String>);
+    let feedback = use_feedback();
     let current_user = RwSignal::new(None);
     let session = Resource::new(
         || (),
@@ -37,9 +39,14 @@ pub fn LoginPage() -> impl IntoView {
         if let Some(result) = login.value().get() {
             match result {
                 Ok(user) => {
+                    let toast = format!(
+                        "欢迎回来，{}",
+                        user.name.as_deref().unwrap_or(user.email.as_str())
+                    );
                     current_user.set(Some(user));
                     auth_error.set(None);
                     refresh_session();
+                    feedback.success(toast);
                 }
                 Err(err) => auth_error.set(Some(err.to_string())),
             }
@@ -53,6 +60,7 @@ pub fn LoginPage() -> impl IntoView {
                     current_user.set(Some(user));
                     auth_error.set(None);
                     refresh_session();
+                    feedback.success("注册成功，欢迎加入 inspace");
                 }
                 Err(err) => auth_error.set(Some(err.to_string())),
             }

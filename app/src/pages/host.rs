@@ -3,12 +3,14 @@ use leptos::prelude::*;
 use crate::app_state::{refresh_spaces, use_app_refresh_state};
 use crate::components::space_form::OpenCreateSpaceButton;
 use crate::components::space_share::SpaceSharePanel;
+use crate::feedback::use_feedback;
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::auth::current_session;
 use crate::server::guides::{delete_guide, list_manageable_space_guides};
 use crate::server::spaces::{
     apply_my_space_resident, archive_my_space_template, close_my_space, delete_my_space,
-    get_space_detail, list_my_spaces, reactivate_my_space, regenerate_space_password,
+    add_my_space_member, get_space_detail, list_my_space_members, list_my_spaces,
+    reactivate_my_space, regenerate_space_password, remove_my_space_member,
     update_my_space, PasswordRotationResult, SpaceMarker,
 };
 use instant_domain::guides::GuideStatus;
@@ -785,6 +787,8 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
                 compact=false
             />
 
+            <SpaceMembersPanel space_id=related_space_id.clone() />
+
             <RelatedSpaceGuides space_id=related_space_id />
 
             <section class="my-space-actions" aria-label=move || t(locale.get(), "空间状态操作", "Space status actions")>
@@ -831,6 +835,147 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
             {move || message.get().map(|value| view! { <p class="form-success">{value}</p> })}
             {move || error.get().map(|value| view! { <p class="error">{value}</p> })}
         </div>
+    }
+}
+
+#[component]
+fn SpaceMembersPanel(space_id: String) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let feedback = use_feedback();
+    let refresh = RwSignal::new(0u32);
+    let members_id = space_id.clone();
+    let add_id = space_id.clone();
+    let remove_id = space_id.clone();
+    let member_email = RwSignal::new(String::new());
+    let member_role = RwSignal::new("member".to_string());
+    let add_error = RwSignal::new(None::<String>);
+
+    let members = Resource::new(
+        move || (members_id.clone(), refresh.get()),
+        |(space_id, _)| async move {
+            list_my_space_members(space_id)
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    let add_member = Action::new(move |_: &()| {
+        let space_id = add_id.clone();
+        let email = member_email.get().trim().to_string();
+        let role = member_role.get();
+        async move { add_my_space_member(space_id, email, role).await }
+    });
+
+    let remove_member = Action::new(move |email: &String| {
+        let space_id = remove_id.clone();
+        let email = email.clone();
+        async move { remove_my_space_member(space_id, email).await }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = add_member.value().get() {
+            match result {
+                Ok(member) => {
+                    member_email.set(String::new());
+                    add_error.set(None);
+                    feedback.success(format!(
+                        "已加入成员 {}（{}）",
+                        member.display_name.as_deref().unwrap_or(""),
+                        member.email
+                    ));
+                    refresh.update(|value| *value += 1);
+                }
+                Err(err) => add_error.set(Some(err.to_string())),
+            }
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = remove_member.value().get() {
+            match result {
+                Ok(true) => {
+                    feedback.success("成员已移除");
+                    refresh.update(|value| *value += 1);
+                }
+                Ok(false) => feedback.info("该邮箱不是此空间成员"),
+                Err(err) => add_error.set(Some(err.to_string())),
+            }
+        }
+    });
+
+    view! {
+        <section class="space-members-panel" aria-label=move || t(locale.get(), "空间成员", "Space members")>
+            <div class="card-head-inline">
+                <div>
+                    <h3>{move || t(locale.get(), "空间成员", "Space members")}</h3>
+                    <p>
+                        {move || t(
+                            locale.get(),
+                            "按邮箱邀请成员：普通成员可参与空间，主持人可协助管理。",
+                            "Invite by email: members participate, hosts help manage."
+                        )}
+                    </p>
+                </div>
+            </div>
+
+            {move || add_error.get().map(|value| view! { <p class="error">{value}</p> })}
+
+            <div class="space-members-add">
+                <input
+                    type="email"
+                    placeholder=move || t(locale.get(), "成员邮箱", "Member email")
+                    prop:value=move || member_email.get()
+                    on:input=move |ev| member_email.set(event_target_value(&ev))
+                />
+                <select
+                    prop:value=move || member_role.get()
+                    on:change=move |ev| member_role.set(event_target_value(&ev))
+                >
+                    <option value="member">{move || t(locale.get(), "成员", "Member")}</option>
+                    <option value="host">{move || t(locale.get(), "主持人", "Host")}</option>
+                </select>
+                <button class="button button-primary" type="button" on:click=move |_| { add_member.dispatch(()); }>
+                    {move || t(locale.get(), "添加成员", "Add member")}
+                </button>
+            </div>
+
+            <ul class="space-members-list">
+                <Suspense fallback=move || view! { <li class="directory-loading">{move || t(locale.get(), "加载成员…", "Loading members…")}</li> }>
+                    {move || Suspend::new(async move {
+                        let items = members.await;
+                        view! {
+                            <For
+                                each=move || items.clone()
+                                key=|member| member.user_id
+                                children=move |member: instant_domain::spaces::SpaceMember| {
+                                    let email = member.email.clone();
+                                    let name = member.display_name.clone().unwrap_or_default();
+                                    let role_zh = if member.role == "host" {
+                                        t(locale.get(), "主持人", "Host").to_string()
+                                    } else {
+                                        t(locale.get(), "成员", "Member").to_string()
+                                    };
+                                    view! {
+                                        <li class="space-member-row">
+                                            <span class="space-member-name">{name}</span>
+                                            <span class="space-member-email">{email.clone()}</span>
+                                            <span class="space-member-role">{role_zh}</span>
+                                            <button
+                                                class="button button-secondary-light"
+                                                type="button"
+                                                on:click=move |_| { remove_member.dispatch(email.clone()); }
+                                            >
+                                                {move || t(locale.get(), "移除", "Remove")}
+                                            </button>
+                                        </li>
+                                    }
+                                }
+                            />
+                        }
+                    })}
+                </Suspense>
+            </ul>
+        </section>
     }
 }
 

@@ -76,6 +76,7 @@ pub fn AdminSpacesPage() -> impl IntoView {
                                     <h1>{move || t(locale.get(), "空间管理", "Space Management")}</h1>
                                     <p>{move || t(locale.get(), "先找到要处理的空间，再编辑、管理攻略或调整状态。列表按页加载，不会一次塞进一万个空间。", "Find the Space you need, then edit it, manage its guides, or change its status. Results are paginated instead of loading ten thousand rows at once.")}</p>
                                 </div>
+                                <crate::pages::admin_guides::ExportCsvButton kind="spaces" />
                             </div>
                             <Suspense fallback=move || view! { <div class="space-list-skeleton"><span></span><span></span></div> }>
                                 {move || Suspend::new(async move {

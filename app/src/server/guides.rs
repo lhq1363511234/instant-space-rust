@@ -382,7 +382,8 @@ pub async fn create_guide_draft(
     let images = clean_images(images);
     let pool = crate::server::db_pool().await?;
 
-    instant_db::guides::create_guide_draft(
+    let snapshot_name = user.name.clone().or(Some(user.email.clone()));
+    let summary = instant_db::guides::create_guide_draft(
         &pool,
         instant_db::guides::CreateGuideDraftInput {
             title_zh,
@@ -398,7 +399,7 @@ pub async fn create_guide_draft(
             district: clean_optional(district),
             spot_name: clean_optional(spot_name),
             author_id: user.id,
-            author_name: user.name.or(Some(user.email)),
+            author_name: snapshot_name.clone(),
             space_id,
             cover_image_url: clean_optional(cover_image_url),
             images,
@@ -408,7 +409,18 @@ pub async fn create_guide_draft(
         },
     )
     .await
-    .map_err(|err| ServerFnError::new(err.to_string()))
+    .map_err(|err| ServerFnError::new(err.to_string()))?;
+
+    // Phase 4: open the version history with snapshot v1.
+    let _ = instant_db::guides::snapshot_guide_version(
+        &pool,
+        summary.id,
+        Some(user.id),
+        snapshot_name.as_deref(),
+    )
+    .await;
+
+    Ok(summary)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -466,7 +478,8 @@ pub async fn update_guide(
     let sections = clean_sections(sections);
     let images = clean_images(images);
 
-    instant_db::guides::update_guide(
+    let snapshot_name = user.name.clone().or(Some(user.email.clone()));
+    let summary = instant_db::guides::update_guide(
         &pool,
         guide_uuid,
         instant_db::guides::UpdateGuideInput {
@@ -491,7 +504,18 @@ pub async fn update_guide(
         },
     )
     .await
-    .map_err(|err| ServerFnError::new(err.to_string()))
+    .map_err(|err| ServerFnError::new(err.to_string()))?;
+
+    // Phase 4: every edit freezes the previous state into the version history.
+    let _ = instant_db::guides::snapshot_guide_version(
+        &pool,
+        guide_uuid,
+        Some(user.id),
+        snapshot_name.as_deref(),
+    )
+    .await;
+
+    Ok(summary)
 }
 
 #[server(DeleteGuide, "/inspace/api")]
@@ -709,4 +733,117 @@ pub async fn list_spots(
     )
     .await
     .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+/// Phase 4 content versioning: review a guide's edit history.
+#[server(ListGuideVersions, "/inspace/api")]
+pub async fn list_guide_versions(
+    guide_id: String,
+) -> Result<Vec<instant_domain::guides::GuideVersion>, ServerFnError> {
+    let Some(user) = crate::server::auth::current_session().await? else {
+        return Err(ServerFnError::new("login required"));
+    };
+    let guide_uuid =
+        uuid::Uuid::parse_str(&guide_id).map_err(|_| ServerFnError::new("invalid guide id"))?;
+    let pool = crate::server::db_pool().await?;
+    let Some(existing) = instant_db::guides::get_guide(&pool, guide_uuid)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?
+    else {
+        return Err(ServerFnError::new("guide not found"));
+    };
+    ensure_guide_editor(&pool, &existing, &user).await?;
+
+    instant_db::guides::list_guide_versions(&pool, guide_uuid)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+/// Phase 4 content versioning: restore a guide from a frozen snapshot.
+#[server(RestoreGuideVersion, "/inspace/api")]
+pub async fn restore_guide_version(
+    guide_id: String,
+    version_no: i32,
+) -> Result<GuideSummary, ServerFnError> {
+    let Some(user) = crate::server::auth::current_session().await? else {
+        return Err(ServerFnError::new("login required"));
+    };
+    let guide_uuid =
+        uuid::Uuid::parse_str(&guide_id).map_err(|_| ServerFnError::new("invalid guide id"))?;
+    let pool = crate::server::db_pool().await?;
+    let Some(existing) = instant_db::guides::get_guide(&pool, guide_uuid)
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?
+    else {
+        return Err(ServerFnError::new("guide not found"));
+    };
+    ensure_guide_editor(&pool, &existing, &user).await?;
+
+    let snapshot_name = user.name.clone().or(Some(user.email.clone()));
+    instant_db::guides::restore_guide_version(
+        &pool,
+        guide_uuid,
+        version_no,
+        Some(user.id),
+        snapshot_name.as_deref(),
+    )
+    .await
+    .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+/// Phase 5: server-side pagination for the admin guide console. The table holds
+/// thousands of guides; the browser must never receive the whole table.
+#[server(ListAdminGuidesPage, "/inspace/api")]
+pub async fn list_admin_guides_page(
+    query: String,
+    status: String,
+    page: i32,
+    page_size: i32,
+) -> Result<instant_domain::guides::PaginatedGuides, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let pool = crate::server::db_pool().await?;
+        let page = page.max(1);
+        let page_size = page_size.clamp(10, 100);
+        let offset = ((page - 1) * page_size) as i64;
+
+        let mut result = instant_db::guides::list_all_guides_admin_page(
+            &pool,
+            if query.trim().is_empty() { None } else { Some(query) },
+            if status.trim().is_empty() { None } else { Some(status) },
+            page_size as i64,
+            offset,
+        )
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+        for guide in result.items.iter_mut() {
+            guide.can_edit = true;
+        }
+        Ok(result)
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (query, status, page, page_size);
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+/// Phase 5: guide status counts for the admin console stat cards.
+#[server(GetAdminGuideStats, "/inspace/api")]
+pub async fn get_admin_guide_stats() -> Result<instant_domain::guides::GuideStatusCounts, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let pool = crate::server::db_pool().await?;
+        instant_db::guides::guide_status_counts(&pool)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new("server only"))
+    }
 }

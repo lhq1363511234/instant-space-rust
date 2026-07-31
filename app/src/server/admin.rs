@@ -271,3 +271,29 @@ pub async fn reject_host_claim(claim_id: String) -> Result<(), ServerFnError> {
         Err(ServerFnError::new("server only"))
     }
 }
+
+/// Phase 5: full-table CSV export for operators. Admin-only; the rows go to a
+/// browser download, never to a public URL.
+#[server(ExportAdminCsv, "/inspace/api")]
+pub async fn export_admin_csv(kind: String) -> Result<String, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        crate::server::auth::require_admin_user().await?;
+        let pool = crate::server::db_pool().await?;
+        match kind.as_str() {
+            "spaces" => instant_db::admin::export_spaces_csv(&pool)
+                .await
+                .map_err(|err| ServerFnError::new(err.to_string())),
+            "guides" => instant_db::admin::export_guides_csv(&pool)
+                .await
+                .map_err(|err| ServerFnError::new(err.to_string())),
+            _ => Err(ServerFnError::new("invalid export kind")),
+        }
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = kind;
+        Err(ServerFnError::new("server only"))
+    }
+}

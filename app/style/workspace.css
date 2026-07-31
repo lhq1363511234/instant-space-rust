@@ -425,3 +425,66 @@
 .chat-message-list > .chat-message {
   flex-shrink: 0 !important;
 }
+
+/* Space members panel (Phase 3 member roles). */
+.space-members-panel {
+  margin: 28px 0;
+  padding: 24px 0;
+  border-top: 1px solid var(--rule, #d8d0c2);
+}
+
+.space-members-add {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+
+.space-members-add input {
+  flex: 1 1 220px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--rule-strong, #bdb3a3);
+  border-radius: 8px;
+  background: var(--paper, #faf8f4);
+  color: var(--ink, #171512);
+}
+
+.space-members-add select {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--rule-strong, #bdb3a3);
+  border-radius: 8px;
+  background: var(--paper, #faf8f4);
+  color: var(--ink, #171512);
+}
+
+.space-members-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.space-member-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.4fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule, #d8d0c2);
+}
+
+.space-member-name { color: var(--ink, #171512); font-weight: 600; }
+.space-member-email { color: var(--ink-soft, #4f4a42); font-size: .86rem; }
+.space-member-role { color: var(--vermilion, #b23a29); font-size: .8rem; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .space-member-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+  }
+  .space-member-email { grid-column: 1; grid-row: 2; }
+  .space-member-role { grid-column: 1; grid-row: 1; justify-self: end; }
+  .space-member-row .button { grid-column: 2; grid-row: 1 / span 2; }
+}

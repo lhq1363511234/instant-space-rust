@@ -3,6 +3,7 @@ use instant_map_ui::{MapProjection, MapStyle};
 use leptos::prelude::*;
 
 use crate::app_state::refresh_spaces;
+use crate::feedback::use_feedback;
 use crate::i18n::{t, use_i18n};
 use crate::server::auth::current_session;
 use crate::server::geo::{
@@ -170,6 +171,7 @@ pub fn SpaceForm() -> impl IntoView {
         },
     );
     let error = RwSignal::new(None::<String>);
+    let feedback = use_feedback();
     let create = Action::new(move |_: &()| {
         let name_zh = name_zh.get();
         let name_en = name_en.get();
@@ -229,8 +231,10 @@ pub fn SpaceForm() -> impl IntoView {
         if let Some(result) = bind.value().get() {
             match result {
                 Ok(guide) => {
+                    let toast = format!("已关联攻略「{}」", guide.title_zh);
                     bound_guide.set(Some(guide.title_zh));
                     error.set(None);
+                    feedback.success(toast);
                 }
                 Err(err) => error.set(Some(err.to_string())),
             }
@@ -259,12 +263,14 @@ pub fn SpaceForm() -> impl IntoView {
         if let Some(result) = create.value().get() {
             match result {
                 Ok(space) => {
+                    let toast = format!("空间「{}」已创建", space.name_zh);
                     created_space_id.set(Some(space.id.clone()));
                     created_name.set(Some(space.name_zh));
                     created_password.set(space.generated_password);
                     created_hotspot.set(space.hotspot_name);
                     error.set(None);
                     refresh_spaces();
+                    feedback.success(toast);
                 }
                 Err(err) => {
                     created_name.set(None);

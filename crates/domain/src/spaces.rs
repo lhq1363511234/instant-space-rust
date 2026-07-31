@@ -173,3 +173,16 @@ mod tests {
         assert_eq!(next, SpaceStatus::Template);
     }
 }
+
+/// A Space member with join metadata (Phase 3 minimal closed loop). Lives in
+/// the domain crate so both server and hydrate builds can reference it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SpaceMember {
+    pub id: uuid::Uuid,
+    pub space_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub role: String,
+    pub created_at: String,
+    pub email: String,
+    pub display_name: Option<String>,
+}

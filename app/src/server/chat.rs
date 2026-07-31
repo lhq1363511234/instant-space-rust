@@ -139,6 +139,7 @@ pub async fn send_chat_message(
             sender,
             clean_body,
             access.password_version,
+            instant_domain::chat::ChatMessageKind::Text,
         )
         .await
         .map_err(|err| ServerFnError::new(err.to_string()))?;
@@ -230,4 +231,113 @@ async fn access_cookie(space_id: Uuid) -> Result<Option<String>, ServerFnError> 
         let (cookie_name, value) = part.trim().split_once('=')?;
         (cookie_name == name).then(|| value.to_string())
     }))
+}
+
+/// Phase 6 helps: raise a help request inside a Space room. The request is
+/// stored as an actionable row and echoed into the room as a `help` message so
+/// everyone online sees it (even guests without the password page open).
+#[server(RaiseSpaceHelp, "/inspace/api")]
+pub async fn raise_space_help(space_id: String, body: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let clean_body = body.trim().to_string();
+        if clean_body.is_empty() {
+            return Err(ServerFnError::new("help text is required"));
+        }
+        if clean_body.chars().count() > 500 {
+            return Err(ServerFnError::new("help text is too long"));
+        }
+        let id = Uuid::parse_str(&space_id).map_err(|err| ServerFnError::new(err.to_string()))?;
+        let access = ensure_chat_access(id, false).await?;
+        let pool = crate::server::db_pool().await?;
+        let requester = crate::server::auth::current_session()
+            .await?
+            .map(|user| user.name.unwrap_or(user.email))
+            .unwrap_or_else(|| "Guest".to_string());
+
+        instant_db::chat::create_help(&pool, id, clean_body.clone(), Some(requester.clone()))
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
+
+        let message = instant_db::chat::insert_message(
+            &pool,
+            id,
+            requester,
+            clean_body,
+            access.password_version,
+            instant_domain::chat::ChatMessageKind::Help,
+        )
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+        crate::realtime::publish_message(id, message).await;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (space_id, body);
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+/// Phase 6 helps: mark a help request as resolved and notify the room.
+#[server(ResolveSpaceHelp, "/inspace/api")]
+pub async fn resolve_space_help(help_id: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let help_uuid = Uuid::parse_str(&help_id).map_err(|err| ServerFnError::new(err.to_string()))?;
+        let pool = crate::server::db_pool().await?;
+        let Some(help) = instant_db::chat::resolve_help(&pool, help_uuid)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?
+        else {
+            return Err(ServerFnError::new("help request not found or already resolved"));
+        };
+        let access = ensure_chat_access(help.space_id, false).await?;
+        let resolver = crate::server::auth::current_session()
+            .await?
+            .map(|user| user.name.unwrap_or(user.email))
+            .unwrap_or_else(|| "Guest".to_string());
+
+        let message = instant_db::chat::insert_message(
+            &pool,
+            help.space_id,
+            resolver,
+            format!("求助已解决：{}", help.body),
+            access.password_version,
+            instant_domain::chat::ChatMessageKind::HelpResolved,
+        )
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+        crate::realtime::publish_message(help.space_id, message).await;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = help_id;
+        Err(ServerFnError::new("server only"))
+    }
+}
+
+/// Phase 6 helps: active (unresolved) help requests in a room.
+#[server(ListSpaceHelps, "/inspace/api")]
+pub async fn list_space_helps(
+    space_id: String,
+) -> Result<Vec<instant_domain::chat::SpaceHelp>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let id = Uuid::parse_str(&space_id).map_err(|err| ServerFnError::new(err.to_string()))?;
+        ensure_chat_access(id, false).await?;
+        let pool = crate::server::db_pool().await?;
+        instant_db::chat::list_active_helps(&pool, id)
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = space_id;
+        Err(ServerFnError::new("server only"))
+    }
 }

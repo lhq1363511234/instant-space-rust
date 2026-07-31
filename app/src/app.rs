@@ -12,6 +12,7 @@ use crate::components::{
     map_workspace::MapWorkspace,
     space_form::{provide_create_space_modal, CreateSpaceModalHost},
 };
+use crate::feedback::{provide_feedback, FeedbackToasts};
 use crate::pages::{
     about::AboutPage,
     admin::AdminRoutes,
@@ -36,6 +37,8 @@ pub fn App() -> impl IntoView {
     let locale = i18n.locale;
     crate::app_state::provide_app_refresh_state();
     provide_create_space_modal();
+    #[allow(unused_variables)]
+    let feedback = provide_feedback();
 
     view! {
         <Html {..} lang=move || locale.get().code() attr:data-locale=move || locale.get().code() />
@@ -103,8 +106,8 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v17" />
         <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v17" />
         <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v17" />
-        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260729-shell-search-v4" />
-        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260729-craft-v17" />
+        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260731-shell-feedback-v5" />
+        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260731-members-v18" />
         <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260727-editor-v5" />
         <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260728-hyperframes-taste-v3" />
         <Stylesheet id="song-css" href="/style/song-system.css?v=20260730-song-colour-v13" />
@@ -161,7 +164,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/admin/users") view=AdminUsersPage />
                 <Route path=path!("/inspace/admin/users") view=AdminUsersPage />
             </Routes>
-            </div>
+                        <FeedbackToasts />
+</div>
             <CreateSpaceModalHost />
         </Router>
     }

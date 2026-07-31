@@ -1,4 +1,4 @@
-use instant_domain::guides::{GuideDetail, GuideSection, GuideStatus, GuideSummary};
+use instant_domain::guides::{GuideDetail, GuideSection, GuideStatus, GuideSummary, GuideVersion, GuideStatusCounts, PaginatedGuides};
 use serde_json::Value;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
@@ -124,11 +124,6 @@ pub async fn list_published_guides(
     rows.into_iter().map(row_to_guide_summary).collect()
 }
 
-#[derive(Debug, Clone)]
-pub struct PaginatedGuides {
-    pub items: Vec<GuideSummary>,
-    pub total: i64,
-}
 
 /// Paginated variant of [`list_published_guides`]. The guide directory holds a
 /// four-digit number of published guides, so the browser must never receive the
@@ -833,4 +828,217 @@ mod tests {
             .await
             .expect("cleanup user");
     }
+}
+
+/// Phase 4 content versioning. Snapshot the current row as the next version.
+/// Returns the version number written. Snapshotting happens after every
+/// create/update so the history always reflects what the guide looked like.
+pub async fn snapshot_guide_version(
+    pool: &PgPool,
+    guide_id: Uuid,
+    edited_by: Option<Uuid>,
+    edited_by_name: Option<&str>,
+) -> Result<i32, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        WITH current AS (
+            SELECT title_zh, title_en, summary_zh, summary_en, content_zh, content_en,
+                   sections, images, cover_image_url
+            FROM guides WHERE id = $1
+        ), next_no AS (
+            SELECT COALESCE(MAX(version_no), 0) + 1 AS version_no
+            FROM guide_versions WHERE guide_id = $1
+        )
+        INSERT INTO guide_versions (
+            guide_id, version_no, title_zh, title_en, summary_zh, summary_en,
+            content_zh, content_en, sections, images, cover_image_url,
+            edited_by, edited_by_name
+        )
+        SELECT $1, next_no.version_no, current.title_zh, current.title_en,
+               current.summary_zh, current.summary_en, current.content_zh, current.content_en,
+               current.sections, current.images, current.cover_image_url,
+               $2, $3
+        FROM current, next_no
+        RETURNING version_no
+        "#,
+    )
+    .bind(guide_id)
+    .bind(edited_by)
+    .bind(edited_by_name)
+    .fetch_one(pool)
+    .await?;
+
+    row.try_get("version_no")
+}
+
+pub async fn list_guide_versions(
+    pool: &PgPool,
+    guide_id: Uuid,
+) -> Result<Vec<GuideVersion>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, guide_id, version_no, title_zh, title_en, summary_zh, summary_en,
+               content_zh, content_en, sections, images, cover_image_url,
+               edited_by, edited_by_name, created_at
+        FROM guide_versions
+        WHERE guide_id = $1
+        ORDER BY version_no DESC
+        "#,
+    )
+    .bind(guide_id)
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter().map(row_to_guide_version).collect()
+}
+
+/// Restore a guide from a frozen version. The current (about-to-be-overwritten)
+/// state is snapshot first as a new version, so a restore is never lossy.
+/// Status, featured, ownership and Space binding are intentionally preserved.
+pub async fn restore_guide_version(
+    pool: &PgPool,
+    guide_id: Uuid,
+    version_no: i32,
+    edited_by: Option<Uuid>,
+    edited_by_name: Option<&str>,
+) -> Result<GuideSummary, sqlx::Error> {
+    let _ = snapshot_guide_version(pool, guide_id, edited_by, edited_by_name).await?;
+
+    let row = sqlx::query(
+        r#"
+        UPDATE guides g
+        SET title_zh = v.title_zh,
+            title_en = v.title_en,
+            summary_zh = v.summary_zh,
+            summary_en = v.summary_en,
+            content_zh = v.content_zh,
+            content_en = v.content_en,
+            sections = v.sections,
+            images = v.images,
+            cover_image_url = v.cover_image_url,
+            updated_at = now()
+        FROM guide_versions v
+        WHERE g.id = $1 AND v.guide_id = $1 AND v.version_no = $2
+        RETURNING g.id, g.title_zh, g.title_en, g.country, g.province, g.city, g.district,
+                  g.spot_name, g.status::text AS status, g.featured, g.author_id, g.space_id
+        "#,
+    )
+    .bind(guide_id)
+    .bind(version_no)
+    .fetch_one(pool)
+    .await?;
+
+    row_to_guide_summary(row)
+}
+
+fn row_to_guide_version(row: sqlx::postgres::PgRow) -> Result<GuideVersion, sqlx::Error> {
+    Ok(GuideVersion {
+        id: row.try_get("id")?,
+        guide_id: row.try_get("guide_id")?,
+        version_no: row.try_get("version_no")?,
+        title_zh: row.try_get("title_zh")?,
+        title_en: row.try_get("title_en")?,
+        summary_zh: row.try_get("summary_zh")?,
+        summary_en: row.try_get("summary_en")?,
+        content_zh: row.try_get("content_zh")?,
+        content_en: row.try_get("content_en")?,
+        sections: serde_json::from_value(row.try_get::<serde_json::Value, _>("sections")?)
+            .unwrap_or_default(),
+        images: serde_json::from_value(row.try_get::<serde_json::Value, _>("images")?)
+            .unwrap_or_default(),
+        cover_image_url: row.try_get("cover_image_url")?,
+        edited_by: row.try_get("edited_by")?,
+        edited_by_name: row.try_get("edited_by_name")?,
+        created_at: row.try_get::<time::OffsetDateTime, _>("created_at")?.to_string(),
+    })
+}
+
+/// Admin pagination: guides across all statuses with optional text search and
+/// status filter, plus a total count so the admin console can page through
+/// thousands of guides instead of loading the whole table into the browser.
+pub async fn list_all_guides_admin_page(
+    pool: &PgPool,
+    q: Option<String>,
+    status: Option<String>,
+    limit: i64,
+    offset: i64,
+) -> Result<PaginatedGuides, sqlx::Error> {
+    let q = q
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let status = status
+        .map(|value| value.trim().to_lowercase())
+        .filter(|value| !value.is_empty());
+
+    const FILTER: &str = r#"
+        WHERE ($2::text IS NULL OR status::text = $2)
+          AND (
+            $1::text IS NULL
+            OR title_zh ILIKE '%' || $1 || '%'
+            OR title_en ILIKE '%' || $1 || '%'
+            OR province ILIKE '%' || $1 || '%'
+            OR city ILIKE '%' || $1 || '%'
+            OR district ILIKE '%' || $1 || '%'
+            OR spot_name ILIKE '%' || $1 || '%'
+          )
+    "#;
+
+    let total: i64 = sqlx::query_scalar(&format!("SELECT count(*)::bigint FROM guides {FILTER}"))
+        .bind(q.clone())
+        .bind(status.clone())
+        .fetch_one(pool)
+        .await?;
+
+    let rows = sqlx::query(&format!(
+        r#"
+        SELECT id, title_zh, title_en, country, province, city, district, spot_name,
+               status::text AS status, featured, author_id, space_id
+        FROM guides
+        {FILTER}
+        ORDER BY
+            CASE status WHEN 'draft' THEN 0 WHEN 'published' THEN 1 ELSE 2 END,
+            updated_at DESC, created_at DESC, id
+        LIMIT $3 OFFSET $4
+        "#
+    ))
+    .bind(q)
+    .bind(status)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(PaginatedGuides {
+        items: rows
+            .into_iter()
+            .map(row_to_guide_summary)
+            .collect::<Result<Vec<_>, _>>()?,
+        total,
+    })
+}
+
+
+/// Aggregate status counts for the admin console stat cards.
+pub async fn guide_status_counts(pool: &PgPool) -> Result<GuideStatusCounts, sqlx::Error> {
+    let total: i64 = sqlx::query_scalar("SELECT count(*)::bigint FROM guides")
+        .fetch_one(pool)
+        .await?;
+    let published: i64 =
+        sqlx::query_scalar("SELECT count(*)::bigint FROM guides WHERE status = 'published'")
+            .fetch_one(pool)
+            .await?;
+    let drafts: i64 =
+        sqlx::query_scalar("SELECT count(*)::bigint FROM guides WHERE status = 'draft'")
+            .fetch_one(pool)
+            .await?;
+    let archived: i64 =
+        sqlx::query_scalar("SELECT count(*)::bigint FROM guides WHERE status = 'archived'")
+            .fetch_one(pool)
+            .await?;
+    Ok(GuideStatusCounts {
+        total,
+        published,
+        drafts,
+        archived,
+    })
 }

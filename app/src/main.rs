@@ -32,6 +32,24 @@ async fn main() -> anyhow::Result<()> {
     instant_db::run_migrations(&pool).await?;
     tracing::info!("migrations applied");
 
+    // Phase 7: drift detection. A migration can be recorded as applied while
+    // its table/columns are missing; surface that loudly instead of serving
+    // with a broken schema.
+    match instant_db::verify_schema_contract(&pool).await {
+        Ok(missing) if missing.is_empty() => {
+            tracing::info!("schema contract verified");
+        }
+        Ok(missing) => {
+            tracing::error!(
+                "schema drift detected — missing items: {}",
+                missing.join(", ")
+            );
+        }
+        Err(err) => {
+            tracing::error!("schema contract check failed: {err}");
+        }
+    }
+
     // Presence is process-local. Clear stale counts left by an unclean restart;
     // active WebSocket rooms will write their real counts as clients connect.
     if let Err(err) = instant_db::chat::reset_online_counts(&pool).await {
@@ -79,6 +97,7 @@ fn build_router() -> Router {
 
     Router::new()
         .merge(instant_space_web::agent_api::router())
+        .merge(instant_space_web::media::router())
         .route("/health", get(health))
         .route("/ready", get(ready))
         .route(
@@ -93,6 +112,7 @@ fn build_router() -> Router {
         .nest_service("/pkg", ServeDir::new("target/site/pkg"))
         .nest_service("/style", ServeDir::new("app/style"))
         .nest_service("/vendor", ServeDir::new("app/vendor"))
+        .nest_service("/uploads", ServeDir::new("uploads"))
         .leptos_routes(&options, routes, move || shell(shell_options.clone()))
         .with_state(options)
 }
@@ -242,7 +262,7 @@ async fn reverse_geo(
 
 fn leptos_options() -> LeptosOptions {
     LeptosOptions::builder()
-        .output_name("instant_space_app_v91")
+        .output_name("instant_space_app_v92")
         .site_addr(SITE_ADDR.parse::<SocketAddr>().expect("valid site address"))
         .hash_files(false)
         .build()
@@ -273,7 +293,7 @@ mod tests {
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.js"));
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.css"));
         assert!(!html.contains("unpkg.com/maplibre-gl"));
-        assert!(html.contains("/pkg/instant_space_app_v91.js"));
+        assert!(html.contains("/pkg/instant_space_app_v92.js"));
     }
 
     #[tokio::test]
