@@ -1176,3 +1176,8 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 - 部署：仅服务端改动，WASM v91 不变、无需重建 WASM。release 二进制已安装重启，`/health ok`、`/ready 200`。
 - 端到端验证：建空间 201 → GET 详情 200（含描述/标签）→ 建志 201 → GET 详情 200（sections 原样返回）→ DELETE 志 204 → DELETE 空间 204 → 删除后再 GET 404 → 只读 scope 删除 403。临时 Key/数据全部清理，残留 0。
 - 文档已更新：`docs/AGENT_REST_API.md`（详情/删除端点表 + sections 字段说明）。
+
+## 2026-07-31 — Agent API 口语教程文档
+
+- 新增 `docs/AGENT_API_TUTORIAL.md`（284 行，口语化中文教程）：从建 Key → 建空间 → 写攻略（含 sections 正确字段名提醒）→ 读回 → 搜索 → PATCH 更新/发布 → DELETE 清理，附 curl 与 Python 完整示例、错误码速查、运营流程模板。
+- `docs/AGENT_REST_API.md` 保留为技术参考（字段全表/错误码），教程面向"怎么用"。
