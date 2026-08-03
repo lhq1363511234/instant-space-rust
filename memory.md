@@ -1239,3 +1239,51 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 - 类型注意：分页/统计/成员类型必须放 `instant_domain`（`PaginatedGuides`/`GuideStatusCounts`/`SpaceMember`），否则 hydrate 编译报找不到 instant_db。
 - WASM 版本：前端与服务端都变了，v91 → v92（`app/src/main.rs` `.output_name` 与 `scripts/build-wasm.mjs` OUTPUT_NAME 同步）。
 - 部署顺序：`CARGO_BUILD_JOBS=3 cargo build --release` → `node scripts/build-wasm.mjs` → 安装二进制 → nginx 加 `/inspace/api` 的 client_max_body_size → reload → restart → 日志确认 `schema contract verified`。
+
+## 2026-07-31 — Phase 8 数字生命（宠物天堂实验田）v3「云上家」已定稿并开工
+
+### 用户拍板决策（勿再改动）
+- 在线/离线信号：**按活跃时间**（24h 内有活动=在线=在侧；否则=在家）。
+- 云上家可被朋友拜访，**但进门要口令**（像进家门输密码，非 Wi-Fi 逻辑；主人不需要口令）。
+- 全站风格、文案统一**宋式**（life-distill 笔法：白描、短句、留白、时节与地点意象、哀而不伤）。
+- 品牌定位语：**「万物有灵，皆有归处」**；栏目分区：**在侧**（相伴中）/ **追远**（慎终追远）。
+- 宠物**活着**时只轻记录（足迹自动累积 + 主人补片段）；**死后**才蒸馏终章（小传/铭文/生命地图）。
+- `subject_type` 中性（pet→human 可升级）；`distill_version`/`content_version` 双版本可回溯；状态机 living→memorial。
+
+### 新增 life-distill skill
+- 路径：`/root/.codex/skills/life-distill`（宋式笔法八律 + 蒸馏流程 + 结构化输出 JSON + 猫/犬/人模板 + 宋式设计 tokens）。
+- 蒸馏示例（风格验收样张）：`assets/examples/阿青.md`（狸猫）、`assets/examples/大黄.md`（田园犬）。
+
+### 本轮已实现（未部署）
+- 迁移 `crates/db/migrations/20260731000500_digital_lives.sql`：`cloud_homes` / `companions` / `companion_trails` / `digital_lives` / `life_prayers` 五表 + `users.last_active_at`。
+- domain：`crates/domain/src/lives.rs`（CloudHome/Companion/CompanionTrail/DigitalLife/LifePrayer/PaginatedLives/CompanionState/PrayerKind/BiographyChapter/LifeMapEntry）。
+- db：`crates/db/src/lives.rs`（云上家增改查、口令 hash 读、家庭成员 CRUD、足迹、纪念增改查分页、祈福、last_active；`record_trails_for_owner_at_space` 主人到场自动记足迹）。
+- server：`app/src/server/lives.rs` 12 个 server fn（get/update_my_cloud_home、get/visit_cloud_home（口令验证）、list_my_companions、create/update_companion、list_companion_trails、add_companion_snippet、create/get/list/update_digital_life、leave/list_prayers）；`leave_trace` 钩入自动记足迹。
+- 前端：`app/src/pages/lives.rs` 三页（`/inspace/lives` 目录 在侧/追远、`/inspace/homes/:home_id` 云上家叩门、`/inspace/lives/:life_id` 纪念页）；路由 + 侧栏「数字生命」入口（paw 图标）+ 页标题/hint/激活态；`app/style/lives.css` 宋式样式。
+- 编译：`cargo check --workspace --all-targets`、`--features ssr`、hydrate `--lib` 全绿。
+
+### 部署待办（下一步）
+1. WASM：`app/src/main.rs` 与 `scripts/build-wasm.mjs` v92 → **v93**。
+2. `CARGO_BUILD_JOBS=3 cargo build --release` → `node scripts/build-wasm.mjs` → 重启 `instant-space-rust`。
+3. 日志确认 `schema contract verified`（新表不影响契约检查）。
+4. 验收：桌面+手机截图 `/inspace/lives`、云上家叩门、纪念页祈福；补 `output/playwright/`。
+5. 已知边界：云上家未并入空间系统（独立页）；主人布置区依赖 current_session 判权；追远页 pager 24/页。
+
+### 2026-07-31 追加：云上家宋式匾额 + 星露谷式庭院（已部署 WASM v93）
+- 「云上家」三字改为**宋式匾额**（玄黑底、宋体大字距、桂黄印章「家」）—— `.cloud-home-plaque`。
+- 云上家内部新增**庭院小场景**（星露谷式展现，宋式配色）：
+  - `CloudHomeYard` 组件（`app/src/pages/lives.rs`）+ `.yard-*` 样式（`app/style/lives.css`）。
+  - 元素：淡月、远山、篱笆、宋式小屋、桂树；第一位家人**来回踱步**（CSS keyframes 翻转方向），其余在家安坐；追远的在桂树下立**石碑**；**你本人**（天青长衫+玄黑笠帽）在线时站院中（is-out），离线时站门口（is-home）。
+  - `prefers-reduced-motion` 全部停用动效。
+- 部署：WASM v92→v93；release 构建 11m54s、wasm 3m57s（`CARGO_BUILD_JOBS=3`）；服务重启后 `schema contract verified`；五表已建。
+- 验证：临时种数据渲染庭院（桌面 1440/手机 390 截图存 `output/playwright/yard-*.png`），验完已删测试数据（users 45 恢复）。
+- 待办：无阻塞；下一步可做云上家并入空间系统 / 宠物跟随足迹展示页。
+
+## 2026-08-03 首页宋式 KV 视觉层（home-song.css）
+- 按 culture-fragment-poster-engine 转译链重做首页视觉：素材=《千里江山图》(公版) → 视觉基因=绢米白#ece5d5/墨黑#1c1a14/天青#7fa0ac → 版式=横卷出血+标本标注+编辑式排版。
+- 新文件：`app/style/home-song.css`（首页设计层，覆盖 home-discovery 容器内样式）；hero 素材 `app/vendor/img/home/qianli-band.webp`(2100×720) + `qianli-band-m.webp`(1200×560)。
+- `app/src/app.rs` 注册 `<Stylesheet id="home-song-css" href="/style/home-song.css?v=20260803-song-kv-v1"/>`（SSR head 由服务端二进制生成，改 app.rs 必须重建二进制+重启服务，纯改 CSS 不用）。
+- Hero=左文案右千里江山横卷(右缘出血+左缘 mask 渐隐+缓慢漂移动效 26s)，右下竖排标本标注「千里江山·北宋」；热门空间去卡片框改编辑式版面(4 列、leading 跨 2 列、21/10)；故事改引言式(「引号+细线脚注)；三幕路径 01/02/03 序号分栏；主理人区=墨黑重色块+顶部淡显千里江山条。
+- 部署：`CARGO_BUILD_JOBS=4 bash scripts/deploy.sh`（备份 DB→重建二进制→装 /usr/local/bin→重建 wasm→重启→健康检查）。commit=1c94cf0 基线之上。
+- QA：playwright 1440/768/390 无横向溢出、无 404；hero grid 双栏生效、深色主理人区、故事空态正常。截图 output/playwright/home-song-{1440x900,768x1024,390x844,full-1440}.png。
+- 注意：故事区当前 0 条（数据空态正常）；文案由 site_page_configs 配置驱动（现为"让世界也值得被记录"），本层只改视觉不改文案。

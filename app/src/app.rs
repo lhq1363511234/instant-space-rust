@@ -27,6 +27,7 @@ use crate::pages::{
     guides::{GuideDetailPage, GuideEditorPage, GuidesPage},
     home::HomePage,
     host::HostRoutes,
+    lives::{CloudHomePage, LivesPage, MemorialPage},
     space::{SpaceChatPage, SpacePage},
 };
 
@@ -116,7 +117,9 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="space-experience-css" href="/style/space-experience.css?v=20260729-space-experience-v2" />
         <Stylesheet id="home-reframe-css" href="/style/home-reframe.css?v=20260729-home-restore-record-v1" />
         <Stylesheet id="home-discovery-css" href="/style/home-discovery.css?v=20260730-home-discovery-v10" />
+        <Stylesheet id="home-song-css" href="/style/home-song.css?v=20260803-song-kv-v1" />
         <Stylesheet id="admin-operations-css" href="/style/admin-operations.css?v=20260729-home-featured-v1" />
+        <Stylesheet id="lives-css" href="/style/lives.css?v=20260731-lives-v2" />
         <Router>
             <Header />
             <div class="app-main">
@@ -149,6 +152,12 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/inspace/admin/guides/:guide_id/edit") view=GuideEditorPage />
                 <Route path=path!("/guides/:guide_id") view=GuideDetailPage />
                 <Route path=path!("/inspace/guides/:guide_id") view=GuideDetailPage />
+                <Route path=path!("/lives") view=LivesPage />
+                <Route path=path!("/inspace/lives") view=LivesPage />
+                <Route path=path!("/homes/:home_id") view=CloudHomePage />
+                <Route path=path!("/inspace/homes/:home_id") view=CloudHomePage />
+                <Route path=path!("/lives/:life_id") view=MemorialPage />
+                <Route path=path!("/inspace/lives/:life_id") view=MemorialPage />
                 <Route path=path!("/admin") view=AdminRoutes />
                 <Route path=path!("/inspace/admin") view=AdminRoutes />
                 <Route path=path!("/admin/home") view=AdminHomePage />
