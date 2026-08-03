@@ -1287,3 +1287,4 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 - 部署：`CARGO_BUILD_JOBS=4 bash scripts/deploy.sh`（备份 DB→重建二进制→装 /usr/local/bin→重建 wasm→重启→健康检查）。commit=1c94cf0 基线之上。
 - QA：playwright 1440/768/390 无横向溢出、无 404；hero grid 双栏生效、深色主理人区、故事空态正常。截图 output/playwright/home-song-{1440x900,768x1024,390x844,full-1440}.png。
 - 注意：故事区当前 0 条（数据空态正常）；文案由 site_page_configs 配置驱动（现为"让世界也值得被记录"），本层只改视觉不改文案。
+  - 迭代(同日上午)：hero 改为完整千里江山整卷(qianli-full.webp 10000×400/273KB) 装裱框内从左往右缓慢平移(home-qianli-pan 110s alternate，background-position-x 动画，注意 background 简写/position 不能带 !important 否则压过动画)；题签竖排挂框右裱边；手机=顶部整宽卷轴条(90s 平移)。纯 CSS+静态资源，无需重建。
