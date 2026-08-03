@@ -48,29 +48,28 @@ body .inspace-home .home-record-hero {
 }
 
 body .inspace-home .home-record-hero::before {
-  /* 千里江山整卷：装裱框 + 框内从左往右缓慢平移 */
+  /* 千里江山整卷：透明开放（无框无投影），整卷从左往右缓慢平移，左缘淡出 */
   content: "" !important;
   position: absolute !important;
   z-index: -1 !important;
-  top: clamp(24px, 5vh, 52px) !important;
-  right: clamp(26px, 4vw, 64px) !important;
-  bottom: clamp(24px, 5vh, 52px) !important;
-  left: 52.5% !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 50% !important;
   width: auto !important;
   height: auto !important;
-  border: 1px solid rgba(28, 26, 20, .32) !important;
-  outline: 1px solid rgba(28, 26, 20, .12);
-  outline-offset: 7px;
+  border: 0 !important;
+  outline: none !important;
   border-radius: 0 !important;
-  box-shadow: 0 36px 72px -36px rgba(20, 18, 12, .45) !important;
+  box-shadow: none !important;
   transform: none !important;
   opacity: 1 !important;
   background-image: url("/vendor/img/home/qianli-full.webp") !important;
   background-repeat: no-repeat !important;
   background-size: auto 100% !important;
   background-position: center;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 7%, #000 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 7%, #000 100%);
   animation: home-qianli-pan 110s linear infinite alternate;
   will-change: background-position;
 }
@@ -81,27 +80,28 @@ body .inspace-home .home-record-hero::before {
 }
 
 body .inspace-home .home-record-hero::after {
-  /* 题签：竖排「千里江山 · 北宋」，挂在装裱框右侧裱边 */
+  /* 标注：竖排「千里江山 · 北宋」，浮在卷轴右下 */
   content: "千里江山 · 北宋" !important;
   position: absolute !important;
   z-index: 0 !important;
-  right: clamp(8px, 1.4vw, 22px) !important;
-  top: 50% !important;
-  bottom: auto !important;
-  transform: translateY(-50%) !important;
+  right: clamp(22px, 4vw, 64px) !important;
+  bottom: clamp(26px, 4vw, 52px) !important;
+  top: auto !important;
+  transform: none !important;
   width: auto !important;
   height: auto !important;
-  padding: 4px 0 2px 11px !important;
+  padding: 6px 0 2px 13px !important;
   border: 0 !important;
-  border-left: 1px solid rgba(28, 26, 20, .3) !important;
+  border-left: 1px solid rgba(243, 237, 224, .5) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  opacity: .82 !important;
+  opacity: .9 !important;
   writing-mode: vertical-rl;
-  letter-spacing: .3em;
+  letter-spacing: .34em;
   font-family: var(--font-song);
-  font-size: .72rem;
-  color: var(--song-ink-soft);
+  font-size: .74rem;
+  color: rgba(243, 237, 224, .92);
+  text-shadow: 0 1px 14px rgba(20, 18, 12, .55);
   pointer-events: none;
 }
 
@@ -642,7 +642,6 @@ body .inspace-home .home-host-call .button-quiet:focus-visible {
     height: 36vh !important;
     min-height: 300px !important;
     border: 0 !important;
-    border-bottom: 1px solid rgba(28, 26, 20, .22) !important;
     outline: none !important;
     box-shadow: none !important;
     animation: home-qianli-pan 90s linear infinite alternate;
