@@ -20,3 +20,10 @@ playwright-report/
 /scripts/seed/places.json
 /scripts/seed/seed_spaces.sql
 /scripts/seed/__pycache__/
+
+# Runtime uploads (media written by the running server)
+/uploads/
+
+# Local server stdout/stderr logs
+run-app.out.log
+run-app.err.log

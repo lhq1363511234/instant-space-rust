@@ -113,6 +113,15 @@ fn build_router() -> Router {
         .nest_service("/style", ServeDir::new("app/style"))
         .nest_service("/vendor", ServeDir::new("app/vendor"))
         .nest_service("/uploads", ServeDir::new("uploads"))
+        // Local-dev parity: the app's own links (e.g. the header "地图" button)
+        // point at `/inspace/...` routes. `assetBase()` then prepends `/inspace`
+        // to static asset URLs, so we must also serve them under that prefix
+        // (in production a reverse proxy does this). Without it, `/inspace/map`
+        // 404s on `/inspace/vendor/maplibre-gl/*` and the map fails to load.
+        .nest_service("/inspace/pkg", ServeDir::new("target/site/pkg"))
+        .nest_service("/inspace/style", ServeDir::new("app/style"))
+        .nest_service("/inspace/vendor", ServeDir::new("app/vendor"))
+        .nest_service("/inspace/uploads", ServeDir::new("uploads"))
         .leptos_routes(&options, routes, move || shell(shell_options.clone()))
         .with_state(options)
 }
