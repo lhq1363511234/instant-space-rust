@@ -417,7 +417,10 @@ pub fn GuideEditorPage() -> impl IntoView {
     Effect::new(move |_| {
         if let Some(Ok(summary)) = save_feedback.value().get() {
             saved_guide_id.set(Some(summary.id.to_string()));
-            versions_reload.set(versions_reload.get() + 1);
+            // `update` must be used here: reading with `get()` inside an Effect
+            // subscribes to the signal, so `set(get() + 1)` would re-trigger
+            // this Effect forever and lock up the browser's main thread.
+            versions_reload.update(|value| *value += 1);
         }
     });
 
@@ -718,16 +721,15 @@ fn SectionEditor(
     let body_label = format!("Guide section {number} Chinese content");
     let image_label = format!("Guide section {number} image URL");
 
-    let type_section = section.clone();
-    let title_zh_section = section.clone();
-    let title_en_section = section.clone();
-    let content_zh_section = section.clone();
-    let content_en_section = section.clone();
-    let images_section = section.clone();
+    // Hold the section in a local signal so each field edit updates the full
+    // section and is written back via `on_change`. Capturing the initial
+    // `section` clone per field (the previous implementation) let stale
+    // initial values clobber fields the user had already typed.
+    let section_rw = RwSignal::new(section);
+    let emit = move || on_change.run(section_rw.get());
     let section_images_change = Callback::new(move |images: Vec<String>| {
-        let mut updated = images_section.clone();
-        updated.images = images;
-        on_change.run(updated);
+        section_rw.update(|s| s.images = images);
+        emit();
     });
 
     view! {
@@ -738,11 +740,10 @@ fn SectionEditor(
                     <span>{move || t(locale.get(), "类型", "Type")}</span>
                     <select
                         aria-label=format!("Guide section {number} type")
-                        prop:value=section.section_type.clone()
+                        prop:value=move || section_rw.get().section_type.clone()
                         on:change=move |ev| {
-                            let mut updated = type_section.clone();
-                            updated.section_type = event_target_value(&ev);
-                            on_change.run(updated);
+                            section_rw.update(|s| s.section_type = event_target_value(&ev));
+                            emit();
                         }
                     >
                         <option value="text">{move || t(locale.get(), "正文", "Text")}</option>
@@ -759,11 +760,10 @@ fn SectionEditor(
                     <input
                         aria-label=heading_label
                         placeholder=move || t(locale.get(), "例如：怎么到达", "e.g. How to get there")
-                        prop:value=section.title_zh.clone()
+                        prop:value=move || section_rw.get().title_zh.clone()
                         on:input=move |ev| {
-                            let mut updated = title_zh_section.clone();
-                            updated.title_zh = event_target_value(&ev);
-                            on_change.run(updated);
+                            section_rw.update(|s| s.title_zh = event_target_value(&ev));
+                            emit();
                         }
                     />
                 </label>
@@ -772,11 +772,10 @@ fn SectionEditor(
                     <input
                         aria-label=format!("Guide section {number} English title")
                         placeholder="Optional English title"
-                        prop:value=section.title_en.clone().unwrap_or_default()
+                        prop:value=move || section_rw.get().title_en.clone().unwrap_or_default()
                         on:input=move |ev| {
-                            let mut updated = title_en_section.clone();
-                            updated.title_en = optional_text(event_target_value(&ev));
-                            on_change.run(updated);
+                            section_rw.update(|s| s.title_en = optional_text(event_target_value(&ev)));
+                            emit();
                         }
                     />
                 </label>
@@ -787,11 +786,10 @@ fn SectionEditor(
                     aria-label=body_label
                     rows="4"
                     placeholder=move || t(locale.get(), "写清楚步骤、建议和注意事项。", "Steps, tips, and cautions.")
-                    prop:value=section.content_zh.clone()
+                    prop:value=move || section_rw.get().content_zh.clone()
                     on:input=move |ev| {
-                        let mut updated = content_zh_section.clone();
-                        updated.content_zh = event_target_value(&ev);
-                        on_change.run(updated);
+                        section_rw.update(|s| s.content_zh = event_target_value(&ev));
+                        emit();
                     }
                 ></textarea>
             </label>
@@ -801,15 +799,14 @@ fn SectionEditor(
                     aria-label=format!("Guide section {number} English content")
                     rows="4"
                     placeholder="Optional English content"
-                    prop:value=section.content_en.clone().unwrap_or_default()
+                    prop:value=move || section_rw.get().content_en.clone().unwrap_or_default()
                     on:input=move |ev| {
-                        let mut updated = content_en_section.clone();
-                        updated.content_en = optional_text(event_target_value(&ev));
-                        on_change.run(updated);
+                        section_rw.update(|s| s.content_en = optional_text(event_target_value(&ev)));
+                        emit();
                     }
                 ></textarea>
             </label>
-            <ImageManager images=section.images.clone() on_change=section_images_change aria_label=image_label />
+            <ImageManager images=section_rw.get().images.clone() on_change=section_images_change aria_label=image_label />
             <div class="form-actions section-actions">
                 <button class="button button-danger" type="button" on:click=move |_| on_delete.run(())>{move || t(locale.get(), "删除板块", "Delete section")}</button>
             </div>

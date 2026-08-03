@@ -350,8 +350,10 @@ pub async fn create_guide_draft(
     spot_name: Option<String>,
     space_id: Option<String>,
     cover_image_url: Option<String>,
-    images: Vec<String>,
-    sections: Vec<GuideSection>,
+    // serde_qs omits empty sequences entirely when the client encodes the
+    // request body, so these must default instead of failing deserialization.
+    #[server(default)] images: Vec<String>,
+    #[server(default)] sections: Vec<GuideSection>,
     status: GuideStatus,
     featured: bool,
 ) -> Result<GuideSummary, ServerFnError> {
@@ -441,8 +443,10 @@ pub async fn update_guide(
     spot_name: Option<String>,
     space_id: Option<String>,
     cover_image_url: Option<String>,
-    images: Vec<String>,
-    sections: Vec<GuideSection>,
+    // serde_qs omits empty sequences entirely when the client encodes the
+    // request body, so these must default instead of failing deserialization.
+    #[server(default)] images: Vec<String>,
+    #[server(default)] sections: Vec<GuideSection>,
     status: GuideStatus,
     featured: bool,
 ) -> Result<GuideSummary, ServerFnError> {
