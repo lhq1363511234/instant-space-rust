@@ -115,7 +115,6 @@ fn build_router() -> Router {
         .nest_service("/pkg", ServeDir::new(pkg_dir))
         .nest_service("/style", ServeDir::new("app/style"))
         .nest_service("/vendor", ServeDir::new("app/vendor"))
-        .nest_service("/inspace/vendor", ServeDir::new("app/vendor"))
         .nest_service("/uploads", ServeDir::new("uploads"))
         // Local-dev parity: the app's own links (e.g. the header "地图" button)
         // point at `/inspace/...` routes. `assetBase()` then prepends `/inspace`
