@@ -122,19 +122,37 @@ pub async fn export_spaces_csv(pool: &PgPool) -> Result<String, sqlx::Error> {
         out.push_str(&csv_join(&[
             csv_escape(&row.try_get::<String, _>("id")?),
             csv_escape(&row.try_get::<String, _>("name_zh")?),
-            csv_escape(&row.try_get::<Option<String>, _>("name_en")?.unwrap_or_default()),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("name_en")?
+                    .unwrap_or_default(),
+            ),
             csv_escape(&row.try_get::<String, _>("space_type")?),
-            csv_escape(&row.try_get::<Option<String>, _>("country")?.unwrap_or_default()),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("country")?
+                    .unwrap_or_default(),
+            ),
             csv_escape(&row.try_get::<String, _>("province")?),
             csv_escape(&row.try_get::<String, _>("city")?),
-            csv_escape(&row.try_get::<Option<String>, _>("district")?.unwrap_or_default()),
-            csv_escape(&row.try_get::<Option<String>, _>("spot_name")?.unwrap_or_default()),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("district")?
+                    .unwrap_or_default(),
+            ),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("spot_name")?
+                    .unwrap_or_default(),
+            ),
             row.try_get::<f64, _>("lat")?.to_string(),
             row.try_get::<f64, _>("lng")?.to_string(),
             csv_escape(&row.try_get::<String, _>("status")?),
             row.try_get::<bool, _>("is_public")?.to_string(),
-            row.try_get::<Option<Uuid>, _>("host_user_id")?.map(|id| id.to_string()).unwrap_or_default(),
-            csv_escape(&created_at.map(|value| value.to_string()).unwrap_or_default()),
+            row.try_get::<Option<Uuid>, _>("host_user_id")?
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+            csv_escape(
+                &created_at
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
+            ),
         ]));
     }
     Ok(out)
@@ -158,20 +176,45 @@ pub async fn export_guides_csv(pool: &PgPool) -> Result<String, sqlx::Error> {
         out.push_str(&csv_join(&[
             csv_escape(&row.try_get::<String, _>("id")?),
             csv_escape(&row.try_get::<String, _>("title_zh")?),
-            csv_escape(&row.try_get::<Option<String>, _>("title_en")?.unwrap_or_default()),
-            csv_escape(&row.try_get::<Option<String>, _>("country")?.unwrap_or_default()),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("title_en")?
+                    .unwrap_or_default(),
+            ),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("country")?
+                    .unwrap_or_default(),
+            ),
             csv_escape(&row.try_get::<String, _>("province")?),
             csv_escape(&row.try_get::<String, _>("city")?),
-            csv_escape(&row.try_get::<Option<String>, _>("district")?.unwrap_or_default()),
-            csv_escape(&row.try_get::<Option<String>, _>("spot_name")?.unwrap_or_default()),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("district")?
+                    .unwrap_or_default(),
+            ),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("spot_name")?
+                    .unwrap_or_default(),
+            ),
             csv_escape(&row.try_get::<String, _>("guide_type")?),
-            csv_escape(&row.try_get::<Option<String>, _>("category")?.unwrap_or_default()),
+            csv_escape(
+                &row.try_get::<Option<String>, _>("category")?
+                    .unwrap_or_default(),
+            ),
             csv_escape(&row.try_get::<String, _>("status")?),
             row.try_get::<bool, _>("featured")?.to_string(),
-            row.try_get::<Option<Uuid>, _>("author_id")?.map(|id| id.to_string()).unwrap_or_default(),
-            row.try_get::<Option<Uuid>, _>("space_id")?.map(|id| id.to_string()).unwrap_or_default(),
-            csv_escape(&row.try_get::<time::OffsetDateTime, _>("created_at")?.to_string()),
-            csv_escape(&row.try_get::<time::OffsetDateTime, _>("updated_at")?.to_string()),
+            row.try_get::<Option<Uuid>, _>("author_id")?
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+            row.try_get::<Option<Uuid>, _>("space_id")?
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+            csv_escape(
+                &row.try_get::<time::OffsetDateTime, _>("created_at")?
+                    .to_string(),
+            ),
+            csv_escape(
+                &row.try_get::<time::OffsetDateTime, _>("updated_at")?
+                    .to_string(),
+            ),
         ]));
     }
     Ok(out)

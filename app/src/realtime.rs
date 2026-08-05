@@ -165,7 +165,10 @@ pub async fn space_socket(
 
     // Phase 6 connection cap: refuse new sockets when the room is at capacity.
     if hub().online_count(space_id).await >= MAX_ROOM_ONLINE {
-        return Err((StatusCode::SERVICE_UNAVAILABLE, "room is full, try again later"));
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "room is full, try again later",
+        ));
     }
 
     Ok(ws

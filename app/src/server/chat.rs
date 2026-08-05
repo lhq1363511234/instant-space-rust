@@ -285,13 +285,16 @@ pub async fn raise_space_help(space_id: String, body: String) -> Result<(), Serv
 pub async fn resolve_space_help(help_id: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "ssr")]
     {
-        let help_uuid = Uuid::parse_str(&help_id).map_err(|err| ServerFnError::new(err.to_string()))?;
+        let help_uuid =
+            Uuid::parse_str(&help_id).map_err(|err| ServerFnError::new(err.to_string()))?;
         let pool = crate::server::db_pool().await?;
         let Some(help) = instant_db::chat::resolve_help(&pool, help_uuid)
             .await
             .map_err(|err| ServerFnError::new(err.to_string()))?
         else {
-            return Err(ServerFnError::new("help request not found or already resolved"));
+            return Err(ServerFnError::new(
+                "help request not found or already resolved",
+            ));
         };
         let access = ensure_chat_access(help.space_id, false).await?;
         let resolver = crate::server::auth::current_session()

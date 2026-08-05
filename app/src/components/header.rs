@@ -94,6 +94,16 @@ pub fn Header() -> impl IntoView {
                     active=move || shell_nav_active(&pathname.get(), "guides")
                     on_navigate=Callback::new(move |_| drawer_open.set(false))
                 />
+                <ShellNavLink
+                    href="/inspace/lives"
+                    label_zh="数字生命"
+                    label_en="Digital lives"
+                    hint_zh="云上家 · 在侧 · 追远"
+                    hint_en="Cloud home · companions · memory"
+                    icon="paw"
+                    active=move || shell_nav_active(&pathname.get(), "lives")
+                    on_navigate=Callback::new(move |_| drawer_open.set(false))
+                />
             </nav>
 
             <Show when=move || shell_nav_active(&pathname.get(), "map")>
@@ -419,6 +429,7 @@ fn ShellIcon(name: &'static str) -> impl IntoView {
         "compass" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9z"/></svg> }.into_any(),
         "book" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10.5A2.5 2.5 0 0 1 18 7v13H7.5A2.5 2.5 0 0 1 5 17.5zM5 17.5A2.5 2.5 0 0 1 7.5 15H18M9 8h5M9 11h4"/></svg> }.into_any(),
         "plus" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> }.into_any(),
+        "paw" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="9" r="2.1"/><circle cx="12" cy="6.5" r="2.1"/><circle cx="17" cy="9" r="2.1"/><path d="M12 11.5c2.6 0 5.2 2.3 5.2 4.9 0 1.4-1 2.4-2.2 2.4-1.1 0-1.9-.6-3-.6s-1.9.6-3 .6c-1.2 0-2.2-1-2.2-2.4 0-2.6 2.6-4.9 5.2-4.9z"/></svg> }.into_any(),
         "user" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6"/></svg> }.into_any(),
         "grid" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg> }.into_any(),
         "shield" => view! { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.2 8.3-8 10-4.8-1.7-8-5-8-10V6z"/><path d="m9 12 2 2 4-4"/></svg> }.into_any(),
@@ -457,6 +468,12 @@ fn shell_nav_active(pathname: &str, section: &str) -> bool {
         "my-spaces" => {
             normalized.starts_with("/inspace/my-spaces") || normalized.starts_with("/my-spaces")
         }
+        "lives" => {
+            normalized.starts_with("/inspace/lives")
+                || normalized.starts_with("/lives")
+                || normalized.starts_with("/inspace/homes/")
+                || normalized.starts_with("/homes/")
+        }
         "about" => normalized.starts_with("/inspace/about") || normalized.starts_with("/about"),
         _ => false,
     }
@@ -483,6 +500,10 @@ fn shell_page_title(pathname: &str, locale: Locale) -> &'static str {
         t(locale, "探索空间", "Explore")
     } else if pathname.contains("/map") {
         t(locale, "发现地图", "Map")
+    } else if pathname.contains("/lives") {
+        t(locale, "数字生命", "Digital lives")
+    } else if pathname.contains("/homes/") {
+        t(locale, "云上家", "Cloud home")
     } else if pathname.contains("/spaces/") {
         t(locale, "空间详情", "Space")
     } else {
@@ -503,6 +524,14 @@ fn shell_page_hint(pathname: &str, locale: Locale) -> &'static str {
         t(locale, "按地点和分类发现", "Browse by place and category")
     } else if pathname.contains("/map") {
         t(locale, "打开地图才加载瓦片", "Tiles load on map open")
+    } else if pathname.contains("/lives") {
+        t(
+            locale,
+            "云上家 · 在侧 · 追远",
+            "Cloud home · companions · memory",
+        )
+    } else if pathname.contains("/homes/") {
+        t(locale, "叩门而入", "Knock to enter")
     } else if pathname.contains("/spaces/") {
         t(locale, "进入真实地点的数字空间", "Enter the place")
     } else {

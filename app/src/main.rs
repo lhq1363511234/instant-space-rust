@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tower_http::services::ServeDir;
 
-const SITE_ADDR: &str = "127.0.0.1:3001";
+const DEFAULT_SITE_ADDR: &str = "127.0.0.1:3001";
 /// How often the background task promotes expired spaces.
 const EXPIRY_SWEEP_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -64,7 +64,9 @@ async fn main() -> anyhow::Result<()> {
     }
     spawn_expiry_task(pool.clone());
 
-    let addr: SocketAddr = SITE_ADDR.parse()?;
+    let addr: SocketAddr = std::env::var("INSTANT_SPACE_ADDR")
+        .unwrap_or_else(|_| DEFAULT_SITE_ADDR.to_string())
+        .parse()?;
     tracing::info!("listening on http://{addr}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, build_router().into_make_service()).await?;
@@ -94,6 +96,7 @@ fn build_router() -> Router {
     let options = leptos_options();
     let routes = generate_route_list(App);
     let shell_options = options.clone();
+    let pkg_dir = format!("{}/{}", options.site_root, options.site_pkg_dir);
 
     Router::new()
         .merge(instant_space_web::agent_api::router())
@@ -109,9 +112,10 @@ fn build_router() -> Router {
         .route("/sitemap.xml", get(sitemap_xml))
         .route("/inspace/robots.txt", get(robots_txt))
         .route("/inspace/sitemap.xml", get(sitemap_xml))
-        .nest_service("/pkg", ServeDir::new("target/site/pkg"))
+        .nest_service("/pkg", ServeDir::new(pkg_dir))
         .nest_service("/style", ServeDir::new("app/style"))
         .nest_service("/vendor", ServeDir::new("app/vendor"))
+        .nest_service("/inspace/vendor", ServeDir::new("app/vendor"))
         .nest_service("/uploads", ServeDir::new("uploads"))
         // Local-dev parity: the app's own links (e.g. the header "地图" button)
         // point at `/inspace/...` routes. `assetBase()` then prepends `/inspace`
@@ -270,9 +274,16 @@ async fn reverse_geo(
 }
 
 fn leptos_options() -> LeptosOptions {
+    let site_root =
+        std::env::var("INSTANT_SPACE_SITE_ROOT").unwrap_or_else(|_| "target/site".to_string());
     LeptosOptions::builder()
-        .output_name("instant_space_app_v92")
-        .site_addr(SITE_ADDR.parse::<SocketAddr>().expect("valid site address"))
+        .output_name("instant_space_app_v106")
+        .site_root(site_root)
+        .site_addr(
+            DEFAULT_SITE_ADDR
+                .parse::<SocketAddr>()
+                .expect("valid site address"),
+        )
         .hash_files(false)
         .build()
 }
@@ -302,7 +313,7 @@ mod tests {
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.js"));
         assert!(html.contains("/vendor/maplibre-gl/maplibre-gl.css"));
         assert!(!html.contains("unpkg.com/maplibre-gl"));
-        assert!(html.contains("/pkg/instant_space_app_v92.js"));
+        assert!(html.contains("/pkg/instant_space_app_v106.js"));
     }
 
     #[tokio::test]

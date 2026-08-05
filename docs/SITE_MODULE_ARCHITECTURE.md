@@ -28,7 +28,7 @@
 交付路线：Rust 工程 Phase 1–7
   └── 回答当前网站完成到哪里
 
-维护模块：M00–M24 / F01–F06
+维护模块：M00–M26 / F01–F06
   └── 回答 Bug 应该修哪里
 ```
 
@@ -258,7 +258,7 @@
 
 ---
 
-## 6. 当前维护模块 M00–M24
+## 6. 当前维护模块 M00–M26
 
 ## M00 — 应用启动、路由与 SSR Shell
 
@@ -372,6 +372,14 @@
 - 已知结构债：`archive_template()` 只把 Space 状态改成 `template`，没有写 `space_templates`。
 
 ## M09 — 空间详情聚合页
+
+**2026-08-04 交互边界**：`SpaceExperience` 是唯一内容内核；`SpacePage` 只做直接 URL 回退，普通用户入口调用全局 `SpaceExperienceModalHost`。简介、主理人、故事、空间志、分享、讨论和空间志阅读不得再各自创建整页壳。Phaser Scene 通过隐藏的 `OpenSpaceLink` bridge 将 Object 动作映射到 `Wall / Story / Discussion`，Portal 仍属于 M26 场景导航。
+
+- 全局状态/入口：`app/src/components/space_experience_modal.rs`
+- 内容内核/讨论复用：`app/src/pages/space.rs`
+- 焦点、Esc、Scene 动作桥：`app/src/space_modal_runtime.js`
+- 专属响应式样式：`app/style/space-modal.css`
+
 
 **负责**：一个 Space 的基础资料、攻略、分享、记忆、胶囊、讨论入口。
 
@@ -560,6 +568,24 @@
 - 当前边界：这是招募和内容标记，不是正式认领工作流；真实商家/创作者确权仍属于 F04。
 - 典型 Bug：招募文案存在但没有入口、About 在手机溢出、待认领空间被错误绑定给系统管理员。
 
+
+## M26 — Space 世界、Scene 与主理人治理（Phase 9）
+
+**负责**：Space 长期身份、Scene 场景、Object、Portal/Teleport、Presence，以及主理人任期、交接和历史连续性。
+
+- 页面：`app/src/pages/world.rs`、`app/src/pages/host.rs::SpaceGovernancePanel`、`app/src/pages/space.rs::SpaceHostPanel`
+- Server：`app/src/server/world.rs`
+- Domain：`crates/domain/src/world.rs`
+- DB：`crates/db/src/world.rs`
+- 样式：`app/style/world-scene.css`、`app/style/host-governance.css`
+- 迁移：`20260804000100_world_foundation.sql`、`20260804000200_host_governance.sql`
+- 表：`scenes`、`scene_objects`、`scene_spawn_points`、`space_relations`、`space_host_tenures`、`space_governance_events`、`world_presences`、`space_entry_events`
+- 路由：`/inspace/world/:space_id`（兼容 `/world/:space_id`）
+- 当前权限：primary / co_host / steward 的 active tenure 可维护内容与 Scene；只有 primary 或 admin 可委任、移除、交接和结束主理关系；系统看护仅 admin 可委任。
+- 典型 Bug：直接链接和 Portal 落点不一致、同行宠物未同步、旧成员角色误获 Scene 权限、主理人交接后历史丢失、退出后仍刷新受限资源、系统托管与待认领状态混淆。
+- 第一检查：`spaces.host_governance_state` → active `space_host_tenures` → `user_can_manage_scene()` → `space_governance_events` → 页面 Resource 是否在失去权限后继续刷新。
+- 不变量：Space 与 Scene 不属于某一任主理人的一次性内容；主理人更换只能结束/新增任期，不得删除 Space、Scene、故事和历史。
+
 ---
 
 ## 7. 未来模块 F01–F06
@@ -693,3 +719,15 @@ Network：...
 4. `docs/PHASES.md`：历史执行记录，必须结合日期阅读。
 5. `docs/ARCHITECTURE_RUST.md`：Rust 初始架构基线，其中“当前状态”可能已经过期。
 6. `memory.md`：近期部署、问题根因和实际 QA 证据。
+
+### M26.1 — 世界场景运行时（Phase 9.4A）
+
+- 路由与 SSR 数据：`app/src/pages/world.rs`
+- 浏览器游戏运行时：`app/src/world_runtime.js`
+- 场景视觉与 Bottom Sheet：`app/style/world-scene.css`
+- Phaser 运行库：`app/vendor/phaser/`
+- Tiled 场景布局：`app/vendor/world/*.json`
+- 数据/API：`app/src/server/world.rs` → `crates/db/src/world.rs` → `crates/domain/src/world.rs`
+- 云上家门禁与资料：`app/src/pages/lives.rs`、`app/src/server/lives.rs`
+
+排障边界：Canvas 不启动先查 `data-world-*` DOM 和 Phaser vendor 请求；人物/物件数据错误查 SceneBundle；进入/口令错误查 world/lives server；画面与响应式问题只查 world-scene.css；不要回到 lives.css 重建第二套庭院。

@@ -32,7 +32,7 @@ fn proof_label(locale: Locale, proof: PresenceProof) -> &'static str {
 /// The guest book, the wall, and the sealed letters: everything a place keeps
 /// after the people leave.
 #[component]
-pub fn SpaceTraces(space_id: String, space_name: String) -> impl IntoView {
+pub fn SpaceTraces(space_id: String) -> impl IntoView {
     let locale = use_i18n().locale;
     let presence = PresenceState::new();
     let refresh = RwSignal::new(0u32);
@@ -67,12 +67,6 @@ pub fn SpaceTraces(space_id: String, space_name: String) -> impl IntoView {
         },
     );
 
-    let capsules_id = space_id.clone();
-    let capsules = Resource::new(
-        move || (capsules_id.clone(), refresh.get()),
-        |(space_id, _)| async move { list_capsules(space_id).await.unwrap_or_default() },
-    );
-
     view! {
         <section id="space-traces" class="space-traces" aria-label=move || t(locale.get(), "空间留痕", "What this place keeps")>
             <Suspense fallback=move || view! { <p class="space-section-loading">{move || t(locale.get(), "正在读取这个地方的记录…", "Reading this place’s record…")}</p> }>
@@ -100,7 +94,50 @@ pub fn SpaceTraces(space_id: String, space_name: String) -> impl IntoView {
                 })}
             </Suspense>
 
-            <Suspense fallback=|| ()>
+        </section>
+    }
+}
+
+/// The capsule grove is a distinct place object. It reuses the same presence
+/// proof and capsule APIs as the guest book instead of inventing another gate.
+#[component]
+pub fn SpaceCapsules(space_id: String, space_name: String) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let presence = PresenceState::new();
+    let refresh = RwSignal::new(0u32);
+
+    Effect::new(move |_| {
+        if detect_scan() {
+            presence.scanned.set(true);
+        }
+    });
+
+    let capsules_id = space_id.clone();
+    let capsules = Resource::new(
+        move || (capsules_id.clone(), refresh.get()),
+        |(space_id, _)| async move { list_capsules(space_id).await.unwrap_or_default() },
+    );
+
+    view! {
+        <section id="space-capsules" class="space-capsule-panel" aria-labelledby="space-capsules-title">
+            <header class="space-capsule-panel-intro">
+                <p class="survey-kicker">{move || t(locale.get(), "埋信处", "Capsule grove")}</p>
+                <h3 id="space-capsules-title">{move || t(locale.get(), "一封信，留给真正抵达的人", "A letter for someone who truly arrives")}</h3>
+                <p>{move || t(
+                    locale.get(),
+                    "埋信时须同时验证现场 Wi-Fi 空间口令与本机位置。启封者还须是指定收信人，站到此地，并说出埋信人私下告知的胶囊口令。",
+                    "Burying requires both the on-site Wi-Fi Space code and this device's location. Opening also requires the named recipient to arrive here and enter the private capsule passphrase.",
+                )}</p>
+                <ol class="space-capsule-locks" aria-label=move || t(locale.get(), "胶囊验证顺序", "Capsule verification order")>
+                    <li><span>"01"</span><strong>{move || t(locale.get(), "人在此地", "Be at the place")}</strong><small>{move || t(locale.get(), "扫码、定位或现场验证", "Scan, location, or on-site proof")}</small></li>
+                    <li><span>"02"</span><strong>{move || t(locale.get(), "空间口令", "Space code")}</strong><small>{move || t(locale.get(), "见于现场 Wi-Fi 卡片或热点名", "Shown on the on-site Wi-Fi card or hotspot name")}</small></li>
+                    <li><span>"03"</span><strong>{move || t(locale.get(), "胶囊私语", "Private phrase")}</strong><small>{move || t(locale.get(), "由埋信人私下告诉收信人", "Told privately by the sender to the recipient")}</small></li>
+                </ol>
+            </header>
+
+            <PresenceBar presence=presence space_id=space_id.clone() />
+
+            <Suspense fallback=move || view! { <p class="space-section-loading">{move || t(locale.get(), "正在查看埋信处…", "Opening the capsule grove…")}</p> }>
                 {move || {
                     let space_id = space_id.clone();
                     let space_name = space_name.clone();

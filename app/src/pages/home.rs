@@ -6,8 +6,14 @@ use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 
 use crate::{
-    components::space_form::{provide_create_space_modal, use_create_space_modal},
+    components::{
+        space_experience_modal::{
+            use_space_experience_modal, OpenSpaceLink, SpaceExperienceModalState,
+        },
+        space_form::{provide_create_space_modal, use_create_space_modal},
+    },
     i18n::{use_i18n, Locale},
+    pages::space::SpacePanel,
     server::{
         site::get_public_home_config,
         spaces::{
@@ -80,6 +86,15 @@ fn HomePageContent(config: HomePageConfig) -> impl IntoView {
                                     <a class="button button-secondary" href=secondary_url>{move || localize(locale.get(), &secondary_label)}</a>
                                 </div>
                             </div>
+                            <figure class="home-river-scroll" aria-label=move || match locale.get() { Locale::Zh => "北宋王希孟《千里江山图》长卷", Locale::En => "A Thousand Li of Rivers and Mountains by Wang Ximeng" }>
+                                <div class="home-river-scroll-viewport">
+                                    <div class="home-river-scroll-track" aria-hidden="true">
+                                        <img src="/inspace/vendor/img/culture/thousand-li-rivers-mountains.webp" width="6000" height="1272" loading="eager" decoding="async" fetchpriority="high" alt="" />
+                                        <img src="/inspace/vendor/img/culture/thousand-li-rivers-mountains.webp" width="6000" height="1272" loading="eager" decoding="async" alt="" />
+                                    </div>
+                                </div>
+                                <figcaption>{move || match locale.get() { Locale::Zh => "北宋 · 王希孟 · 千里江山图", Locale::En => "Northern Song · Wang Ximeng · A Thousand Li of Rivers and Mountains" }}</figcaption>
+                            </figure>
                         </section>
                     }
                 })}
@@ -167,7 +182,7 @@ fn HomeExampleCarousel() -> impl IntoView {
                     id="home-example-0"
                     tab_id="home-example-tab-0"
                     active=true
-                    image="/vendor/img/place-lake-1080.webp"
+                    image="/inspace/vendor/img/place-lake-1080.webp"
                     kind_zh="景点空间"
                     kind_en="Landmark Space"
                     title_zh="一座山的路线，不必每次从头问起。"
@@ -182,7 +197,7 @@ fn HomeExampleCarousel() -> impl IntoView {
                     id="home-example-1"
                     tab_id="home-example-tab-1"
                     active=false
-                    image="/vendor/img/place-alley-1080.webp"
+                    image="/inspace/vendor/img/place-alley-1080.webp"
                     kind_zh="美食空间"
                     kind_en="Food Space"
                     title_zh="一家小店，留下它真正的营业节奏。"
@@ -197,7 +212,7 @@ fn HomeExampleCarousel() -> impl IntoView {
                     id="home-example-2"
                     tab_id="home-example-tab-2"
                     active=false
-                    image="/vendor/img/place-lane-1080.webp"
+                    image="/inspace/vendor/img/place-lane-1080.webp"
                     kind_zh="公园空间"
                     kind_en="Park Space"
                     title_zh="每天路过的人，最懂一座公园。"
@@ -212,7 +227,7 @@ fn HomeExampleCarousel() -> impl IntoView {
                     id="home-example-3"
                     tab_id="home-example-tab-3"
                     active=false
-                    image="/vendor/img/place-harbour-1080.webp"
+                    image="/inspace/vendor/img/place-harbour-1080.webp"
                     kind_zh="公司空间"
                     kind_en="Company Space"
                     title_zh="一串地址，也可以成为一段被看见的来路。"
@@ -276,9 +291,10 @@ fn ExampleSlide(
 #[component]
 fn HomeFeaturedSpaces() -> impl IntoView {
     let locale = use_i18n().locale;
+    let modal = use_space_experience_modal().expect("Space modal provider must exist");
     let spaces = Resource::new(
         || (),
-        |_| async move { list_home_featured_spaces(5).await.unwrap_or_default() },
+        |_| async move { list_home_featured_spaces(6).await.unwrap_or_default() },
     );
     view! {
         <section class="home-featured-spaces" style="order:30" aria-labelledby="home-featured-spaces-title">
@@ -292,7 +308,7 @@ fn HomeFeaturedSpaces() -> impl IntoView {
             <Suspense fallback=move || view! { <div class="home-space-skeleton" aria-label="Loading featured spaces"><span></span><span></span><span></span></div> }>
                 {move || Suspend::new(async move {
                     let items = spaces.await;
-                    view! { <FeaturedSpaceShelf items=items /> }
+                    view! { <FeaturedSpaceShelf items=items modal=modal /> }
                 })}
             </Suspense>
         </section>
@@ -300,7 +316,7 @@ fn HomeFeaturedSpaces() -> impl IntoView {
 }
 
 #[component]
-fn FeaturedSpaceShelf(items: Vec<SpaceMarker>) -> impl IntoView {
+fn FeaturedSpaceShelf(items: Vec<SpaceMarker>, modal: SpaceExperienceModalState) -> impl IntoView {
     let locale = use_i18n().locale;
     if items.is_empty() {
         return view! {
@@ -318,36 +334,91 @@ fn FeaturedSpaceShelf(items: Vec<SpaceMarker>) -> impl IntoView {
         .iter()
         .any(|(_, space)| known_space_artwork(space).is_some());
 
-    view! {
-        <div class="home-space-shelf">
-            <For
-                each=move || indexed_items.clone()
-                key=|(index, space)| format!("{}-{}", index, space.id)
-                children=move |(index, space)| {
-                    let artwork = space_artwork(&space);
-                    let image = artwork.src;
-                    let image_style = format!("object-position:{};", artwork.position);
-                    let href = format!("/inspace/spaces/{}", space.id);
-                    let title = space.name_zh.clone();
-                    let aria_title = title.clone();
-                    let location = space_location(&space);
-                    let aria_location = location.clone();
-                    let kind = space_type_label(&space.space_type);
-                    let class = if index == 0 { "home-space-item is-leading" } else { "home-space-item" };
-                    view! {
-                        <article class=class>
-                            <a href=href aria-label=move || format!("{} {}", aria_title, aria_location)>
-                                <img src=image style=image_style width="1080" height="720" loading="lazy" decoding="async" alt="" />
-                                <div>
-                                    <p>{move || match locale.get() { Locale::Zh => kind.0, Locale::En => kind.1 }}</p>
-                                    <h3>{title}</h3>
-                                    <span>{location}</span>
-                                </div>
-                            </a>
-                        </article>
+    let total_items = indexed_items.len();
+    let dots = (0..total_items)
+        .map(|index| {
+            let selected = if index == 0 { "true" } else { "false" };
+            let tab_index = if index == 0 { "0" } else { "-1" };
+            view! {
+                <button
+                    type="button"
+                    data-home-space-dot
+                    data-home-space-index=index
+                    aria-current=selected
+                    tabindex=tab_index
+                    aria-label=move || match locale.get() {
+                        Locale::Zh => format!("查看第 {} 个热门空间", index + 1),
+                        Locale::En => format!("Show featured Space {}", index + 1),
                     }
+                ></button>
+            }
+        })
+        .collect_view();
+
+    view! {
+        <div
+            class="home-space-carousel"
+            data-home-space-carousel
+            aria-roledescription="carousel"
+            aria-label=move || match locale.get() {
+                Locale::Zh => "热门空间轮展",
+                Locale::En => "Featured Spaces carousel",
+            }
+        >
+            <div
+                class="home-space-stage"
+                data-home-space-stage
+                tabindex="0"
+                aria-label=move || match locale.get() {
+                    Locale::Zh => "热门空间：自动轮展，也可使用方向键、圆点或滑动切换",
+                    Locale::En => "Featured Spaces: rotates automatically; use keyboard, dots, or swipe to browse",
                 }
-            />
+            >
+                <For
+                    each=move || indexed_items.clone()
+                    key=|(index, space)| format!("{}-{}", index, space.id)
+                    children=move |(index, space)| {
+                        let artwork = space_artwork(&space);
+                        let image = artwork.src;
+                        let image_style = format!("object-position:{};", artwork.position);
+                        let space_id = space.id.clone();
+                        let title = space.name_zh.clone();
+                        let aria_title = title.clone();
+                        let location = space_location(&space);
+                        let aria_location = location.clone();
+                        let kind = space_type_label(&space.space_type);
+                        let class = if index == 0 { "home-space-item is-active" } else { "home-space-item" };
+                        view! {
+                            <article class=class data-home-space-slide data-home-space-index=index>
+                                <OpenSpaceLink space_id=space_id initial_panel=SpacePanel::Wall modal_state=modal require_login=true class="home-space-item-link" aria_label=format!("{} {}", aria_title, aria_location)>
+                                    <div class="home-space-image-frame">
+                                        <img src=image style=image_style width="1080" height="720" loading="lazy" decoding="async" alt="" />
+                                    </div>
+                                    <div class="home-space-item-copy">
+                                        <p>{move || match locale.get() { Locale::Zh => kind.0, Locale::En => kind.1 }}</p>
+                                        <h3>{title}</h3>
+                                        <span>{location}</span>
+                                    </div>
+                                </OpenSpaceLink>
+                            </article>
+                        }
+                    }
+                />
+            </div>
+            <div class="home-space-carousel-nav">
+                <div class="home-space-carousel-dots" role="group" aria-label=move || match locale.get() { Locale::Zh => "选择热门空间", Locale::En => "Choose a featured Space" }>
+                    {dots}
+                </div>
+                <p class="home-space-carousel-count" aria-live="polite">
+                    <span data-home-space-current>{"01"}</span>
+                    <span aria-hidden="true">{" / "}</span>
+                    <span>{format!("{:02}", total_items)}</span>
+                </p>
+            </div>
+            <p class="home-space-carousel-hint">{move || match locale.get() {
+                Locale::Zh => "无需移动鼠标：空间会自行轮展，也可点击、滑动或按方向键浏览。",
+                Locale::En => "No mouse movement required: Spaces rotate automatically and also support click, swipe, and arrow keys.",
+            }}</p>
         </div>
         {has_attributed_artwork.then(|| view! { <HomePhotoAttributions /> })}
     }.into_any()
@@ -396,6 +467,7 @@ fn HomePhotoAttributions() -> impl IntoView {
 #[component]
 fn HomeFeaturedStories() -> impl IntoView {
     let locale = use_i18n().locale;
+    let modal = use_space_experience_modal().expect("Space modal provider must exist");
     let stories = Resource::new(
         || (),
         |_| async move { list_home_featured_stories(3).await.unwrap_or_default() },
@@ -411,7 +483,7 @@ fn HomeFeaturedStories() -> impl IntoView {
             <Suspense fallback=move || view! { <div class="home-story-skeleton"><span></span><span></span></div> }>
                 {move || Suspend::new(async move {
                     let items = stories.await;
-                    view! { <FeaturedStoryShelf items=items /> }
+                    view! { <FeaturedStoryShelf items=items modal=modal /> }
                 })}
             </Suspense>
         </section>
@@ -419,7 +491,10 @@ fn HomeFeaturedStories() -> impl IntoView {
 }
 
 #[component]
-fn FeaturedStoryShelf(items: Vec<HomeStoryView>) -> impl IntoView {
+fn FeaturedStoryShelf(
+    items: Vec<HomeStoryView>,
+    modal: SpaceExperienceModalState,
+) -> impl IntoView {
     let locale = use_i18n().locale;
     if items.is_empty() {
         return view! {
@@ -439,29 +514,40 @@ fn FeaturedStoryShelf(items: Vec<HomeStoryView>) -> impl IntoView {
                 each=move || items.clone()
                 key=|story| story.id.clone()
                 children=move |story| {
-                    let href = format!("/inspace/spaces/{}#stories", story.space_id);
+                    let space_id = story.space_id.clone();
                     let place = story.space_name_zh.clone();
-                    let body = story.body.clone();
+                    let body = home_story_excerpt(&story.body, 82);
                     let author = story.author_name.clone();
                     let date = story.created_at.clone();
                     let city = story.city.clone().unwrap_or_default();
                     let proof = story.proof;
                     view! {
                         <article class="home-story-item">
-                            <a href=href>
+                            <OpenSpaceLink space_id=space_id initial_panel=SpacePanel::Story modal_state=modal require_login=true class="home-story-item-link">
                                 <blockquote>{body}</blockquote>
                                 <footer>
                                     <strong>{place}</strong>
                                     <span>{move || format!("{}  {}  {}", city, proof.label(locale.get() == Locale::Zh), date)}</span>
                                     <span>{author}</span>
                                 </footer>
-                            </a>
+                            </OpenSpaceLink>
                         </article>
                     }
                 }
             />
         </div>
     }.into_any()
+}
+
+fn home_story_excerpt(body: &str, max_chars: usize) -> String {
+    let normalized = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut chars = normalized.chars();
+    let excerpt = chars.by_ref().take(max_chars).collect::<String>();
+    if chars.next().is_some() {
+        format!("{excerpt}……")
+    } else {
+        excerpt
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -473,23 +559,23 @@ struct SpaceArtwork {
 fn known_space_artwork(space: &SpaceMarker) -> Option<SpaceArtwork> {
     match space.name_zh.trim() {
         "外滩" => Some(SpaceArtwork {
-            src: "/vendor/img/featured/bund.webp",
+            src: "/inspace/vendor/img/featured/bund.webp",
             position: "50% 62%",
         }),
         "故宫" => Some(SpaceArtwork {
-            src: "/vendor/img/featured/forbidden-city.webp",
+            src: "/inspace/vendor/img/featured/forbidden-city.webp",
             position: "50% 61%",
         }),
         "布达拉宫" => Some(SpaceArtwork {
-            src: "/vendor/img/featured/potala.webp",
+            src: "/inspace/vendor/img/featured/potala.webp",
             position: "50% 65%",
         }),
         "西湖" => Some(SpaceArtwork {
-            src: "/vendor/img/featured/west-lake.webp",
+            src: "/inspace/vendor/img/featured/west-lake.webp",
             position: "50% 56%",
         }),
         "八一广场" => Some(SpaceArtwork {
-            src: "/vendor/img/featured/bayi-square.webp",
+            src: "/inspace/vendor/img/featured/bayi-square.webp",
             position: "50% 59%",
         }),
         _ => None,
@@ -505,12 +591,12 @@ fn space_artwork(space: &SpaceMarker) -> SpaceArtwork {
 
 fn space_type_image(space_type: &SpaceType) -> &'static str {
     match space_type {
-        SpaceType::Scenic => "/vendor/img/place-lake-1080.webp",
-        SpaceType::Food => "/vendor/img/place-alley-1080.webp",
-        SpaceType::Park => "/vendor/img/place-lane-1080.webp",
-        SpaceType::Transit => "/vendor/img/place-harbour-1080.webp",
-        SpaceType::Event => "/vendor/img/place-canal-1080.webp",
-        SpaceType::Custom => "/vendor/img/place-bund-1080.webp",
+        SpaceType::Scenic => "/inspace/vendor/img/place-lake-1080.webp",
+        SpaceType::Food => "/inspace/vendor/img/place-alley-1080.webp",
+        SpaceType::Park => "/inspace/vendor/img/place-lane-1080.webp",
+        SpaceType::Transit => "/inspace/vendor/img/place-harbour-1080.webp",
+        SpaceType::Event => "/inspace/vendor/img/place-canal-1080.webp",
+        SpaceType::Custom => "/inspace/vendor/img/place-bund-1080.webp",
     }
 }
 

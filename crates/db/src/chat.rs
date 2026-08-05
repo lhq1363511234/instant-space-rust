@@ -50,7 +50,10 @@ pub async fn list_messages(pool: &PgPool, space_id: Uuid) -> Result<Vec<ChatMess
                 space_id: row.try_get::<Uuid, _>("space_id")?,
                 sender: row.try_get::<String, _>("sender")?,
                 body: row.try_get::<String, _>("body")?,
-                kind: parse_kind(&row.try_get::<String, _>("kind").unwrap_or_else(|_| "text".to_string()))?,
+                kind: parse_kind(
+                    &row.try_get::<String, _>("kind")
+                        .unwrap_or_else(|_| "text".to_string()),
+                )?,
                 created_at: row.try_get("created_at")?,
             })
         })
@@ -132,7 +135,10 @@ pub async fn insert_message(
         space_id: row.try_get::<Uuid, _>("space_id")?,
         sender: row.try_get::<String, _>("sender")?,
         body: row.try_get::<String, _>("body")?,
-        kind: parse_kind(&row.try_get::<String, _>("kind").unwrap_or_else(|_| "text".to_string()))?,
+        kind: parse_kind(
+            &row.try_get::<String, _>("kind")
+                .unwrap_or_else(|_| "text".to_string()),
+        )?,
         created_at: row.try_get("created_at")?,
     })
 }
@@ -267,7 +273,9 @@ pub async fn create_help(
         resolved_at: row
             .try_get::<Option<time::OffsetDateTime>, _>("resolved_at")?
             .map(|value| value.to_string()),
-        created_at: row.try_get::<time::OffsetDateTime, _>("created_at")?.to_string(),
+        created_at: row
+            .try_get::<time::OffsetDateTime, _>("created_at")?
+            .to_string(),
     })
 }
 
@@ -296,7 +304,9 @@ pub async fn resolve_help(
             resolved_at: row
                 .try_get::<Option<time::OffsetDateTime>, _>("resolved_at")?
                 .map(|value| value.to_string()),
-            created_at: row.try_get::<time::OffsetDateTime, _>("created_at")?.to_string(),
+            created_at: row
+                .try_get::<time::OffsetDateTime, _>("created_at")?
+                .to_string(),
         })
     })
     .transpose()
@@ -328,7 +338,9 @@ pub async fn list_active_helps(
                 resolved_at: row
                     .try_get::<Option<time::OffsetDateTime>, _>("resolved_at")?
                     .map(|value| value.to_string()),
-                created_at: row.try_get::<time::OffsetDateTime, _>("created_at")?.to_string(),
+                created_at: row
+                    .try_get::<time::OffsetDateTime, _>("created_at")?
+                    .to_string(),
             })
         })
         .collect()

@@ -10,6 +10,7 @@ pub fn PrivateVerify(
     #[prop(optional)] on_verified: Option<Callback<()>>,
 ) -> impl IntoView {
     let locale = use_i18n().locale;
+    let stay_in_place = on_verified.is_some();
     let password = RwSignal::new(String::new());
     let verified_version = RwSignal::new(None::<i32>);
     let error = RwSignal::new(None::<String>);
@@ -62,16 +63,18 @@ pub fn PrivateVerify(
                     on:input=move |ev| password.set(event_target_value(&ev))
                 />
             </label>
-            <button class="button button-primary" type="submit">{move || t(locale.get(), "进入聊天", "Enter chat")}</button>
+            <button class="button button-primary" type="submit">{move || t(locale.get(), "验证并进入", "Verify and enter")}</button>
             {move || {
                 verified_version
                     .get()
                     .map(|_| view! {
                         <div class="form-success">
                             <p>{move || t(locale.get(), "访问已解锁。", "Access unlocked.")}</p>
-                            <a class="button button-primary" href=chat_href.clone()>
-                                {move || t(locale.get(), "进入私密聊天", "Open private chat")}
-                            </a>
+                            {(!stay_in_place).then(|| view! {
+                                <a class="button button-primary" href=chat_href.clone()>
+                                    {move || t(locale.get(), "进入私密空间", "Open private Space")}
+                                </a>
+                            })}
                         </div>
                     })
             }}

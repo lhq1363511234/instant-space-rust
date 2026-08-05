@@ -1,6 +1,10 @@
 {
   "private": true,
   "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:start": "systemctl start instant-space-dev.service",
+    "dev:stop": "systemctl stop instant-space-dev.service",
+    "dev:logs": "journalctl -fu instant-space-dev.service",
     "build:wasm": "node scripts/build-wasm.mjs",
     "test:wasm": "node tests/build/wasm-build.mjs",
     "test:map-runtime": "node tests/build/map-runtime-contract.mjs",

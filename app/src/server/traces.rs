@@ -263,6 +263,18 @@ pub async fn leave_trace(
         .await
         .map_err(|err| ServerFnError::new(err.to_string()))?;
 
+        // The family travels with you: while the owner is active, every
+        // living companion records "it was here too".
+        let _ = instant_db::lives::record_trails_for_owner_at_space(
+            &pool,
+            user.id,
+            id,
+            proof.as_db(),
+            lat,
+            lng,
+        )
+        .await;
+
         Ok(trace)
     }
 

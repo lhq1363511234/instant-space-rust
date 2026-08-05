@@ -1,4 +1,7 @@
-use instant_domain::guides::{GuideDetail, GuideSection, GuideStatus, GuideSummary, GuideVersion, GuideStatusCounts, PaginatedGuides};
+use instant_domain::guides::{
+    GuideDetail, GuideSection, GuideStatus, GuideStatusCounts, GuideSummary, GuideVersion,
+    PaginatedGuides,
+};
 use serde_json::Value;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
@@ -123,7 +126,6 @@ pub async fn list_published_guides(
 
     rows.into_iter().map(row_to_guide_summary).collect()
 }
-
 
 /// Paginated variant of [`list_published_guides`]. The guide directory holds a
 /// four-digit number of published guides, so the browser must never receive the
@@ -949,7 +951,9 @@ fn row_to_guide_version(row: sqlx::postgres::PgRow) -> Result<GuideVersion, sqlx
         cover_image_url: row.try_get("cover_image_url")?,
         edited_by: row.try_get("edited_by")?,
         edited_by_name: row.try_get("edited_by_name")?,
-        created_at: row.try_get::<time::OffsetDateTime, _>("created_at")?.to_string(),
+        created_at: row
+            .try_get::<time::OffsetDateTime, _>("created_at")?
+            .to_string(),
     })
 }
 
@@ -1016,7 +1020,6 @@ pub async fn list_all_guides_admin_page(
         total,
     })
 }
-
 
 /// Aggregate status counts for the admin console stat cards.
 pub async fn guide_status_counts(pool: &PgPool) -> Result<GuideStatusCounts, sqlx::Error> {

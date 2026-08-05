@@ -3,8 +3,12 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::{
-    components::space_form::{provide_create_space_modal, use_create_space_modal},
+    components::{
+        space_experience_modal::OpenSpaceLink,
+        space_form::{provide_create_space_modal, use_create_space_modal},
+    },
     i18n::{localize_optional, t, use_i18n},
+    pages::space::SpacePanel,
     server::spaces::{
         list_space_filter_cities, list_space_filter_countries, list_space_filter_districts,
         list_space_filter_provinces, list_space_filter_spots, list_space_page, SpaceMarker,
@@ -422,11 +426,9 @@ fn pagination_window(current: i32, total: i32) -> Vec<i32> {
 #[component]
 fn SpaceRow(space: SpaceMarker) -> impl IntoView {
     let locale = use_i18n().locale;
-    let href = format!("/inspace/spaces/{}", space.id);
+    let space_id = space.id.clone();
     let title_zh = space.name_zh.clone();
     let title_en = space.name_en.clone();
-    let aria_title_zh = title_zh.clone();
-    let aria_title_en = title_en.clone();
     let location = [
         space.country.clone(),
         space.province.clone(),
@@ -465,7 +467,7 @@ fn SpaceRow(space: SpaceMarker) -> impl IntoView {
 
     view! {
         <article class="space-directory-row">
-            <a class="space-directory-link" href=href aria-label=move || format!("{}：{}", t(locale.get(), "进入空间", "Open Space"), localize_optional(locale.get(), &aria_title_zh, aria_title_en.as_deref()))>
+            <OpenSpaceLink space_id=space_id initial_panel=SpacePanel::Wall class="space-directory-link">
                 <div class="space-directory-main">
                     <div class="space-directory-title-line">
                         <h2>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</h2>
@@ -478,7 +480,7 @@ fn SpaceRow(space: SpaceMarker) -> impl IntoView {
                     {(online_count > 0).then(|| view! { <span>{move || if locale.get() == crate::i18n::Locale::Zh { format!("{online_count} 人在线") } else { format!("{online_count} online") }}</span> })}
                 </div>
                 <span class="space-directory-enter" aria-hidden="true">{move || t(locale.get(), "进入", "Open")}</span>
-            </a>
+            </OpenSpaceLink>
         </article>
     }
 }

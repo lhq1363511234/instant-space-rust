@@ -1,0 +1,701 @@
+/* 数字生命 · 云上家 / 在侧 / 追远
+   Song-style: 宣纸底、墨字、天青点缀、桂黄香火、松绿在侧、玄黑碑额。
+   留白优先，少框少嵌套；正文对比度 ≥ 4.5:1；44px 触控；reduced-motion 兼容。 */
+
+.lives-page,
+.cloud-home-page,
+.memorial-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 6rem;
+  color: #2b2a26;
+  background: #faf7f0;
+}
+.lives-kicker {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #4a7a96;
+}
+
+.lives-hero h1,
+.cloud-home-door h1 {
+  margin: 0 0 0.8rem;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-weight: 600;
+  font-size: clamp(1.7rem, 4.5vw, 2.6rem);
+  letter-spacing: 0.04em;
+  color: #1c1b18;
+  line-height: 1.4;
+}
+
+.lives-hero-sub,
+.cloud-home-motto {
+  margin: 0 0 1.6rem;
+  max-width: 46ch;
+  font-size: 1rem;
+  line-height: 1.9;
+  color: #3d3a35;
+}
+
+.lives-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.6rem 0 2.2rem;
+  border-bottom: 1px solid #ddd6c8;
+}
+
+.lives-tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0.7rem 1.1rem 0.75rem;
+  font: inherit;
+  font-size: 1.02rem;
+  color: #8a9299;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  min-height: 44px;
+}
+
+.lives-tab.is-active {
+  color: #1c1b18;
+  border-bottom-color: #6e9cb8;
+}
+
+.lives-section {
+  margin: 0 0 2.6rem;
+}
+
+.lives-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.lives-section h2,
+.lives-distill h2,
+.cloud-home-settings h2 {
+  margin: 0 0 1rem;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  color: #2b2a26;
+}
+
+/* 云上家卡片 */
+.lives-home-card {
+  display: block;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid #e2dccd;
+  background: #f5f1e8;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.lives-home-card:hover {
+  border-color: #c9c0aa;
+}
+
+.lives-home-name {
+  display: block;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  color: #1c1b18;
+}
+
+.lives-home-motto {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #3d3a35;
+}
+
+.lives-home-hint {
+  display: block;
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  color: #4a7a96;
+}
+
+/* 收留表单 */
+.lives-adopt {
+  display: grid;
+  grid-template-columns: 1fr 1fr 150px auto;
+  gap: 0.7rem;
+  align-items: center;
+  margin-bottom: 1.4rem;
+}
+
+.lives-adopt input {
+  min-height: 44px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #cfc6b2;
+  border-radius: 4px;
+  background: #fffdf8;
+  font: inherit;
+  font-size: 16px;
+  color: #2b2a26;
+}
+
+.lives-button-primary {
+  appearance: none;
+  border: 0;
+  min-height: 44px;
+  padding: 0.6rem 1.3rem;
+  border-radius: 4px;
+  background: #1c1b18;
+  color: #f5f1e8;
+  font: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.lives-button-primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.lives-button-quiet {
+  appearance: none;
+  min-height: 44px;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid #cfc6b2;
+  border-radius: 4px;
+  background: transparent;
+  color: #3d3a35;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* 在侧家人 */
+.lives-companion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+
+.lives-companion-card {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  padding: 1rem 1.1rem;
+  border: 1px solid #e2dccd;
+  background: #f5f1e8;
+  border-radius: 4px;
+}
+
+.lives-companion-avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8edf1;
+  color: #4a7a96;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1.15rem;
+}
+
+.lives-companion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lives-companion-name {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1.05rem;
+  color: #1c1b18;
+}
+
+.lives-companion-meta,
+.lives-companion-trail {
+  font-size: 0.82rem;
+  color: #8a9299;
+}
+
+.lives-companion-state {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+
+.lives-companion-state.following {
+  color: #2f5d43;
+  background: #e4ece4;
+}
+
+.lives-companion-state.at_home {
+  color: #3d3a35;
+  background: #ece8dd;
+}
+
+.lives-companion-state.memorial {
+  color: #7a4b22;
+  background: #f1e6d8;
+}
+
+.lives-distill-button {
+  appearance: none;
+  margin-left: auto;
+  align-self: center;
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #b8a98c;
+  border-radius: 4px;
+  background: transparent;
+  color: #7a4b22;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* 追远蒸馏面板 */
+.lives-distill {
+  margin: 2rem 0;
+  padding: 1.6rem;
+  border: 1px solid #e2dccd;
+  background: #f5f1e8;
+  border-radius: 4px;
+}
+
+.lives-distill-note {
+  margin: 0 0 1.2rem;
+  font-size: 0.9rem;
+  color: #8a9299;
+}
+
+.lives-distill-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.field-label span {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: #3d3a35;
+}
+
+.field-label input,
+.field-label textarea,
+.memorial-prayer-form textarea,
+.cloud-home-knock input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #cfc6b2;
+  border-radius: 4px;
+  background: #fffdf8;
+  font: inherit;
+  font-size: 16px;
+  color: #2b2a26;
+  resize: vertical;
+}
+
+.lives-distill-actions,
+.memorial-prayer-form {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lives-error {
+  margin: 0.8rem 0 0;
+  color: #9c3d2e;
+  font-size: 0.88rem;
+}
+
+.lives-muted {
+  color: #8a9299;
+  font-size: 0.92rem;
+}
+
+.lives-empty {
+  padding: 1.6rem 0;
+  color: #8a9299;
+  font-size: 0.95rem;
+  line-height: 1.9;
+  max-width: 44ch;
+}
+
+/* 追远网格 */
+.lives-memorial-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.9rem;
+}
+
+.lives-memorial-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.3rem 1.3rem 1.1rem;
+  border: 1px solid #e2dccd;
+  background: #f5f1e8;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+  min-height: 96px;
+}
+
+.lives-memorial-card:hover {
+  border-color: #b8a98c;
+}
+
+.lives-memorial-name {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  color: #1c1b18;
+}
+
+.lives-memorial-epitaph {
+  font-size: 0.9rem;
+  color: #7a4b22;
+}
+
+.lives-memorial-meta {
+  font-size: 0.8rem;
+  color: #8a9299;
+}
+
+.lives-pager {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.lives-pager button {
+  appearance: none;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #cfc6b2;
+  border-radius: 4px;
+  background: transparent;
+  color: #3d3a35;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lives-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 云上家门扉 */
+.cloud-home-door {
+  padding: 2rem 0 1.4rem;
+  border-bottom: 1px solid #ddd6c8;
+  margin-bottom: 2rem;
+}
+
+.cloud-home-door-note {
+  font-size: 0.9rem;
+  color: #8a9299;
+}
+
+.cloud-home-knock {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 1.2rem;
+  max-width: 420px;
+}
+
+.cloud-home-knock input {
+  flex: 1;
+}
+
+.cloud-home-open {
+  margin-top: 1.2rem;
+  color: #2f5d43;
+  font-size: 0.92rem;
+}
+
+.cloud-home-settings {
+  margin-top: 2.6rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid #ddd6c8;
+}
+
+/* 纪念页：卷轴 */
+.memorial-sheet {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.6rem clamp(1.2rem, 6vw, 3.4rem);
+  border: 1px solid #e2dccd;
+  background: #f5f1e8;
+  border-radius: 6px;
+}
+
+.memorial-epitaph {
+  margin: 0.4rem 0 0.6rem;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  letter-spacing: 0.12em;
+  color: #1c1b18;
+}
+
+.memorial-name {
+  margin: 0 0 0.6rem;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  color: #7a4b22;
+}
+
+.memorial-meta {
+  margin: 0 0 1.6rem;
+  font-size: 0.85rem;
+  color: #8a9299;
+}
+
+.memorial-chapter h3,
+.memorial-inscription h3,
+.memorial-map h3,
+.memorial-prayers h3,
+.memorial-ledger h3 {
+  margin: 0 0 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  color: #4a7a96;
+}
+
+.memorial-prose {
+  margin: 0 0 1.1rem;
+  font-size: 1.02rem;
+  line-height: 2.05;
+  color: #2b2a26;
+}
+
+.memorial-inscription {
+  margin: 1.8rem 0;
+  padding: 1.2rem 1rem;
+  border-top: 1px solid #ddd6c8;
+  border-bottom: 1px solid #ddd6c8;
+}
+
+.memorial-inscription-text {
+  margin: 0;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1.15rem;
+  line-height: 2.1;
+  letter-spacing: 0.1em;
+  color: #7a4b22;
+}
+
+.memorial-map-list,
+.memorial-ledger-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.memorial-map-list li {
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed #ddd6c8;
+  font-size: 0.95rem;
+}
+
+.memorial-map-list b {
+  min-width: 5.5em;
+  font-weight: 600;
+  color: #2b2a26;
+}
+
+.memorial-map-list i {
+  font-style: normal;
+  color: #4a7a96;
+}
+
+.memorial-map-list span {
+  color: #3d3a35;
+}
+
+.memorial-prayers {
+  margin-top: 2rem;
+}
+
+.memorial-prayer-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.memorial-prayer-kinds button {
+  appearance: none;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #cfc6b2;
+  border-radius: 999px;
+  background: transparent;
+  color: #3d3a35;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.memorial-prayer-kinds button.is-active {
+  border-color: #7a4b22;
+  background: #f1e6d8;
+  color: #7a4b22;
+}
+
+.memorial-prayer-form textarea {
+  flex: 1;
+  min-width: 220px;
+}
+
+.memorial-ledger {
+  margin-top: 2.4rem;
+}
+
+.memorial-ledger-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  align-items: baseline;
+  padding: 0.55rem 0;
+  border-bottom: 1px dashed #ddd6c8;
+  font-size: 0.92rem;
+}
+
+.memorial-ledger-kind {
+  color: #7a4b22;
+  font-size: 0.85rem;
+}
+
+.memorial-ledger-msg {
+  color: #3d3a35;
+}
+
+.memorial-ledger small {
+  margin-left: auto;
+  color: #b3ab99;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .lives-adopt {
+    grid-template-columns: 1fr;
+  }
+  .lives-distill-grid {
+    grid-template-columns: 1fr;
+  }
+  .lives-page,
+  .cloud-home-page,
+  .memorial-page {
+    padding: 1.6rem 1rem 5.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lives-home-card,
+  .lives-memorial-card,
+  .lives-companion-card {
+    transition: none;
+  }
+}
+
+.is-hidden { display: none !important; }
+
+/* ============================================================
+   云上家 · 宋式匾额
+   ============================================================ */
+.cloud-home-plaque {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.16em;
+  margin: 0.4rem 0 0.9rem;
+  padding: 0.42em 0.85em 0.48em;
+  background: #1c1b18;
+  color: #f5f1e8;
+  border-radius: 4px;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-weight: 600;
+  font-size: clamp(1.6rem, 4.5vw, 2.4rem);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 5px 12px rgba(28, 27, 24, 0.2);
+}
+
+.cloud-home-plaque-char {
+  display: inline-block;
+}
+
+.cloud-home-seal {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 0.55em;
+  width: 1.05em;
+  height: 1.05em;
+  background: #b08968;
+  color: #faf7f0;
+  font-size: 0.4em;
+  font-weight: 600;
+  letter-spacing: 0;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+/* 云上家与 Space 身份保持一体；可行走场景由 world-scene.css 接管。 */
+.cloud-home-space-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  width: fit-content;
+  margin: 0 0 1rem;
+  color: #3d3a35;
+  font-size: 0.8rem;
+}
+.cloud-home-space-identity span {
+  padding: 0.26rem 0.52rem;
+  border: 1px solid #9aab9d;
+  border-radius: 2px;
+  color: #526b58;
+  letter-spacing: 0.08em;
+}
+.cloud-home-space-identity code {
+  color: #3d3a35;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  overflow-wrap: anywhere;
+}

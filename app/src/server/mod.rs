@@ -3,9 +3,11 @@ pub mod auth;
 pub mod chat;
 pub mod geo;
 pub mod guides;
+pub mod lives;
 pub mod site;
 pub mod spaces;
 pub mod traces;
+pub mod world;
 
 #[cfg(feature = "ssr")]
 use leptos::prelude::ServerFnError;

@@ -33,7 +33,7 @@ pub fn AboutPage() -> impl IntoView {
             </header>
 
             <figure class="about-place-window">
-                <img src="/vendor/img/place-lane-1080.webp" width="1080" height="720" loading="eager" decoding="async" alt=move || t(locale.get(), "真实街巷与远处城市天际线", "A real lane looking toward the city skyline") />
+                <img src="/inspace/vendor/img/place-lane-1080.webp" width="1080" height="720" loading="eager" decoding="async" alt=move || t(locale.get(), "真实街巷与远处城市天际线", "A real lane looking toward the city skyline") />
                 <figcaption>{move || t(locale.get(), "地图负责到达。真正的地点，从到场以后开始。", "The map gets you there. The place begins once you arrive.")}</figcaption>
             </figure>
 

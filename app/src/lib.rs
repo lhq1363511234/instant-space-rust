@@ -2,14 +2,14 @@
 
 #[cfg(feature = "ssr")]
 pub mod agent_api;
-#[cfg(feature = "ssr")]
-pub mod media;
 pub mod app;
 pub mod app_state;
 pub mod components;
 pub mod error;
 pub mod feedback;
 pub mod i18n;
+#[cfg(feature = "ssr")]
+pub mod media;
 pub mod pages;
 #[cfg(feature = "ssr")]
 pub mod realtime;

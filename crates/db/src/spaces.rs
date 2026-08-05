@@ -110,6 +110,7 @@ pub async fn list_home_spaces(
                lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE status IN ('active', 'expired')
+          AND category IS DISTINCT FROM 'cloud_home'
           AND ($1::text IS NULL OR name_zh ILIKE '%' || $1 || '%' OR name_en ILIKE '%' || $1 || '%')
           AND ($2::text IS NULL OR space_type::text = $2)
           AND (
@@ -167,6 +168,7 @@ pub async fn list_home_spaces_page(
 
     const FILTER: &str = r#"
         WHERE status IN ('active', 'expired')
+          AND category IS DISTINCT FROM 'cloud_home'
           AND (
             $1::text[] IS NULL
             OR NOT EXISTS (
@@ -234,7 +236,7 @@ pub async fn list_home_spaces_page(
 pub async fn discoverable_space_countries(pool: &PgPool) -> Result<Vec<String>, sqlx::Error> {
     distinct_space_values(
         pool,
-        "SELECT DISTINCT country AS value FROM spaces WHERE status IN ('active','expired') AND country IS NOT NULL AND country <> '' ORDER BY country",
+        "SELECT DISTINCT country AS value FROM spaces WHERE status IN ('active','expired') AND category IS DISTINCT FROM 'cloud_home' AND country IS NOT NULL AND country <> '' ORDER BY country",
         None,
         None,
     )
@@ -247,7 +249,7 @@ pub async fn discoverable_space_provinces(
 ) -> Result<Vec<String>, sqlx::Error> {
     distinct_space_values(
         pool,
-        "SELECT DISTINCT province AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND province IS NOT NULL AND province <> '' ORDER BY province",
+        "SELECT DISTINCT province AS value FROM spaces WHERE status IN ('active','expired') AND category IS DISTINCT FROM 'cloud_home' AND ($1::text IS NULL OR country = $1) AND province IS NOT NULL AND province <> '' ORDER BY province",
         country,
         None,
     )
@@ -260,7 +262,7 @@ pub async fn discoverable_space_cities(
     province: Option<String>,
 ) -> Result<Vec<String>, sqlx::Error> {
     let rows = sqlx::query(
-        "SELECT DISTINCT city AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND city IS NOT NULL AND city <> '' ORDER BY city",
+        "SELECT DISTINCT city AS value FROM spaces WHERE status IN ('active','expired') AND category IS DISTINCT FROM 'cloud_home' AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND city IS NOT NULL AND city <> '' ORDER BY city",
     )
     .bind(country)
     .bind(province)
@@ -276,7 +278,7 @@ pub async fn discoverable_space_districts(
     city: Option<String>,
 ) -> Result<Vec<String>, sqlx::Error> {
     let rows = sqlx::query(
-        "SELECT DISTINCT district AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND ($3::text IS NULL OR city = $3) AND district IS NOT NULL AND district <> '' ORDER BY district",
+        "SELECT DISTINCT district AS value FROM spaces WHERE status IN ('active','expired') AND category IS DISTINCT FROM 'cloud_home' AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND ($3::text IS NULL OR city = $3) AND district IS NOT NULL AND district <> '' ORDER BY district",
     )
     .bind(country)
     .bind(province)
@@ -294,7 +296,7 @@ pub async fn discoverable_space_spots(
     district: Option<String>,
 ) -> Result<Vec<String>, sqlx::Error> {
     let rows = sqlx::query(
-        "SELECT DISTINCT spot_name AS value FROM spaces WHERE status IN ('active','expired') AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND ($3::text IS NULL OR city = $3) AND ($4::text IS NULL OR district = $4) AND spot_name IS NOT NULL AND spot_name <> '' ORDER BY spot_name",
+        "SELECT DISTINCT spot_name AS value FROM spaces WHERE status IN ('active','expired') AND category IS DISTINCT FROM 'cloud_home' AND ($1::text IS NULL OR country = $1) AND ($2::text IS NULL OR province = $2) AND ($3::text IS NULL OR city = $3) AND ($4::text IS NULL OR district = $4) AND spot_name IS NOT NULL AND spot_name <> '' ORDER BY spot_name",
     )
     .bind(country)
     .bind(province)
@@ -330,10 +332,16 @@ pub async fn list_host_spaces(
         r#"
         SELECT id, name_zh, name_en, space_type::text AS space_type, country, province, city, district, spot_name, address_line,
                lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
-        FROM spaces
-        WHERE host_user_id = $1
-          AND status <> 'archived'
-        ORDER BY created_at DESC
+        FROM spaces s
+        WHERE s.status <> 'archived'
+          AND (
+            s.host_user_id = $1
+            OR EXISTS (
+              SELECT 1 FROM space_host_tenures ht
+              WHERE ht.space_id = s.id AND ht.user_id = $1 AND ht.status = 'active'
+            )
+          )
+        ORDER BY s.created_at DESC
         "#,
     )
     .bind(host_user_id)
@@ -591,6 +599,8 @@ pub async fn create_host_space(
     pool: &PgPool,
     input: CreateSpaceInput,
 ) -> Result<CreatedSpace, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    let host_user_id = input.host_user_id;
     let row = sqlx::query(
         r#"
         INSERT INTO spaces (
@@ -625,12 +635,38 @@ pub async fn create_host_space(
     .bind(input.is_public)
     .bind(input.duration_hours)
     .bind(input.password_hash)
-    .bind(input.host_user_id)
-    .fetch_one(pool)
+    .bind(host_user_id)
+    .fetch_one(&mut *tx)
     .await?;
 
+    let space_id: uuid::Uuid = row.try_get("id")?;
+    sqlx::query(
+        r#"
+        INSERT INTO space_host_tenures (space_id, user_id, role, status, started_at)
+        VALUES ($1, $2, 'primary', 'active', now())
+        ON CONFLICT DO NOTHING
+        "#,
+    )
+    .bind(space_id)
+    .bind(host_user_id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO space_members (space_id, user_id, role)
+        VALUES ($1, $2, 'host')
+        ON CONFLICT (space_id, user_id) DO UPDATE SET role = 'host'
+        "#,
+    )
+    .bind(space_id)
+    .bind(host_user_id)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
     Ok(CreatedSpace {
-        id: row.try_get("id")?,
+        id: space_id,
         name_zh: row.try_get("name_zh")?,
         host_user_id: row.try_get("host_user_id")?,
     })
@@ -756,6 +792,7 @@ pub async fn list_featured_home_spaces(
                lat, lng, is_public, status::text AS status, expires_at, online_count, home_weight
         FROM spaces
         WHERE status IN ('active', 'expired')
+          AND category IS DISTINCT FROM 'cloud_home'
         ORDER BY home_weight DESC, (CASE WHEN resident THEN 10 ELSE 0 END) DESC,
                  online_count DESC, created_at DESC, id DESC
         LIMIT $1
@@ -1007,6 +1044,7 @@ pub async fn list_host_claims(
 pub async fn approve_host_claim(
     pool: &PgPool,
     claim_id: uuid::Uuid,
+    actor_id: uuid::Uuid,
 ) -> Result<Option<(uuid::Uuid, uuid::Uuid)>, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -1024,11 +1062,45 @@ pub async fn approve_host_claim(
     let space_id: uuid::Uuid = row.try_get("space_id")?;
     let user_id: uuid::Uuid = row.try_get("user_id")?;
 
-    sqlx::query("UPDATE spaces SET host_user_id = $2, updated_at = now() WHERE id = $1")
+    sqlx::query(
+        r#"
+        UPDATE space_host_tenures
+        SET status = 'ended', ended_at = now()
+        WHERE space_id = $1 AND role = 'primary' AND status = 'active'
+        "#,
+    )
+    .bind(space_id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query("UPDATE spaces SET host_user_id = $2, host_governance_state = 'hosted', updated_at = now() WHERE id = $1")
         .bind(space_id)
         .bind(user_id)
         .execute(&mut *tx)
         .await?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO space_host_tenures (space_id, user_id, role, status, started_at)
+        VALUES ($1, $2, 'primary', 'active', now())
+        "#,
+    )
+    .bind(space_id)
+    .bind(user_id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO space_members (space_id, user_id, role)
+        VALUES ($1, $2, 'host')
+        ON CONFLICT (space_id, user_id) DO UPDATE SET role = 'host'
+        "#,
+    )
+    .bind(space_id)
+    .bind(user_id)
+    .execute(&mut *tx)
+    .await?;
 
     sqlx::query(
         "UPDATE space_host_claims SET status = 'approved', decided_at = now() WHERE id = $1",
@@ -1042,6 +1114,15 @@ pub async fn approve_host_claim(
     )
     .bind(space_id)
     .bind(claim_id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        "INSERT INTO space_governance_events (space_id, actor_id, action, to_user_id, note) VALUES ($1, $2, 'resume_hosted', $3, 'approved host claim')",
+    )
+    .bind(space_id)
+    .bind(actor_id)
+    .bind(user_id)
     .execute(&mut *tx)
     .await?;
 
@@ -1211,7 +1292,6 @@ mod tests {
 
 /// A person admitted to a Space with an explicit role. Roles are a coarse
 /// trust ladder: `member` (participant) and `host` (can manage members).
-
 
 /// Everyone admitted to a Space, newest first. Joining through a session
 /// records `member`; the Space manager can raise or remove roles.

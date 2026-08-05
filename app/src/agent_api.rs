@@ -24,9 +24,15 @@ const KEY_PREFIX_LEN: usize = 16;
 pub fn router() -> Router<leptos::prelude::LeptosOptions> {
     Router::<leptos::prelude::LeptosOptions>::new()
         .route("/api/spaces", get(list_spaces).post(create_space))
-        .route("/api/spaces/:id", get(get_space).patch(update_space).delete(delete_space))
+        .route(
+            "/api/spaces/:id",
+            get(get_space).patch(update_space).delete(delete_space),
+        )
         .route("/api/guides", get(list_guides).post(create_guide))
-        .route("/api/guides/:id", get(get_guide).patch(update_guide).delete(delete_guide))
+        .route(
+            "/api/guides/:id",
+            get(get_guide).patch(update_guide).delete(delete_guide),
+        )
 }
 
 #[derive(Debug, Serialize)]
@@ -819,7 +825,6 @@ async fn update_guide(
     .await;
     Ok(Json(updated))
 }
-
 
 async fn get_space(
     headers: HeaderMap,

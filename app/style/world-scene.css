@@ -1,0 +1,483 @@
+/* Phase 9.4 — Phaser world runtime
+   The Space is a place to inhabit, not a detail page wearing a game skin. */
+
+:root {
+  --world-paper: #f8f5ec;
+  --world-paper-deep: #eee8da;
+  --world-ink: #211f1a;
+  --world-ink-soft: #555047;
+  --world-celadon: #667568;
+  --world-celadon-deep: #43584c;
+  --world-water: #4d6d77;
+  --world-seal: #a43b2d;
+  --world-line: color-mix(in srgb, #746d60 31%, transparent);
+  --world-focus: #315f75;
+  --world-sheet-shadow: 0 -24px 80px rgb(28 29 25 / 22%);
+}
+
+.world-scene-page {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: clamp(16px, 2.5vw, 34px) clamp(14px, 3vw, 42px) clamp(72px, 8vw, 110px);
+  background:
+    linear-gradient(180deg, rgb(252 251 247 / 94%), rgb(246 243 234 / 98%)),
+    var(--world-paper);
+  color: var(--world-ink);
+}
+
+.world-runtime {
+  position: relative;
+  width: min(1500px, 100%);
+  margin: 0 auto;
+}
+
+.world-runtime-bar {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 66px;
+  margin-bottom: 16px;
+}
+
+.world-back,
+.world-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-height: 44px;
+  color: var(--world-ink-soft);
+  text-decoration: none;
+}
+
+.world-back:hover,
+.world-link:hover { color: var(--world-seal); }
+
+.world-runtime-title { min-width: 0; text-align: center; }
+.world-runtime-title > span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--world-ink-soft);
+  font-size: 0.73rem;
+  letter-spacing: 0.16em;
+}
+.world-runtime-title h1 {
+  max-width: 24ch;
+  margin: 0;
+  overflow: hidden;
+  color: var(--world-ink);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: clamp(1.1rem, 2vw, 1.65rem);
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-presence {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  color: var(--world-celadon-deep);
+  font-size: 0.78rem;
+}
+.world-presence::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--world-celadon);
+  box-shadow: 0 0 0 5px rgb(102 117 104 / 12%);
+}
+[data-world-state="Moving"] .world-presence::before,
+[data-world-state="Loading"] .world-presence::before { animation: world-presence-breathe 900ms ease-in-out infinite alternate; }
+[data-world-state="Error"] .world-presence::before,
+[data-world-state="Offline"] .world-presence::before { background: var(--world-seal); }
+
+.world-login-note {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: var(--world-paper-deep);
+  color: var(--world-ink-soft);
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+.world-login-note a { margin-left: 12px; color: var(--world-seal); }
+
+.world-canvas-frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  min-height: clamp(530px, 70svh, 820px);
+  border-radius: 3px;
+  background: #dce4df;
+  box-shadow: 0 20px 70px rgb(44 48 41 / 12%);
+  touch-action: none;
+}
+
+.world-canvas-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  outline: none;
+}
+.world-canvas-host:focus-visible { box-shadow: inset 0 0 0 3px var(--world-focus); }
+.world-canvas-host canvas { display: block; width: 100% !important; height: 100% !important; }
+
+.world-engine-boot {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background:
+    radial-gradient(circle at 50% 34%, rgb(255 255 255 / 65%), transparent 36%),
+    #dce4df;
+  color: var(--world-ink-soft);
+}
+.world-engine-boot span {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgb(33 31 26 / 25%);
+  border-top-color: var(--world-seal);
+  border-radius: 50%;
+  animation: world-open 800ms linear infinite;
+}
+.world-engine-boot p { margin: 0; font-family: "Noto Serif SC", serif; letter-spacing: 0.08em; }
+.world-engine-ready .world-engine-boot { display: none; }
+
+.world-control-hint {
+  position: absolute;
+  z-index: 30;
+  left: 18px;
+  top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 12px;
+  background: rgb(249 247 240 / 88%);
+  color: #38352e;
+  font-size: 0.75rem;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.world-control-hint i { width: 1px; height: 12px; background: var(--world-line); }
+
+.world-context-action {
+  position: absolute;
+  z-index: 45;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  min-width: min(300px, calc(100% - 36px));
+  min-height: 52px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--world-ink);
+  box-shadow: 0 12px 36px rgb(22 24 20 / 24%);
+  color: #fcfbf7;
+  font: 500 0.92rem/1.3 "Noto Sans SC", system-ui, sans-serif;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease;
+}
+.world-context-action:hover { background: var(--world-celadon-deep); transform: translateX(-50%) translateY(-2px); }
+.world-context-action:active { transform: translateX(-50%) translateY(1px); }
+.world-context-action[hidden] { display: none; }
+
+.world-text-fallback {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(30px, 7vw, 100px);
+  margin-top: 42px;
+  padding: 34px 0;
+  border-block: 1px solid var(--world-line);
+}
+.world-engine-ready .world-text-fallback { display: none; }
+.world-text-fallback h2 {
+  margin: 8px 0 0;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: clamp(1.45rem, 3vw, 2.4rem);
+  font-weight: 500;
+}
+.world-kicker {
+  margin: 0;
+  color: var(--world-seal);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.world-fallback-list { display: grid; }
+.world-fallback-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 52px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--world-line);
+  background: transparent;
+  color: var(--world-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.world-fallback-list button:hover { color: var(--world-seal); }
+
+.world-sheet[hidden] { display: none; }
+.world-sheet {
+  position: fixed;
+  z-index: 1800;
+  inset: 0;
+  display: grid;
+  align-items: end;
+}
+.world-sheet-curtain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: rgb(25 27 23 / 42%);
+  backdrop-filter: blur(3px);
+}
+.world-sheet-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(720px, calc(100% - 28px));
+  max-height: min(72svh, 720px);
+  margin: 0 auto 18px;
+  overflow: auto;
+  padding: 44px clamp(24px, 5vw, 64px) calc(30px + env(safe-area-inset-bottom));
+  border-radius: 4px 4px 2px 2px;
+  background:
+    linear-gradient(90deg, transparent, rgb(94 85 69 / 6%) 48%, transparent 52%),
+    var(--world-paper);
+  box-shadow: var(--world-sheet-shadow);
+  animation: world-sheet-enter 220ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.world-sheet-handle {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 46px;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: rgb(33 31 26 / 22%);
+}
+.world-sheet-close {
+  position: absolute;
+  top: 15px;
+  right: 18px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--world-ink-soft);
+  font: 300 1.8rem/1 sans-serif;
+  cursor: pointer;
+}
+.world-object-card[hidden] { display: none; }
+.world-object-card h2 {
+  max-width: 18ch;
+  margin: 12px 0 20px;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: 0.02em;
+}
+.world-object-card > p:not(.world-kicker) {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--world-ink-soft);
+  font-size: clamp(1rem, 2vw, 1.1rem);
+  line-height: 1.9;
+}
+.world-primary-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: 28px;
+  padding: 0 20px;
+  border-radius: 2px;
+  background: var(--world-ink);
+  color: #fcfbf7;
+  text-decoration: none;
+}
+.world-object-card small {
+  display: block;
+  margin-top: 36px;
+  color: #756f64;
+  font-size: 0.68rem;
+  word-break: break-all;
+}
+
+.world-runtime-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  padding-top: 14px;
+  color: var(--world-ink-soft);
+  font-size: 0.75rem;
+}
+
+.world-loading,
+.world-error {
+  display: grid;
+  place-items: start;
+  align-content: center;
+  width: min(720px, 100%);
+  min-height: 62svh;
+  margin: 0 auto;
+}
+.world-loading-mark {
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--world-line);
+  border-top-color: var(--world-seal);
+  border-radius: 50%;
+  animation: world-open 800ms linear infinite;
+}
+.world-error h1 {
+  margin: 12px 0 18px;
+  font-family: "Noto Serif SC", serif;
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 500;
+}
+.world-error p { color: var(--world-ink-soft); }
+
+.space-world-entry {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 96px;
+  margin-bottom: 34px;
+  padding: 18px 0;
+  border-block: 1px solid var(--world-line);
+  color: var(--world-ink);
+  text-decoration: none;
+}
+.space-world-entry-mark {
+  width: 44px;
+  height: 54px;
+  border: 6px solid var(--world-celadon);
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+  transition: transform 180ms ease;
+}
+.space-world-entry:hover .space-world-entry-mark { transform: translateY(-3px); }
+.space-world-entry-copy { display: grid; gap: 5px; }
+.space-world-entry-copy strong { font-family: "Noto Serif SC", serif; font-size: clamp(1.15rem, 2vw, 1.5rem); }
+.space-world-entry-copy small { color: var(--world-ink-soft); line-height: 1.65; }
+.space-world-entry-go { color: var(--world-seal); font-size: 1.45rem; }
+
+.cloud-home-world-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 48px;
+  margin-top: 18px;
+  padding: 0 18px;
+  border-radius: 2px;
+  background: var(--world-ink);
+  color: #fcfbf7;
+  text-decoration: none;
+}
+
+.world-back:focus-visible,
+.world-link:focus-visible,
+.world-context-action:focus-visible,
+.world-sheet-close:focus-visible,
+.world-primary-action:focus-visible,
+.world-fallback-list button:focus-visible,
+.cloud-home-world-entry:focus-visible,
+.space-world-entry:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--world-focus) 72%, white);
+  outline-offset: 3px;
+}
+
+@keyframes world-open { to { transform: rotate(360deg); } }
+@keyframes world-presence-breathe { to { transform: scale(1.28); opacity: 0.55; } }
+@keyframes world-sheet-enter {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .world-scene-page { padding-inline: 12px; }
+  .world-runtime-bar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; }
+  .world-back span:last-child { display: none; }
+  .world-canvas-frame { min-height: min(72svh, 690px); }
+  .world-text-fallback { grid-template-columns: 1fr; gap: 24px; }
+}
+
+@media (max-width: 620px) {
+  body:has(.world-scene-page) .shell-mobile-nav { display: none !important; }
+  body:has(.world-scene-page) .app-main { padding-bottom: env(safe-area-inset-bottom) !important; }
+
+  .world-scene-page { padding: 8px 8px calc(12px + env(safe-area-inset-bottom)); }
+  .world-runtime-bar { min-height: 54px; margin-bottom: 8px; }
+  .world-runtime-title > span { font-size: 0.62rem; }
+  .world-runtime-title h1 { max-width: 15ch; font-size: 1rem; }
+  .world-presence { font-size: 0; }
+  .world-presence::before { width: 9px; height: 9px; }
+  .world-canvas-frame { min-height: calc(100svh - 78px - env(safe-area-inset-bottom)); border-radius: 2px; box-shadow: none; }
+  .world-control-hint { left: 10px; top: 10px; max-width: calc(100% - 20px); font-size: 0.68rem; }
+  .world-context-action { bottom: max(14px, env(safe-area-inset-bottom)); min-height: 54px; }
+  .world-runtime-footer { display: none; }
+  .world-text-fallback { margin-top: 18px; padding: 24px 4px; }
+  .world-sheet-dialog { width: 100%; max-height: 78svh; margin-bottom: 0; border-radius: 4px 4px 0 0; }
+  .world-object-card h2 { max-width: 14ch; font-size: clamp(2rem, 12vw, 3.2rem); }
+  .space-world-entry { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; }
+  .space-world-entry-mark { width: 34px; height: 43px; border-width: 5px; }
+  .space-world-entry-copy small { font-size: 0.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-loading-mark,
+  .world-engine-boot span,
+  .world-presence::before { animation: none !important; }
+  .world-sheet-dialog { animation: none; }
+  .world-context-action,
+  .space-world-entry-mark { transition: none; }
+}
+
+/* Immersive route corrections: global page typography must not overpower the
+   scene title, and the mobile world owns the viewport after entry. */
+.world-scene-page .world-runtime-title h1 {
+  margin: 0 !important;
+  font-size: clamp(1.05rem, 2vw, 1.55rem) !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0.02em !important;
+}
+
+@media (max-width: 620px) {
+  body:has(.world-scene-page) .shell-topbar { display: none !important; }
+  body:has(.world-scene-page) .app-main { padding-top: 0 !important; }
+  .world-scene-page .world-runtime-title h1 {
+    max-width: 16ch;
+    font-size: 1.02rem !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .world-scene-page .world-runtime-title h1 {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

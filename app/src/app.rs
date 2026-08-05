@@ -10,6 +10,7 @@ use leptos_router::{
 use crate::components::{
     header::Header,
     map_workspace::MapWorkspace,
+    space_experience_modal::{provide_space_experience_modal, SpaceExperienceModalHost},
     space_form::{provide_create_space_modal, CreateSpaceModalHost},
 };
 use crate::feedback::{provide_feedback, FeedbackToasts};
@@ -27,7 +28,9 @@ use crate::pages::{
     guides::{GuideDetailPage, GuideEditorPage, GuidesPage},
     home::HomePage,
     host::HostRoutes,
+    lives::{CloudHomePage, LivesPage, MemorialPage},
     space::{SpaceChatPage, SpacePage},
+    world::WorldScenePage,
 };
 
 #[component]
@@ -37,37 +40,38 @@ pub fn App() -> impl IntoView {
     let locale = i18n.locale;
     crate::app_state::provide_app_refresh_state();
     provide_create_space_modal();
+    let space_experience_modal = provide_space_experience_modal();
     #[allow(unused_variables)]
     let feedback = provide_feedback();
 
     view! {
-        <Html {..} lang=move || locale.get().code() attr:data-locale=move || locale.get().code() />
-        <Title text="inspace｜走到导航的尽头，体验才开始" />
-        <Meta name="description" content="地图带你到达，inspace 让你真正进入真实地点：看攻略、了解现场、分享二维码，并与在场的人连接。" />
-        <Meta name="keywords" content="inspace,旅行攻略,空间地图,真实地点,介观空间,Travel guide,travel map,destination guide" />
-        <Meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
-        <Meta name="googlebot" content="index,follow" />
-        <Meta name="author" content="inspace" />
-        <Meta name="theme-color" content="#0f172a" />
-        <Meta property="og:type" content="website" />
-        <Meta property="og:site_name" content="inspace" />
-        <Meta property="og:title" content="inspace | Beyond the map" />
-        <Meta property="og:description" content="在地图上发现真实旅行地点，进入空间看攻略、社群入口和二维码分享。Discover travel guide spaces for real places on a world map." />
-        <Meta property="og:url" content="https://opctoai.com/inspace" />
-        <Meta property="og:locale" content="zh_CN" />
-        <Meta property="og:locale:alternate" content="en_US" />
-        <Meta name="twitter:card" content="summary_large_image" />
-        <Meta name="twitter:title" content="inspace | Beyond the map" />
-        <Meta name="twitter:description" content="地图发现旅行空间 · 攻略 · 社群入口 · 二维码分享" />
-        <Meta name="geo.region" content="CN" />
-        <Meta name="geo.placename" content="Global travel destinations" />
-        <Meta name="ICBM" content="31.2397, 121.4998" />
-        <Link rel="canonical" href="https://opctoai.com/inspace" />
-        <Link rel="alternate" href="https://opctoai.com/inspace" hreflang="zh-CN" />
-        <Link rel="alternate" href="https://opctoai.com/inspace" hreflang="en" />
-        <Link rel="alternate" href="https://opctoai.com/inspace" hreflang="x-default" />
-        <Script type_="application/ld+json">
-            r#"{
+            <Html {..} lang=move || locale.get().code() attr:data-locale=move || locale.get().code() />
+            <Title text="inspace｜走到导航的尽头，体验才开始" />
+            <Meta name="description" content="地图带你到达，inspace 让你真正进入真实地点：看攻略、了解现场、分享二维码，并与在场的人连接。" />
+            <Meta name="keywords" content="inspace,旅行攻略,空间地图,真实地点,介观空间,Travel guide,travel map,destination guide" />
+            <Meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+            <Meta name="googlebot" content="index,follow" />
+            <Meta name="author" content="inspace" />
+            <Meta name="theme-color" content="#0f172a" />
+            <Meta property="og:type" content="website" />
+            <Meta property="og:site_name" content="inspace" />
+            <Meta property="og:title" content="inspace | Beyond the map" />
+            <Meta property="og:description" content="在地图上发现真实旅行地点，进入空间看攻略、社群入口和二维码分享。Discover travel guide spaces for real places on a world map." />
+            <Meta property="og:url" content="https://opctoai.com/inspace" />
+            <Meta property="og:locale" content="zh_CN" />
+            <Meta property="og:locale:alternate" content="en_US" />
+            <Meta name="twitter:card" content="summary_large_image" />
+            <Meta name="twitter:title" content="inspace | Beyond the map" />
+            <Meta name="twitter:description" content="地图发现旅行空间 · 攻略 · 社群入口 · 二维码分享" />
+            <Meta name="geo.region" content="CN" />
+            <Meta name="geo.placename" content="Global travel destinations" />
+            <Meta name="ICBM" content="31.2397, 121.4998" />
+            <Link rel="canonical" href="https://opctoai.com/inspace" />
+            <Link rel="alternate" href="https://opctoai.com/inspace" hreflang="zh-CN" />
+            <Link rel="alternate" href="https://opctoai.com/inspace" hreflang="en" />
+            <Link rel="alternate" href="https://opctoai.com/inspace" hreflang="x-default" />
+            <Script type_="application/ld+json">
+                r#"{
   "@context": "https://schema.org",
   "@graph": [
     {
@@ -102,73 +106,86 @@ pub fn App() -> impl IntoView {
     }
   ]
 }"#
-        </Script>
-        <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v17" />
-        <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v17" />
-        <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v17" />
-        <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260731-shell-feedback-v5" />
-        <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260731-members-v18" />
-        <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260727-editor-v5" />
-        <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260728-hyperframes-taste-v3" />
-        <Stylesheet id="song-css" href="/style/song-system.css?v=20260730-song-colour-v13" />
-        <Stylesheet id="about-css" href="/style/about.css?v=20260729-about-v5" />
-        <Stylesheet id="directory-css" href="/style/directory-system.css?v=20260730-directory-v4" />
-        <Stylesheet id="space-experience-css" href="/style/space-experience.css?v=20260729-space-experience-v2" />
-        <Stylesheet id="home-reframe-css" href="/style/home-reframe.css?v=20260729-home-restore-record-v1" />
-        <Stylesheet id="home-discovery-css" href="/style/home-discovery.css?v=20260730-home-discovery-v10" />
-        <Stylesheet id="admin-operations-css" href="/style/admin-operations.css?v=20260729-home-featured-v1" />
-        <Router>
-            <Header />
-            <div class="app-main">
-            <Routes fallback=|| view! { <main id="main-content" class="page"><h1>"Not found"</h1></main> }>
-                <Route path=path!("/") view=HomePage />
-                <Route path=path!("/inspace") view=HomePage />
-                <Route path=path!("/about") view=AboutPage />
-                <Route path=path!("/inspace/about") view=AboutPage />
-                <Route path=path!("/explore") view=ExplorePage />
-                <Route path=path!("/inspace/explore") view=ExplorePage />
-                <Route path=path!("/map") view=MapWorkspace />
-                <Route path=path!("/inspace/map") view=MapWorkspace />
-                <Route path=path!("/login") view=LoginPage />
-                <Route path=path!("/inspace/login") view=LoginPage />
-                <Route path=path!("/my-spaces") view=HostRoutes />
-                <Route path=path!("/inspace/my-spaces") view=HostRoutes />
-                <Route path=path!("/spaces/:space_id") view=SpacePage />
-                <Route path=path!("/inspace/spaces/:space_id") view=SpacePage />
-                <Route path=path!("/spaces/:space_id/chat") view=SpaceChatPage />
-                <Route path=path!("/inspace/spaces/:space_id/chat") view=SpaceChatPage />
-                <Route path=path!("/guides") view=GuidesPage />
-                <Route path=path!("/inspace/guides") view=GuidesPage />
-                <Route path=path!("/guides/new") view=GuideEditorPage />
-                <Route path=path!("/inspace/guides/new") view=GuideEditorPage />
-                <Route path=path!("/admin/guides/new") view=GuideEditorPage />
-                <Route path=path!("/inspace/admin/guides/new") view=GuideEditorPage />
-                <Route path=path!("/guides/:guide_id/edit") view=GuideEditorPage />
-                <Route path=path!("/inspace/guides/:guide_id/edit") view=GuideEditorPage />
-                <Route path=path!("/admin/guides/:guide_id/edit") view=GuideEditorPage />
-                <Route path=path!("/inspace/admin/guides/:guide_id/edit") view=GuideEditorPage />
-                <Route path=path!("/guides/:guide_id") view=GuideDetailPage />
-                <Route path=path!("/inspace/guides/:guide_id") view=GuideDetailPage />
-                <Route path=path!("/admin") view=AdminRoutes />
-                <Route path=path!("/inspace/admin") view=AdminRoutes />
-                <Route path=path!("/admin/home") view=AdminHomePage />
-                <Route path=path!("/inspace/admin/home") view=AdminHomePage />
-                <Route path=path!("/admin/spaces") view=AdminSpacesPage />
-                <Route path=path!("/inspace/admin/spaces") view=AdminSpacesPage />
-                <Route path=path!("/admin/guides") view=AdminGuidesPage />
-                <Route path=path!("/inspace/admin/guides") view=AdminGuidesPage />
-                <Route path=path!("/admin/resident-applications") view=AdminResidentsPage />
-                <Route path=path!("/inspace/admin/resident-applications") view=AdminResidentsPage />
-                <Route path=path!("/admin/host-claims") view=AdminClaimsPage />
-                <Route path=path!("/inspace/admin/host-claims") view=AdminClaimsPage />
-                <Route path=path!("/admin/users") view=AdminUsersPage />
-                <Route path=path!("/inspace/admin/users") view=AdminUsersPage />
-            </Routes>
-                        <FeedbackToasts />
-</div>
-            <CreateSpaceModalHost />
-        </Router>
-    }
+            </Script>
+            <Stylesheet id="fonts-css" href="/style/fonts.css?v=20260729-craft-v17" />
+            <Stylesheet id="main-css" href="/style/main.css?v=20260729-craft-v17" />
+            <Stylesheet id="ui-system-css" href="/style/ui-system.css?v=20260729-craft-v17" />
+            <Stylesheet id="app-shell-css" href="/style/app-shell.css?v=20260731-shell-feedback-v5" />
+            <Stylesheet id="workspace-css" href="/style/workspace.css?v=20260731-members-v18" />
+            <Stylesheet id="backoffice-css" href="/style/backoffice.css?v=20260727-editor-v5" />
+            <Stylesheet id="world-css" href="/style/inspace-world.css?v=20260728-hyperframes-taste-v3" />
+            <Stylesheet id="song-css" href="/style/song-system.css?v=20260730-song-colour-v13" />
+            <Stylesheet id="about-css" href="/style/about.css?v=20260729-about-v5" />
+            <Stylesheet id="directory-css" href="/style/directory-system.css?v=20260730-directory-v4" />
+            <Stylesheet id="space-experience-css" href="/style/space-experience.css?v=20260804-space-modal-v3" />
+            <Stylesheet id="space-modal-css" href="/style/space-modal.css?v=20260804-space-modal-v5" />
+            <Stylesheet id="home-reframe-css" href="/style/home-reframe.css?v=20260729-home-restore-record-v1" />
+            <Stylesheet id="home-discovery-css" href="/style/home-discovery.css?v=20260804-song-ui-v29" />
+            <Stylesheet id="lives-css" href="/style/lives.css?v=20260804-cloud-home-runtime-v4" />
+            <Stylesheet id="world-scene-css" href="/style/world-scene.css?v=20260804-phaser-world-v1" />
+            <Stylesheet id="host-governance-css" href="/style/host-governance.css?v=20260804-host-v1" />
+            <Stylesheet id="admin-operations-css" href="/style/admin-operations.css?v=20260729-home-featured-v1" />
+            <Router>
+                <Header />
+                <div class="app-main">
+                <Routes fallback=|| view! { <main id="main-content" class="page"><h1>"Not found"</h1></main> }>
+                    <Route path=path!("/") view=HomePage />
+                    <Route path=path!("/inspace") view=HomePage />
+                    <Route path=path!("/about") view=AboutPage />
+                    <Route path=path!("/inspace/about") view=AboutPage />
+                    <Route path=path!("/explore") view=ExplorePage />
+                    <Route path=path!("/inspace/explore") view=ExplorePage />
+                    <Route path=path!("/map") view=MapWorkspace />
+                    <Route path=path!("/inspace/map") view=MapWorkspace />
+                    <Route path=path!("/login") view=LoginPage />
+                    <Route path=path!("/inspace/login") view=LoginPage />
+                    <Route path=path!("/lives") view=LivesPage />
+                    <Route path=path!("/inspace/lives") view=LivesPage />
+                    <Route path=path!("/lives/:life_id") view=MemorialPage />
+                    <Route path=path!("/inspace/lives/:life_id") view=MemorialPage />
+                    <Route path=path!("/homes/:home_id") view=CloudHomePage />
+                    <Route path=path!("/inspace/homes/:home_id") view=CloudHomePage />
+                    <Route path=path!("/my-spaces") view=HostRoutes />
+                    <Route path=path!("/inspace/my-spaces") view=HostRoutes />
+                    <Route path=path!("/spaces/:space_id") view=SpacePage />
+                    <Route path=path!("/inspace/spaces/:space_id") view=SpacePage />
+                    <Route path=path!("/world/:space_id") view=WorldScenePage />
+                    <Route path=path!("/inspace/world/:space_id") view=WorldScenePage />
+                    <Route path=path!("/spaces/:space_id/chat") view=SpaceChatPage />
+                    <Route path=path!("/inspace/spaces/:space_id/chat") view=SpaceChatPage />
+                    <Route path=path!("/guides") view=GuidesPage />
+                    <Route path=path!("/inspace/guides") view=GuidesPage />
+                    <Route path=path!("/guides/new") view=GuideEditorPage />
+                    <Route path=path!("/inspace/guides/new") view=GuideEditorPage />
+                    <Route path=path!("/admin/guides/new") view=GuideEditorPage />
+                    <Route path=path!("/inspace/admin/guides/new") view=GuideEditorPage />
+                    <Route path=path!("/guides/:guide_id/edit") view=GuideEditorPage />
+                    <Route path=path!("/inspace/guides/:guide_id/edit") view=GuideEditorPage />
+                    <Route path=path!("/admin/guides/:guide_id/edit") view=GuideEditorPage />
+                    <Route path=path!("/inspace/admin/guides/:guide_id/edit") view=GuideEditorPage />
+                    <Route path=path!("/guides/:guide_id") view=GuideDetailPage />
+                    <Route path=path!("/inspace/guides/:guide_id") view=GuideDetailPage />
+                    <Route path=path!("/admin") view=AdminRoutes />
+                    <Route path=path!("/inspace/admin") view=AdminRoutes />
+                    <Route path=path!("/admin/home") view=AdminHomePage />
+                    <Route path=path!("/inspace/admin/home") view=AdminHomePage />
+                    <Route path=path!("/admin/spaces") view=AdminSpacesPage />
+                    <Route path=path!("/inspace/admin/spaces") view=AdminSpacesPage />
+                    <Route path=path!("/admin/guides") view=AdminGuidesPage />
+                    <Route path=path!("/inspace/admin/guides") view=AdminGuidesPage />
+                    <Route path=path!("/admin/resident-applications") view=AdminResidentsPage />
+                    <Route path=path!("/inspace/admin/resident-applications") view=AdminResidentsPage />
+                    <Route path=path!("/admin/host-claims") view=AdminClaimsPage />
+                    <Route path=path!("/inspace/admin/host-claims") view=AdminClaimsPage />
+                    <Route path=path!("/admin/users") view=AdminUsersPage />
+                    <Route path=path!("/inspace/admin/users") view=AdminUsersPage />
+                </Routes>
+                            <FeedbackToasts />
+    </div>
+                <CreateSpaceModalHost />
+                <SpaceExperienceModalHost state=space_experience_modal />
+            </Router>
+        }
 }
 
 #[cfg(feature = "ssr")]
@@ -178,6 +195,31 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     let capitals_boot = include_str!("geo_capitals_boot.js");
     let chat_realtime = include_str!("chat_realtime.js");
     let home_hyperframes = include_str!("home_hyperframes.js");
+    let world_runtime = include_str!("world_runtime.js");
+    let space_modal_runtime = include_str!("space_modal_runtime.js");
+    let dev_reload = std::env::var_os("INSPACE_DEV_RELOAD").is_some().then(|| {
+        view! {
+            <script>{r#"
+              (() => {
+                // The server mounts the development package at /pkg for both
+                // the root and /inspace route aliases.
+                const url = '/pkg/inspace-dev-version.txt';
+                let current = null;
+                async function check() {
+                  try {
+                    const response = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
+                    if (!response.ok) return;
+                    const next = (await response.text()).trim();
+                    if (current !== null && next && next !== current) location.reload();
+                    current = next;
+                  } catch (_) {}
+                }
+                window.setInterval(check, 900);
+                check();
+              })();
+            "#}</script>
+        }
+    });
 
     view! {
         <!DOCTYPE html>
@@ -189,8 +231,11 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <script>{map_boot}</script>
                 <AutoReload options=options.clone() />
                 <HydrationScripts options=options.clone() />
+                {dev_reload}
                 <script>{chat_realtime}</script>
                 <script>{home_hyperframes}</script>
+                <script>{world_runtime}</script>
+                <script>{space_modal_runtime}</script>
                 <MetaTags />
             </head>
             <body>

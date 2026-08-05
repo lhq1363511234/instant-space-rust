@@ -7,10 +7,12 @@ use crate::{
     app_state::use_app_refresh_state,
     components::{
         private_verify::PrivateVerify,
+        space_experience_modal::OpenSpaceLink,
         space_form::{provide_create_space_modal, use_create_space_modal},
         space_share::SpaceSharePanel,
     },
     i18n::{localize_optional, localized_online_count, localized_space_count, t, use_i18n, Locale},
+    pages::space::SpacePanel,
     server::geo::{list_geo_countries, resolve_place_center},
     server::guides::list_space_guides,
     server::spaces::{list_spaces, SpaceMarker},
@@ -798,9 +800,9 @@ pub fn SpaceDetailDrawer(space: SpaceMarker, on_close: Callback<()>) -> impl Int
             </div>
 
             <div class="space-detail-actions">
-                <a class="button button-primary" href={format!("/inspace/spaces/{}", space_id_for_href)}>
+                <OpenSpaceLink space_id=space_id_for_href.clone() initial_panel=SpacePanel::Wall class="button button-primary">
                     {move || t(locale.get(), "打开空间", "Open space")}
-                </a>
+                </OpenSpaceLink>
                 <a class="button button-secondary" href={format!("/inspace/guides/new?space_id={}", space_id_for_href)}>
                     {move || t(locale.get(), "写攻略", "Write guide")}
                 </a>

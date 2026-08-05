@@ -7,12 +7,14 @@ use url::Url;
 use wasm_bindgen::JsCast;
 
 use crate::components::guide_browser::GuideBrowser;
+use crate::components::space_experience_modal::OpenSpaceLink;
 use crate::i18n::{localize_optional, t, use_i18n};
+use crate::pages::space::SpacePanel;
 use crate::server::{
     auth::current_session,
     guides::{
-        create_guide_draft, delete_guide, get_guide_detail, get_guide_for_edit, list_guide_versions,
-        restore_guide_version, update_guide,
+        create_guide_draft, delete_guide, get_guide_detail, get_guide_for_edit,
+        list_guide_versions, restore_guide_version, update_guide,
     },
     spaces::{get_space_for_guide, list_spaces, SpaceMarker},
 };
@@ -71,7 +73,7 @@ pub fn GuideDetailPage() -> impl IntoView {
                                 .spot_name
                                 .clone()
                                 .unwrap_or_else(|| title_zh.clone());
-                            let space_href = guide.space_id.map(|id| format!("/inspace/spaces/{id}"));
+                            let linked_space_id = guide.space_id.map(|id| id.to_string());
                             let edit_href = format!("/inspace/guides/{}/edit", guide.id);
                             let can_edit = guide.can_edit;
 
@@ -170,8 +172,8 @@ pub fn GuideDetailPage() -> impl IntoView {
                                     <GuideCommunityLinks space_name=community_name />
 
                                     <footer class="guide-detail-actions">
-                                        {space_href.map(|href| view! {
-                                            <a class="button button-primary" href=href>{move || t(locale.get(), "打开关联空间", "Open linked space")}</a>
+                                        {linked_space_id.map(|space_id| view! {
+                                            <OpenSpaceLink space_id=space_id initial_panel=SpacePanel::Wall class="button button-primary">{move || t(locale.get(), "打开关联空间", "Open linked space")}</OpenSpaceLink>
                                         })}
                                         {can_edit.then(|| view! {
                                             <a class="button button-secondary-light" href=edit_href>{move || t(locale.get(), "编辑攻略", "Edit guide")}</a>
@@ -410,9 +412,8 @@ pub fn GuideEditorPage() -> impl IntoView {
     });
     let delete_feedback = delete;
     let versions_reload = RwSignal::new(0u32);
-    let version_guide_id = Memo::new(move |_| {
-        saved_guide_id.get().unwrap_or_else(|| edit_guide_id.get())
-    });
+    let version_guide_id =
+        Memo::new(move |_| saved_guide_id.get().unwrap_or_else(|| edit_guide_id.get()));
 
     Effect::new(move |_| {
         if let Some(Ok(summary)) = save_feedback.value().get() {
@@ -558,7 +559,7 @@ fn GuideEditor(
                         </select>
                     </label>
                     {move || guide.get().space_id.map(|space_id| {
-                        let href = format!("/inspace/spaces/{space_id}");
+                        let modal_space_id = space_id.clone();
                         let label = linked_space_names
                             .iter()
                             .find(|(id, _)| *id == space_id)
@@ -567,7 +568,7 @@ fn GuideEditor(
                         view! {
                             <p class="guide-linked-space">
                                 {move || t(locale.get(), "这篇攻略会挂在：", "This guide will live under: ")}
-                                <a href=href>{label}</a>
+                                <OpenSpaceLink space_id=modal_space_id initial_panel=SpacePanel::Wall class="guide-linked-space-open">{label}</OpenSpaceLink>
                             </p>
                         }
                     })}
@@ -1078,10 +1079,7 @@ fn optional_text(value: String) -> Option<String> {
 /// editor restore any version. Restoring snapshots the pre-restore state, so
 /// nothing is lost.
 #[component]
-fn GuideVersionHistory(
-    guide_id: Memo<String>,
-    reload: RwSignal<u32>,
-) -> impl IntoView {
+fn GuideVersionHistory(guide_id: Memo<String>, reload: RwSignal<u32>) -> impl IntoView {
     let locale = use_i18n().locale;
     let versions = Resource::new(
         move || (guide_id.get(), reload.get()),

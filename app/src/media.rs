@@ -56,10 +56,7 @@ async fn upload_media(
     // uses. Any signed-in user may upload; they are only attached to guides
     // they own or manage.
     let Some(user) = authenticated_user(&headers).await? else {
-        return Err(api_error(
-            StatusCode::UNAUTHORIZED,
-            "login required",
-        ));
+        return Err(api_error(StatusCode::UNAUTHORIZED, "login required"));
     };
 
     let mut uploaded: Option<(String, Vec<u8>)> = None; // (ext, bytes)
@@ -99,8 +96,12 @@ async fn upload_media(
 
     let filename = format!("{}.{}", Uuid::new_v4().simple(), ext);
     let dir = std::path::Path::new("uploads");
-    std::fs::create_dir_all(dir)
-        .map_err(|_| api_error(StatusCode::INTERNAL_SERVER_ERROR, "cannot create uploads dir"))?;
+    std::fs::create_dir_all(dir).map_err(|_| {
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "cannot create uploads dir",
+        )
+    })?;
     let path = dir.join(&filename);
     std::fs::write(&path, &raw)
         .map_err(|_| api_error(StatusCode::INTERNAL_SERVER_ERROR, "cannot persist upload"))?;

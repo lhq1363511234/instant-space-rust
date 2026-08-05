@@ -216,7 +216,7 @@ pub async fn approve_host_claim(claim_id: String) -> Result<(), ServerFnError> {
         let claim_uuid =
             uuid::Uuid::parse_str(&claim_id).map_err(|_| ServerFnError::new("invalid claim id"))?;
         let pool = crate::server::db_pool().await?;
-        let assigned = instant_db::spaces::approve_host_claim(&pool, claim_uuid)
+        let assigned = instant_db::spaces::approve_host_claim(&pool, claim_uuid, actor.id)
             .await
             .map_err(|err| ServerFnError::new(err.to_string()))?;
         if let Some((space_id, user_id)) = assigned {

@@ -5,15 +5,18 @@ import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const pkgDir = join(root, "target", "site", "pkg");
+const isDev = process.argv.includes("--dev");
+const profile = isDev ? "dev-fast" : "release";
+const siteRoot = isDev ? "site-dev" : "site";
+const pkgDir = join(root, "target", siteRoot, "pkg");
 // Keep this in sync with app/src/main.rs. A versioned loader name prevents an
 // immutable CDN cache from serving an old JS glue file with a new WASM binary.
-const OUTPUT_NAME = "instant_space_app_v92";
+const OUTPUT_NAME = "instant_space_app_v106";
 const wasmInput = join(
   root,
   "target",
   "wasm32-unknown-unknown",
-  "release",
+  profile,
   "instant_space_web.wasm",
 );
 
@@ -77,18 +80,20 @@ function ensureWasmBindgen() {
 }
 
 run(executable("rustup"), ["target", "add", "wasm32-unknown-unknown"]);
-run(executable("cargo"), [
+const cargoArgs = [
   "build",
   "-p",
   "instant-space-app",
   "--lib",
-  "--release",
   "--target",
   "wasm32-unknown-unknown",
   "--no-default-features",
   "--features",
   "hydrate",
-]);
+];
+if (isDev) cargoArgs.splice(4, 0, "--profile", "dev-fast");
+else cargoArgs.splice(4, 0, "--release");
+run(executable("cargo"), cargoArgs);
 
 rmSync(pkgDir, { recursive: true, force: true });
 mkdirSync(pkgDir, { recursive: true });

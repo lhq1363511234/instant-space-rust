@@ -12,8 +12,7 @@ use instant_db::spaces::{
     apply_resident, archive_template, create_host_space, get_space_summary, list_admin_spaces_page,
     list_all_spaces_admin, list_featured_home_spaces, list_home_spaces, list_home_spaces_page,
     list_host_spaces, list_manageable_spaces, rotate_space_password, set_home_weight,
-    set_space_status, space_host_user_id, update_host_space, CreateSpaceInput, SpaceFilter,
-    UpdateSpaceInput,
+    set_space_status, update_host_space, CreateSpaceInput, SpaceFilter, UpdateSpaceInput,
 };
 
 #[cfg(feature = "ssr")]
@@ -930,13 +929,13 @@ async fn ensure_space_manager(
         return Ok(());
     }
 
-    let owner = space_host_user_id(pool, space_id)
+    let can_manage = instant_db::world::user_can_manage_scene(pool, space_id, user.id)
         .await
         .map_err(|err| ServerFnError::new(err.to_string()))?;
-    if owner == Some(user.id) {
+    if can_manage {
         Ok(())
     } else {
-        Err(ServerFnError::new("space owner permission required"))
+        Err(ServerFnError::new("active host permission required"))
     }
 }
 
@@ -1017,14 +1016,14 @@ pub async fn add_my_space_member(
         let user = require_space_manager(space_uuid).await?;
         let pool = crate::server::db_pool().await?;
         ensure_space_manager(&pool, space_uuid, &user).await?;
-        let member_user_id =
-            instant_db::spaces::find_user_id_by_email(&pool, email.trim())
-                .await
-                .map_err(|err| ServerFnError::new(err.to_string()))?
-                .ok_or_else(|| ServerFnError::new("no user with that email"))?;
-        let member = instant_db::spaces::set_space_member(&pool, space_uuid, member_user_id, role.trim())
+        let member_user_id = instant_db::spaces::find_user_id_by_email(&pool, email.trim())
             .await
-            .map_err(|err| ServerFnError::new(err.to_string()))?;
+            .map_err(|err| ServerFnError::new(err.to_string()))?
+            .ok_or_else(|| ServerFnError::new("no user with that email"))?;
+        let member =
+            instant_db::spaces::set_space_member(&pool, space_uuid, member_user_id, role.trim())
+                .await
+                .map_err(|err| ServerFnError::new(err.to_string()))?;
         let _ = instant_db::admin::record_audit(
             &pool,
             Some(user.id),
@@ -1054,10 +1053,9 @@ pub async fn remove_my_space_member(
         let user = require_space_manager(space_uuid).await?;
         let pool = crate::server::db_pool().await?;
         ensure_space_manager(&pool, space_uuid, &user).await?;
-        let member_user_id =
-            instant_db::spaces::find_user_id_by_email(&pool, email.trim())
-                .await
-                .map_err(|err| ServerFnError::new(err.to_string()))?;
+        let member_user_id = instant_db::spaces::find_user_id_by_email(&pool, email.trim())
+            .await
+            .map_err(|err| ServerFnError::new(err.to_string()))?;
         let removed = match member_user_id {
             Some(id) => instant_db::spaces::remove_space_member(&pool, space_uuid, id)
                 .await

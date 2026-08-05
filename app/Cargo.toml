@@ -68,4 +68,4 @@ js-sys = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 gloo-timers = { workspace = true, optional = true }
-web-sys = { workspace = true, optional = true, features = ["Window", "EventTarget", "Navigator", "Geolocation", "Position", "Coordinates", "PositionError", "PositionOptions", "Location", "Blob", "File", "FileList", "FormData", "HtmlInputElement", "HtmlAnchorElement", "Request", "RequestInit", "RequestMode", "Response", "Url"] }
+web-sys = { workspace = true, optional = true, features = ["Window", "EventTarget", "MouseEvent", "KeyboardEvent", "Navigator", "Geolocation", "Position", "Coordinates", "PositionError", "PositionOptions", "Location", "Blob", "File", "FileList", "FormData", "HtmlInputElement", "HtmlElement", "HtmlAnchorElement", "Request", "RequestInit", "RequestMode", "Response", "Url"] }

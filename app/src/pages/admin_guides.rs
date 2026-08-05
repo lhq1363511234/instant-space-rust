@@ -188,7 +188,9 @@ pub fn ExportCsvButton(kind: &'static str) -> impl IntoView {
     let state = RwSignal::new(None::<Result<String, String>>);
     let download = move |_| {
         let kind = kind;
-        state.set(Some(Err(t(locale.get(), "导出中…", "Exporting…").to_string())));
+        state.set(Some(Err(
+            t(locale.get(), "导出中…", "Exporting…").to_string()
+        )));
         leptos::task::spawn_local(async move {
             let outcome = match crate::server::admin::export_admin_csv(kind.to_string()).await {
                 Ok(csv) => Ok(csv),
@@ -205,9 +207,7 @@ pub fn ExportCsvButton(kind: &'static str) -> impl IntoView {
                 let bytes = js_sys::Uint8Array::from(_csv.as_bytes());
                 let blob = web_sys::Blob::new_with_u8_array_sequence(&js_sys::Array::of1(&bytes))
                     .ok()
-                    .and_then(|blob| {
-                        web_sys::Url::create_object_url_with_blob(&blob).ok()
-                    });
+                    .and_then(|blob| web_sys::Url::create_object_url_with_blob(&blob).ok());
                 if let Some(url) = blob {
                     let anchor = leptos::prelude::document()
                         .create_element("a")

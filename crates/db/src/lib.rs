@@ -3,11 +3,13 @@ pub mod agent_api;
 pub mod chat;
 pub mod geo;
 pub mod guides;
+pub mod lives;
 pub mod locations;
 pub mod site;
 pub mod spaces;
 pub mod traces;
 pub mod users;
+pub mod world;
 
 pub async fn connect(database_url: &str) -> Result<sqlx::PgPool, sqlx::Error> {
     sqlx::PgPool::connect(database_url).await
@@ -51,6 +53,7 @@ const SCHEMA_CONTRACT: &[(&str, &[&str])] = &[
             "status",
             "host_user_id",
             "created_at",
+            "host_governance_state",
         ],
     ),
     (
@@ -72,19 +75,77 @@ const SCHEMA_CONTRACT: &[(&str, &[&str])] = &[
     ),
     (
         "access_sessions",
-        &["id", "space_id", "token_hash", "password_version", "expires_at"],
+        &[
+            "id",
+            "space_id",
+            "token_hash",
+            "password_version",
+            "expires_at",
+        ],
     ),
     ("space_traces", &["id", "space_id"]),
     ("space_capsules", &["id", "space_id"]),
     ("helps", &["id", "space_id", "body", "resolved_at"]),
-    ("guide_versions", &["id", "guide_id", "version_no", "title_zh"]),
+    (
+        "guide_versions",
+        &["id", "guide_id", "version_no", "title_zh"],
+    ),
     ("space_members", &["id", "space_id", "user_id", "role"]),
+    (
+        "cloud_homes",
+        &["id", "owner_id", "space_id", "name", "created_at"],
+    ),
+    (
+        "scenes",
+        &["id", "space_id", "kind", "status", "is_default"],
+    ),
+    (
+        "scene_objects",
+        &["id", "scene_id", "object_kind", "config"],
+    ),
+    (
+        "scene_spawn_points",
+        &["id", "scene_id", "key", "is_default"],
+    ),
+    (
+        "space_relations",
+        &["id", "source_space_id", "target_space_id", "relation_kind"],
+    ),
+    (
+        "space_host_tenures",
+        &["id", "space_id", "user_id", "role", "status"],
+    ),
+    (
+        "space_governance_events",
+        &["id", "space_id", "actor_id", "action", "created_at"],
+    ),
+    (
+        "world_presences",
+        &["id", "subject_kind", "subject_id", "space_id", "scene_id"],
+    ),
+    (
+        "space_entry_events",
+        &["id", "space_id", "scene_id", "entry_method"],
+    ),
     (
         "admin_audit_log",
         &["id", "actor_id", "action", "target_type", "created_at"],
     ),
-    ("site_page_configs", &["page_key", "published_config", "published_version"]),
-    ("agent_api_keys", &["id", "user_id", "key_prefix", "key_hash", "scopes", "rate_limit_per_minute"]),
+    (
+        "site_page_configs",
+        &["page_key", "published_config", "published_version"],
+    ),
+    (
+        "agent_api_keys",
+        &[
+            "id",
+            "user_id",
+            "key_prefix",
+            "key_hash",
+            "scopes",
+            "rate_limit_per_minute",
+        ],
+    ),
 ];
 
 /// Verify the boot schema contract after migrations run. Returns the list of

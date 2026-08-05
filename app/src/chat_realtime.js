@@ -12,7 +12,7 @@
 
   function socketUrl(spaceId) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const prefix = location.pathname.startsWith('/inspace/') ? '/inspace' : '';
+    const prefix = (location.pathname === '/inspace' || location.pathname.startsWith('/inspace/')) ? '/inspace' : '';
     return `${protocol}//${location.host}${prefix}/ws/spaces/${encodeURIComponent(spaceId)}`;
   }
 

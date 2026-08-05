@@ -6,9 +6,9 @@
 //! can be dismissed by hand. Kinds map to one semantic color each so success
 //! and failure never compete with layout-specific error styling.
 
-use leptos::prelude::*;
 #[cfg(feature = "hydrate")]
 use gloo_timers::future::TimeoutFuture;
+use leptos::prelude::*;
 #[cfg(feature = "hydrate")]
 use leptos::task::spawn_local;
 
@@ -48,11 +48,13 @@ pub fn use_feedback() -> Feedback {
 impl Feedback {
     pub fn push(&self, kind: FeedbackKind, text: impl Into<String>) {
         let id = self.next_id();
-        self.messages.update(|items| items.push(FeedbackMsg {
-            id,
-            kind,
-            text: text.into(),
-        }));
+        self.messages.update(|items| {
+            items.push(FeedbackMsg {
+                id,
+                kind,
+                text: text.into(),
+            })
+        });
         // Auto-dismiss after 4.5s; enough time to read, short enough to not
         // pile up a second toast behind the first.
         #[allow(unused_variables)]
@@ -77,7 +79,8 @@ impl Feedback {
     }
 
     pub fn dismiss(&self, id: u64) {
-        self.messages.update(|items| items.retain(|msg| msg.id != id));
+        self.messages
+            .update(|items| items.retain(|msg| msg.id != id));
     }
 
     fn next_id(&self) -> u64 {

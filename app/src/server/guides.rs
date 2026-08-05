@@ -814,8 +814,16 @@ pub async fn list_admin_guides_page(
 
         let mut result = instant_db::guides::list_all_guides_admin_page(
             &pool,
-            if query.trim().is_empty() { None } else { Some(query) },
-            if status.trim().is_empty() { None } else { Some(status) },
+            if query.trim().is_empty() {
+                None
+            } else {
+                Some(query)
+            },
+            if status.trim().is_empty() {
+                None
+            } else {
+                Some(status)
+            },
             page_size as i64,
             offset,
         )
@@ -836,7 +844,8 @@ pub async fn list_admin_guides_page(
 
 /// Phase 5: guide status counts for the admin console stat cards.
 #[server(GetAdminGuideStats, "/inspace/api")]
-pub async fn get_admin_guide_stats() -> Result<instant_domain::guides::GuideStatusCounts, ServerFnError> {
+pub async fn get_admin_guide_stats(
+) -> Result<instant_domain::guides::GuideStatusCounts, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
         crate::server::auth::require_admin_user().await?;

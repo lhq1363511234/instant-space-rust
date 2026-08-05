@@ -87,16 +87,22 @@ async fn main() -> Result<()> {
         let name_ok = columns.contains("name");
         let password_ok = columns.contains("password") || columns.contains("password_hash");
         if email_ok && password_ok {
-            let rows = sqlx::query("SELECT * FROM users").fetch_all(&sqlite).await?;
+            let rows = sqlx::query("SELECT * FROM users")
+                .fetch_all(&sqlite)
+                .await?;
             for row in rows {
-                let id: String = row.try_get("id").unwrap_or_else(|_| Uuid::new_v4().to_string());
+                let id: String = row
+                    .try_get("id")
+                    .unwrap_or_else(|_| Uuid::new_v4().to_string());
                 let email: String = row.try_get("email").unwrap_or_else(|_| {
                     format!("legacy-{}@inspace.local", Uuid::new_v4().simple())
                 });
                 let password: String = if columns.contains("password") {
-                    row.try_get("password").unwrap_or_else(|_| "!legacy!".to_string())
+                    row.try_get("password")
+                        .unwrap_or_else(|_| "!legacy!".to_string())
                 } else {
-                    row.try_get("password_hash").unwrap_or_else(|_| "!legacy!".to_string())
+                    row.try_get("password_hash")
+                        .unwrap_or_else(|_| "!legacy!".to_string())
                 };
                 let name: Option<String> = if name_ok {
                     row.try_get("name").ok()
@@ -129,13 +135,19 @@ async fn main() -> Result<()> {
         let columns = table_columns(&sqlite, "spaces").await?;
         let name_zh = columns.iter().any(|c| c == "name_zh" || c == "name");
         if name_zh {
-            let rows = sqlx::query("SELECT * FROM spaces").fetch_all(&sqlite).await?;
+            let rows = sqlx::query("SELECT * FROM spaces")
+                .fetch_all(&sqlite)
+                .await?;
             for row in rows {
-                let id: String = row.try_get("id").unwrap_or_else(|_| Uuid::new_v4().to_string());
+                let id: String = row
+                    .try_get("id")
+                    .unwrap_or_else(|_| Uuid::new_v4().to_string());
                 let name: String = if columns.contains("name_zh") {
-                    row.try_get("name_zh").unwrap_or_else(|_| "未命名空间".to_string())
+                    row.try_get("name_zh")
+                        .unwrap_or_else(|_| "未命名空间".to_string())
                 } else {
-                    row.try_get("name").unwrap_or_else(|_| "Unnamed".to_string())
+                    row.try_get("name")
+                        .unwrap_or_else(|_| "Unnamed".to_string())
                 };
                 let name_en: Option<String> = if columns.contains("name_en") {
                     row.try_get("name_en").ok()
@@ -144,14 +156,16 @@ async fn main() -> Result<()> {
                 };
                 let lat: f64 = row.try_get("lat").unwrap_or(0.0);
                 let lng: f64 = row.try_get("lng").unwrap_or(0.0);
-                let province: String = get_text(&row, "province").unwrap_or_else(|| "未知".to_string());
+                let province: String =
+                    get_text(&row, "province").unwrap_or_else(|| "未知".to_string());
                 let city: String = get_text(&row, "city").unwrap_or_else(|| "未知".to_string());
                 let district: Option<String> = get_text(&row, "district");
                 let spot: Option<String> = get_text(&row, "spot_name");
                 let space_type: String = get_text(&row, "space_type")
                     .map(|value| normalize_space_type(&value).to_string())
                     .unwrap_or_else(|| "custom".to_string());
-                let creator: Option<String> = get_text(&row, "creator_id").or_else(|| get_text(&row, "userId"));
+                let creator: Option<String> =
+                    get_text(&row, "creator_id").or_else(|| get_text(&row, "userId"));
                 let space_id = stable_uuid(&id);
                 sqlx::query(
                     r#"
@@ -194,20 +208,27 @@ async fn main() -> Result<()> {
         let columns = table_columns(&sqlite, "guides").await?;
         let title_ok = columns.iter().any(|c| c == "title" || c == "title_zh");
         if title_ok {
-            let rows = sqlx::query("SELECT * FROM guides").fetch_all(&sqlite).await?;
+            let rows = sqlx::query("SELECT * FROM guides")
+                .fetch_all(&sqlite)
+                .await?;
             for row in rows {
-                let id: String = row.try_get("id").unwrap_or_else(|_| Uuid::new_v4().to_string());
+                let id: String = row
+                    .try_get("id")
+                    .unwrap_or_else(|_| Uuid::new_v4().to_string());
                 let title: String = if columns.contains("title_zh") {
-                    row.try_get("title_zh").unwrap_or_else(|_| "(无标题)".to_string())
+                    row.try_get("title_zh")
+                        .unwrap_or_else(|_| "(无标题)".to_string())
                 } else {
-                    row.try_get("title").unwrap_or_else(|_| "(untitled)".to_string())
+                    row.try_get("title")
+                        .unwrap_or_else(|_| "(untitled)".to_string())
                 };
                 let title_en: Option<String> = get_text(&row, "title_en");
-                let summary: Option<String> = get_text(&row, "summary")
-                    .or_else(|| get_text(&row, "description"));
-                let content: Option<String> = get_text(&row, "content")
-                    .or_else(|| get_text(&row, "body"));
-                let province: String = get_text(&row, "province").unwrap_or_else(|| "未知".to_string());
+                let summary: Option<String> =
+                    get_text(&row, "summary").or_else(|| get_text(&row, "description"));
+                let content: Option<String> =
+                    get_text(&row, "content").or_else(|| get_text(&row, "body"));
+                let province: String =
+                    get_text(&row, "province").unwrap_or_else(|| "未知".to_string());
                 let city: String = get_text(&row, "city").unwrap_or_else(|| "未知".to_string());
                 let district: Option<String> = get_text(&row, "district");
                 let spot: Option<String> = get_text(&row, "spot_name");

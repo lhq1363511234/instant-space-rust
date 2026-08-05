@@ -3,16 +3,18 @@ use leptos_router::hooks::use_params_map;
 
 use crate::components::private_verify::PrivateVerify;
 use crate::components::space_share::SpaceSharePanel;
-use crate::components::space_traces::{CarveButton, SpaceTraces};
+use crate::components::space_traces::{CarveButton, SpaceCapsules, SpaceTraces};
 use crate::i18n::{localize_optional, t, use_i18n};
 use crate::server::chat::{
-    check_space_access, list_chat_messages, list_space_helps, raise_space_help,
-    resolve_space_help, send_chat_message,
+    check_space_access, list_chat_messages, list_space_helps, raise_space_help, resolve_space_help,
+    send_chat_message,
 };
-use crate::server::guides::list_space_guides;
+use crate::server::guides::{get_guide_detail, list_space_guides};
 use crate::server::spaces::{
     apply_host_claim, get_space_detail, my_host_claim, HostClaimState, SpaceDetailView, SpaceMarker,
 };
+use crate::server::world::get_space_host_lineage;
+use instant_domain::world::{HostGovernanceState, HostTenureRole, SpaceHostIdentity};
 
 /// `2026-07-08 18:36:17.568978000 +00:00:00` -> `("2026-07-08", "18:36")`.
 fn split_chat_stamp(created_at: impl ToString) -> (String, String) {
@@ -42,25 +44,55 @@ fn sender_monogram(sender: &str) -> String {
         .unwrap_or_else(|| "?".to_string())
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SpacePanel {
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub enum SpacePanel {
+    #[default]
     Wall,
     Intro,
     Host,
     Story,
+    Capsules,
     Guides,
+    Discussion,
+    Share,
+    Guide,
 }
 
 #[component]
 pub fn SpacePage() -> impl IntoView {
-    let locale = use_i18n().locale;
     let params = use_params_map();
     let space_id =
-        Memo::new(move |_| params.with(|params| params.get("space_id").unwrap_or_default()));
+        Signal::derive(move || params.with(|params| params.get("space_id").unwrap_or_default()));
+
+    view! {
+        <main id="main-content" class="page space-detail-page">
+            <SpaceExperience space_id=space_id initial_panel=SpacePanel::Wall />
+        </main>
+    }
+}
+
+/// Reusable Space workspace used by both route fallbacks and the global modal.
+/// The URL routes remain available for sharing, refresh, SEO, and no-JS access,
+/// while normal in-app entry keeps the visitor on the current page.
+#[component]
+pub fn SpaceExperience(
+    space_id: Signal<String>,
+    #[prop(default = SpacePanel::Wall)] initial_panel: SpacePanel,
+    #[prop(default = false)] embedded: bool,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
     let refresh = RwSignal::new(0u32);
-    // The detail page opens as a restrained card wall; opening a card swaps the
-    // main region to that one section instead of stacking everything vertically.
-    let panel = RwSignal::new(SpacePanel::Wall);
+    let panel = RwSignal::new(initial_panel);
+    let selected_guide = RwSignal::new(None::<String>);
+
+    Effect::new(move |previous: Option<String>| {
+        let current = space_id.get();
+        if previous.as_deref() != Some(current.as_str()) {
+            panel.set(initial_panel);
+            selected_guide.set(None);
+        }
+        current
+    });
 
     let access = Resource::new(
         move || (space_id.get(), refresh.get()),
@@ -94,7 +126,7 @@ pub fn SpacePage() -> impl IntoView {
     );
 
     view! {
-        <main id="main-content" class="page space-detail-page">
+        <div class=move || if embedded { "space-experience space-experience--modal" } else { "space-experience" }>
             <Suspense fallback=move || view! { <p class="space-section-loading">{move || t(locale.get(), "正在检查空间访问权限", "Checking space access")}</p> }>
                 {move || Suspend::new(async move {
                     match access.await {
@@ -104,9 +136,9 @@ pub fn SpacePage() -> impl IntoView {
                             let id = state.space_id.to_string();
                             let is_public = state.is_public;
                             let guide_href = format!("/inspace/guides/new?space_id={id}");
-                            let chat_href = format!("/inspace/spaces/{id}/chat");
+                            let shell_class = if embedded { "space-detail-shell space-detail-shell--modal" } else { "space-detail-shell" };
                             view! {
-                                <article class="space-detail-shell" aria-label="Space detail">
+                                <article class=shell_class aria-label="Space detail">
                                     <header class="space-detail-header">
                                         <div class="space-detail-breadcrumb">
                                             <a href="/inspace/explore">{move || t(locale.get(), "空间探索", "Explore")}</a>
@@ -132,66 +164,93 @@ pub fn SpacePage() -> impl IntoView {
                                         let id = id.clone();
                                         let space_name = space_name.clone();
                                         let guide_href = guide_href.clone();
-                                        let chat_href = chat_href.clone();
                                         move || {
                                             let id = id.clone();
                                             let space_name = space_name.clone();
                                             let guide_href = guide_href.clone();
-                                            let chat_href = chat_href.clone();
                                             match panel.get() {
                                                 SpacePanel::Wall => view! {
-                                                    <SpaceCardWall
-                                                        space_id=id
-                                                        space_name=space_name
-                                                        chat_href=chat_href
-                                                        panel=panel
-                                                    />
+                                                    <SpaceCardWall space_id=id panel=panel />
                                                 }.into_any(),
                                                 SpacePanel::Intro => view! {
                                                     <SpacePanelFrame panel=panel title=t(locale.get(), "简介", "About")>
                                                         <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载简介…", "Loading…")}</div> }>
-                                                            {move || Suspend::new(async move {
-                                                                view! { <SpaceIntroPanel detail=detail.await /> }
-                                                            })}
+                                                            {move || Suspend::new(async move { view! { <SpaceIntroPanel detail=detail.await /> } })}
                                                         </Suspense>
                                                     </SpacePanelFrame>
                                                 }.into_any(),
                                                 SpacePanel::Host => view! {
                                                     <SpacePanelFrame panel=panel title=t(locale.get(), "主理人", "Host")>
-                                                        <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载…", "Loading…")}</div> }>
-                                                            {
+                                                        <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载主理人…", "Loading host…")}</div> }>
+                                                            {{
                                                                 let host_space_id = id.clone();
                                                                 move || {
                                                                     let host_space_id = host_space_id.clone();
-                                                                    Suspend::new(async move {
-                                                                        view! { <SpaceHostPanel space_id=host_space_id detail=detail.await /> }
-                                                                    })
+                                                                    Suspend::new(async move { view! { <SpaceHostPanel space_id=host_space_id detail=detail.await /> } })
                                                                 }
-                                                            }
+                                                            }}
                                                         </Suspense>
                                                     </SpacePanelFrame>
                                                 }.into_any(),
                                                 SpacePanel::Story => view! {
                                                     <SpacePanelFrame panel=panel title=t(locale.get(), "故事", "Stories")>
-                                                        <SpaceTraces space_id=id.clone() space_name=space_name.clone() />
+                                                        <button type="button" class="space-capsule-path" on:click=move |_| panel.set(SpacePanel::Capsules)>
+                                                            <span>
+                                                                <strong>{move || t(locale.get(), "埋信处", "Capsule grove")}</strong>
+                                                                <small>{move || t(locale.get(), "给真正抵达这里的人留一封信", "Leave a letter for someone who truly arrives")}</small>
+                                                            </span>
+                                                            <span aria-hidden="true">"→"</span>
+                                                        </button>
+                                                        <SpaceTraces space_id=id.clone() />
+                                                    </SpacePanelFrame>
+                                                }.into_any(),
+                                                SpacePanel::Capsules => view! {
+                                                    <SpacePanelFrame panel=panel title=t(locale.get(), "埋信处", "Capsule grove")>
+                                                        <SpaceCapsules space_id=id.clone() space_name=space_name.clone() />
                                                     </SpacePanelFrame>
                                                 }.into_any(),
                                                 SpacePanel::Guides => view! {
                                                     <SpacePanelFrame panel=panel title=t(locale.get(), "空间志", "Guides")>
                                                         <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在加载空间志…", "Loading guides…")}</div> }>
-                                                            {
+                                                            {{
                                                                 let write_href = guide_href.clone();
                                                                 move || {
                                                                     let write_href = write_href.clone();
                                                                     Suspend::new(async move {
                                                                         let items = guides.await;
-                                                                        view! { <SpaceGuideList guides=items write_href=write_href /> }
+                                                                        let open_guide = Callback::new(move |guide_id: String| {
+                                                                            selected_guide.set(Some(guide_id));
+                                                                            panel.set(SpacePanel::Guide);
+                                                                        });
+                                                                        view! { <SpaceGuideList guides=items write_href=write_href on_open_guide=open_guide /> }
                                                                     })
                                                                 }
-                                                            }
+                                                            }}
                                                         </Suspense>
                                                     </SpacePanelFrame>
                                                 }.into_any(),
+                                                SpacePanel::Discussion => {
+                                                    let back = Callback::new(move |_| panel.set(SpacePanel::Wall));
+                                                    let keep = Callback::new(move |_| panel.set(SpacePanel::Story));
+                                                    view! { <SpaceDiscussion space_id=Signal::derive(move || id.clone()) embedded=true on_back=back on_keep=keep /> }.into_any()
+                                                },
+                                                SpacePanel::Share => view! {
+                                                    <SpacePanelFrame panel=panel title=t(locale.get(), "分享与进入", "Share and enter")>
+                                                        <div class="space-card-tools space-card-tools--panel" aria-label=move || t(locale.get(), "空间工具", "Space tools")>
+                                                            <SpaceSharePanel space_id=id.clone() space_name=space_name.clone() compact=false />
+                                                            <CommunityLinks space_name=space_name.clone() />
+                                                        </div>
+                                                    </SpacePanelFrame>
+                                                }.into_any(),
+                                                SpacePanel::Guide => {
+                                                    if let Some(guide_id) = selected_guide.get() {
+                                                        let back = Callback::new(move |_| panel.set(SpacePanel::Guides));
+                                                        view! { <SpaceEmbeddedGuide guide_id=guide_id on_back=back /> }.into_any()
+                                                    } else {
+                                                        panel.set(SpacePanel::Guides);
+                                                        view! { <span></span> }.into_any()
+                                                    }
+                                                },
                                             }
                                         }
                                     }
@@ -204,9 +263,9 @@ pub fn SpacePage() -> impl IntoView {
                             let community_space_name = space_name.clone();
                             let id = state.space_id.to_string();
                             view! {
-                                <section class="form">
+                                <section class="form space-access-gate">
                                     <h1>{move || t(locale.get(), "私密空间需要访问码", "Private Space requires an access code")}</h1>
-                                    <p>{move || t(locale.get(), "验证后进入这个地点的空间详情：简介、主理人、空间志、故事、分享和讨论都在这里。", "After verification, enter this place’s Space detail: about, host, guides, stories, sharing and discussion are all here.")}</p>
+                                    <p>{move || t(locale.get(), "验证后可在当前窗口查看简介、主理人、空间志、故事、分享与讨论。", "After verification, browse the full Space without leaving this window.")}</p>
                                     <PrivateVerify
                                         space_id=id
                                         space_name=space_name
@@ -219,13 +278,13 @@ pub fn SpacePage() -> impl IntoView {
                         None => view! {
                             <section class="empty-state">
                                 <strong>{move || t(locale.get(), "空间不存在或暂不可用", "Space not found or unavailable")}</strong>
-                                <a class="button button-primary" href="/inspace">{move || t(locale.get(), "返回地图", "Back to map")}</a>
+                                <a class="button button-primary" href="/inspace/explore">{move || t(locale.get(), "返回空间列表", "Back to Spaces")}</a>
                             </section>
                         }.into_any(),
                     }
                 })}
             </Suspense>
-        </main>
+        </div>
     }
 }
 
@@ -233,17 +292,19 @@ pub fn SpacePage() -> impl IntoView {
 /// and sharing tools stay behind deliberate actions instead of competing in
 /// the first viewport.
 #[component]
-fn SpaceCardWall(
-    space_id: String,
-    space_name: String,
-    chat_href: String,
-    panel: RwSignal<SpacePanel>,
-) -> impl IntoView {
+fn SpaceCardWall(space_id: String, panel: RwSignal<SpacePanel>) -> impl IntoView {
     let locale = use_i18n().locale;
-    let share_space_name = space_name.clone();
-    let community_space_name = space_name.clone();
+    let world_href = format!("/inspace/world/{space_id}?via=link");
     view! {
         <div class="space-card-wall">
+            <a class="space-world-entry" href=world_href>
+                <span class="space-world-entry-mark" aria-hidden="true"></span>
+                <span class="space-world-entry-copy">
+                    <strong>{move || t(locale.get(), "进入这个空间", "Enter this Space")}</strong>
+                    <small>{move || t(locale.get(), "人物会在入口落脚；空间志、故事与主理人都成为场景中的一部分。", "Arrive at the entrance; journals, stories and the host become part of the scene.")}</small>
+                </span>
+                <span class="space-world-entry-go" aria-hidden="true">"→"</span>
+            </a>
             <section class="space-place-index" aria-labelledby="space-place-index-title">
                 <header class="space-place-index-head">
                     <p class="survey-kicker">{move || t(locale.get(), "空间目录", "Space index")}</p>
@@ -279,26 +340,23 @@ fn SpaceCardWall(
                         </span>
                         <span class="space-entry-card-go">{move || t(locale.get(), "打开", "Open")}</span>
                     </button>
-                    <a class="space-entry-row" href=chat_href>
+                    <button type="button" class="space-entry-row" on:click=move |_| panel.set(SpacePanel::Discussion)>
                         <span class="space-entry-row-main">
                             <span class="space-entry-card-label">{move || t(locale.get(), "讨论", "Discussion")}</span>
                             <span class="space-entry-card-desc">{move || t(locale.get(), "今天现场", "What is happening now")}</span>
                         </span>
                         <span class="space-entry-card-go">{move || t(locale.get(), "进入", "Enter")}</span>
-                    </a>
+                    </button>
+                    <button type="button" class="space-entry-row" on:click=move |_| panel.set(SpacePanel::Share)>
+                        <span class="space-entry-row-main">
+                            <span class="space-entry-card-label">{move || t(locale.get(), "分享", "Share")}</span>
+                            <span class="space-entry-card-desc">{move || t(locale.get(), "链接、二维码与社群", "Link, QR code, and community")}</span>
+                        </span>
+                        <span class="space-entry-card-go">{move || t(locale.get(), "打开", "Open")}</span>
+                    </button>
                 </nav>
             </section>
 
-            <details id="space-share" class="space-tools-disclosure">
-                <summary>
-                    <span>{move || t(locale.get(), "分享与进入", "Share and enter")}</span>
-                    <small>{move || t(locale.get(), "链接、二维码、社群", "Link, QR code, community")}</small>
-                </summary>
-                <div class="space-card-tools" aria-label=move || t(locale.get(), "空间工具", "Space tools")>
-                    <SpaceSharePanel space_id=space_id space_name=share_space_name compact=true />
-                    <CommunityLinks space_name=community_space_name />
-                </div>
-            </details>
         </div>
     }
 }
@@ -417,6 +475,11 @@ fn SpaceIntroPanel(detail: Option<SpaceDetailView>) -> impl IntoView {
 #[component]
 fn SpaceHostPanel(space_id: String, detail: Option<SpaceDetailView>) -> impl IntoView {
     let locale = use_i18n().locale;
+    let lineage_space_id = space_id.clone();
+    let lineage = Resource::new(
+        move || lineage_space_id.clone(),
+        |space_id| async move { get_space_host_lineage(space_id).await.ok().flatten() },
+    );
     let host_name = detail
         .as_ref()
         .and_then(|d| d.host_name.clone())
@@ -457,6 +520,62 @@ fn SpaceHostPanel(space_id: String, detail: Option<SpaceDetailView>) -> impl Int
                     <SpaceHostClaim space_id=space_id.clone() />
                 }.into_any(),
             }}
+
+            <Suspense fallback=move || view! { <span class="space-host-lineage-loading"></span> }>
+                {move || Suspend::new(async move {
+                    let Some(snapshot) = lineage.await else { return view! { <span></span> }.into_any(); };
+                    let supporting = StoredValue::new(snapshot.active_hosts.into_iter().filter(|host| host.role != HostTenureRole::Primary).collect::<Vec<_>>());
+                    let history = StoredValue::new(snapshot.past_hosts);
+                    let state_copy = match snapshot.state {
+                        HostGovernanceState::Hosted => t(locale.get_untracked(), "这个空间已有长期主理。", "This Space has long-term stewardship."),
+                        HostGovernanceState::Recruiting => t(locale.get_untracked(), "这个空间正在寻找下一位长期主理人。", "This Space is looking for its next long-term host."),
+                        HostGovernanceState::SystemCare => t(locale.get_untracked(), "目前由 inspace 临时看护，等待熟悉这里的人接手。", "Temporarily cared for by inspace while awaiting a local host."),
+                    };
+                    view! {
+                        <div class="space-host-lineage">
+                            <p class="space-host-lineage-state">{state_copy}</p>
+                            <Show when=move || !supporting.get_value().is_empty()>
+                                <div class="space-host-supporting">
+                                    <span class="space-fact-key">{move || t(locale.get(), "共同守护", "Also cared for by")}</span>
+                                    <ul>
+                                        <For
+                                            each=move || supporting.get_value()
+                                            key=|host| host.tenure_id
+                                            children=move |host: SpaceHostIdentity| view! {
+                                                <li>
+                                                    <strong>{host.display_name}</strong>
+                                                    <small>{match host.role {
+                                                        HostTenureRole::Steward => t(locale.get(), "系统看护", "Steward"),
+                                                        _ => t(locale.get(), "共同主理人", "Co-host"),
+                                                    }}</small>
+                                                </li>
+                                            }
+                                        />
+                                    </ul>
+                                </div>
+                            </Show>
+                            <Show when=move || !history.get_value().is_empty()>
+                                <details class="space-host-past">
+                                    <summary>{move || format!("{} · {}", t(locale.get(), "历任主理", "Past hosts"), history.get_value().len())}</summary>
+                                    <ul>
+                                        <For
+                                            each=move || history.get_value()
+                                            key=|host| host.tenure_id
+                                            children=move |host: SpaceHostIdentity| view! {
+                                                <li>
+                                                    <strong>{host.display_name}</strong>
+                                                    <span>{format!("{} — {}", host.started_at.date(), host.ended_at.map(|value| value.date().to_string()).unwrap_or_else(|| "—".to_string()))}</span>
+                                                </li>
+                                            }
+                                        />
+                                    </ul>
+                                </details>
+                            </Show>
+                        </div>
+                    }.into_any()
+                })}
+            </Suspense>
+
             {since.map(|since| view! {
                 <div class="space-host-since">
                     <span class="space-fact-key">{move || t(locale.get(), "空间建立于", "Space created")}</span>
@@ -567,10 +686,24 @@ fn ClaimForm(
 /// chat surface can own the full viewport height on mobile.
 #[component]
 pub fn SpaceChatPage() -> impl IntoView {
-    let locale = use_i18n().locale;
     let params = use_params_map();
     let space_id =
-        Memo::new(move |_| params.with(|params| params.get("space_id").unwrap_or_default()));
+        Signal::derive(move || params.with(|params| params.get("space_id").unwrap_or_default()));
+    view! {
+        <main id="main-content" class="page space-chat-page">
+            <SpaceDiscussion space_id=space_id />
+        </main>
+    }
+}
+
+#[component]
+pub fn SpaceDiscussion(
+    space_id: Signal<String>,
+    #[prop(default = false)] embedded: bool,
+    #[prop(optional)] on_back: Option<Callback<()>>,
+    #[prop(optional)] on_keep: Option<Callback<()>>,
+) -> impl IntoView {
+    let locale = use_i18n().locale;
     let refresh = RwSignal::new(0u32);
     let message_body = RwSignal::new(String::new());
     let send_error = RwSignal::new(None::<String>);
@@ -666,7 +799,7 @@ pub fn SpaceChatPage() -> impl IntoView {
     });
 
     view! {
-        <main id="main-content" class="page space-chat-page">
+        <div class=move || if embedded { "space-discussion space-discussion--embedded" } else { "space-discussion" }>
             <Suspense fallback=move || view! { <p class="space-section-loading">{move || t(locale.get(), "正在检查空间访问权限", "Checking space access")}</p> }>
                 {move || Suspend::new(async move {
                     match access.await {
@@ -683,9 +816,19 @@ pub fn SpaceChatPage() -> impl IntoView {
                             view! {
                                 <section class="chat-shell chat-room" aria-label="Space discussion">
                                     <header class="chat-room-header">
-                                        <a class="chat-room-back" href=back_href.clone() aria-label=move || t(locale.get(), "返回空间", "Back to Space")>
-                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-                                        </a>
+                                        {if let Some(on_back) = on_back {
+                                            view! {
+                                                <button type="button" class="chat-room-back chat-room-back-button" aria-label=move || t(locale.get(), "返回空间", "Back to Space") on:click=move |_| on_back.run(())>
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+                                                </button>
+                                            }.into_any()
+                                        } else {
+                                            view! {
+                                                <a class="chat-room-back" href=back_href.clone() aria-label=move || t(locale.get(), "返回空间", "Back to Space")>
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+                                                </a>
+                                            }.into_any()
+                                        }}
                                         <div class="chat-room-title">
                                             <h1>{space_name}</h1>
                                             <p class="chat-room-sub">
@@ -697,9 +840,19 @@ pub fn SpaceChatPage() -> impl IntoView {
                                                 </span>
                                             </p>
                                         </div>
-                                        <a class="chat-room-keep" href=keep_href>
-                                            {move || t(locale.get(), "这里留下的", "What stays")}
-                                        </a>
+                                        {if let Some(on_keep) = on_keep {
+                                            view! {
+                                                <button type="button" class="chat-room-keep chat-room-keep-button" on:click=move |_| on_keep.run(())>
+                                                    {move || t(locale.get(), "这里留下的", "What stays")}
+                                                </button>
+                                            }.into_any()
+                                        } else {
+                                            view! {
+                                                <a class="chat-room-keep" href=keep_href>
+                                                    {move || t(locale.get(), "这里留下的", "What stays")}
+                                                </a>
+                                            }.into_any()
+                                        }}
                                     </header>
                                     <p class="chat-room-nature">
                                         {move || t(
@@ -879,7 +1032,11 @@ pub fn SpaceChatPage() -> impl IntoView {
 
                                     {(!is_public).then(|| view! {
                                         <div class="realtime-reverify" data-private-reverify="true" style="display:none">
-                                            <PrivateVerify space_id=id.clone() space_name=verify_space_name.clone() />
+                                            <PrivateVerify
+                                                space_id=id.clone()
+                                                space_name=verify_space_name.clone()
+                                                on_verified=Callback::new(move |_| refresh.update(|value| *value += 1))
+                                            />
                                         </div>
                                     })}
                                 </section>
@@ -909,7 +1066,7 @@ pub fn SpaceChatPage() -> impl IntoView {
                     }
                 })}
             </Suspense>
-        </main>
+        </div>
     }
 }
 
@@ -976,6 +1133,7 @@ fn SpaceMetaLine(space: Option<SpaceMarker>) -> impl IntoView {
 fn SpaceGuideList(
     guides: Vec<instant_domain::guides::GuideSummary>,
     write_href: String,
+    #[prop(optional)] on_open_guide: Option<Callback<String>>,
 ) -> impl IntoView {
     let locale = use_i18n().locale;
     let empty_write_href = write_href.clone();
@@ -1011,9 +1169,20 @@ fn SpaceGuideList(
                                 let can_edit = guide.can_edit;
                                 view! {
                                     <li>
-                                        <a class="guide-list-link" href=href>
-                                            <strong>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</strong>
-                                        </a>
+                                        {if let Some(open_guide) = on_open_guide {
+                                            let guide_id = guide.id.to_string();
+                                            view! {
+                                                <button type="button" class="guide-list-link guide-list-link-button" on:click=move |_| open_guide.run(guide_id.clone())>
+                                                    <strong>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</strong>
+                                                </button>
+                                            }.into_any()
+                                        } else {
+                                            view! {
+                                                <a class="guide-list-link" href=href>
+                                                    <strong>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</strong>
+                                                </a>
+                                            }.into_any()
+                                        }}
                                         {can_edit.then(|| view! {
                                             <div class="guide-list-actions">
                                                 <a class="button button-secondary-light" href=edit_href>{move || t(locale.get(), "编辑", "Edit")}</a>
@@ -1026,6 +1195,106 @@ fn SpaceGuideList(
                     </ul>
                 }.into_any()
             }}
+        </section>
+    }
+}
+
+#[component]
+fn SpaceEmbeddedGuide(guide_id: String, on_back: Callback<()>) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let resource_id = guide_id.clone();
+    let guide = Resource::new(
+        move || resource_id.clone(),
+        |guide_id| async move { get_guide_detail(guide_id).await.ok().flatten() },
+    );
+
+    view! {
+        <section class="space-embedded-guide" aria-label=move || t(locale.get(), "空间志阅读", "Guide reader")>
+            <div class="space-panel-open-bar space-embedded-guide-bar">
+                <button type="button" class="space-panel-back" on:click=move |_| on_back.run(())>
+                    <span aria-hidden="true">"←"</span>
+                    <span>{move || t(locale.get(), "返回空间志", "Back to guides")}</span>
+                </button>
+                <span class="space-panel-open-title">{move || t(locale.get(), "空间志", "Guide")}</span>
+            </div>
+            <Suspense fallback=move || view! { <div class="space-section-loading">{move || t(locale.get(), "正在展开这篇空间志…", "Opening guide…")}</div> }>
+                {move || Suspend::new(async move {
+                    match guide.await {
+                        Some(guide) => {
+                            let title_zh = guide.title_zh.clone();
+                            let title_en = guide.title_en.clone();
+                            let summary_zh = guide.summary_zh.clone().unwrap_or_default();
+                            let summary_en = guide.summary_en.clone();
+                            let content_zh = guide.content_zh.clone().unwrap_or_default();
+                            let content_en = guide.content_en.clone();
+                            let cover = guide.cover_image_url.clone().filter(|value| !value.trim().is_empty());
+                            let sections = guide.sections.clone();
+                            let images = guide.images.clone();
+                            let author = guide.author_name.clone();
+                            let edit_href = format!("/inspace/guides/{}/edit", guide.id);
+                            let can_edit = guide.can_edit;
+                            view! {
+                                <article class="guide-detail guide-detail--embedded">
+                                    <header class="guide-detail-hero">
+                                        <div>
+                                            <p class="eyebrow">{move || t(locale.get(), "留在这个地点的记录", "A record kept with this place")}</p>
+                                            <h1>{move || localize_optional(locale.get(), &title_zh, title_en.as_deref())}</h1>
+                                            {author.map(|value| view! { <p class="guide-detail-location">{value}</p> })}
+                                        </div>
+                                        {cover.map(|url| view! { <img class="guide-cover" src=url alt="" loading="lazy" /> })}
+                                    </header>
+                                    {(!summary_zh.is_empty() || summary_en.as_deref().is_some_and(|value| !value.trim().is_empty())).then(|| view! {
+                                        <section class="guide-summary"><p>{move || localize_optional(locale.get(), &summary_zh, summary_en.as_deref())}</p></section>
+                                    })}
+                                    {(!content_zh.is_empty() || content_en.as_deref().is_some_and(|value| !value.trim().is_empty())).then(|| view! {
+                                        <section class="guide-content"><p>{move || localize_optional(locale.get(), &content_zh, content_en.as_deref())}</p></section>
+                                    })}
+                                    {(!sections.is_empty()).then(|| view! {
+                                        <section class="guide-sections" aria-label=move || t(locale.get(), "空间志章节", "Guide sections")>
+                                            <For each=move || sections.clone() key=|section| section.id.clone() children=move |section| {
+                                                let section_title_zh = section.title_zh.clone();
+                                                let section_title_en = section.title_en.clone();
+                                                let section_content_zh = section.content_zh.clone();
+                                                let section_content_en = section.content_en.clone();
+                                                let section_images = section.images.clone();
+                                                view! {
+                                                    <section class="guide-section-card">
+                                                        {(!section_title_zh.is_empty() || section_title_en.as_deref().is_some_and(|value| !value.trim().is_empty())).then(|| view! {
+                                                            <h2>{move || localize_optional(locale.get(), &section_title_zh, section_title_en.as_deref())}</h2>
+                                                        })}
+                                                        {(!section_content_zh.is_empty() || section_content_en.as_deref().is_some_and(|value| !value.trim().is_empty())).then(|| view! {
+                                                            <p>{move || localize_optional(locale.get(), &section_content_zh, section_content_en.as_deref())}</p>
+                                                        })}
+                                                        {(!section_images.is_empty()).then(|| view! {
+                                                            <div class="guide-image-grid">
+                                                                <For each=move || section_images.clone() key=|url| url.clone() children=move |url| view! { <img src=url alt="" loading="lazy" /> } />
+                                                            </div>
+                                                        })}
+                                                    </section>
+                                                }
+                                            } />
+                                        </section>
+                                    })}
+                                    {(!images.is_empty()).then(|| view! {
+                                        <div class="guide-image-grid guide-image-grid--embedded">
+                                            <For each=move || images.clone() key=|url| url.clone() children=move |url| view! { <img src=url alt="" loading="lazy" /> } />
+                                        </div>
+                                    })}
+                                    {can_edit.then(|| view! {
+                                        <footer class="guide-detail-actions"><a class="button button-secondary-light" href=edit_href>{move || t(locale.get(), "编辑这篇空间志", "Edit this guide")}</a></footer>
+                                    })}
+                                </article>
+                            }.into_any()
+                        }
+                        None => view! {
+                            <div class="empty-state compact-empty">
+                                <strong>{move || t(locale.get(), "这篇空间志暂时无法打开", "This guide is unavailable")}</strong>
+                                <button type="button" class="button button-primary" on:click=move |_| on_back.run(())>{move || t(locale.get(), "返回空间志", "Back to guides")}</button>
+                            </div>
+                        }.into_any(),
+                    }
+                })}
+            </Suspense>
         </section>
     }
 }

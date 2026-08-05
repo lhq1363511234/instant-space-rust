@@ -14,6 +14,22 @@ Maintenance module map and current Phase gap audit: [`docs/SITE_MODULE_ARCHITECT
 
 ## Commands
 
+开发时使用热开发入口，不要运行 release 构建：
+
+```bash
+npm run dev
+```
+
+它会在首次 `dev-fast` 增量构建完成后接管 `127.0.0.1:3001`。CSS/图片约 1 秒直接刷新；内联 JS 与纯服务端 Rust 只重建服务端；Leptos 交互组件才同时增量构建 SSR 与 WASM。开发期间线上 `/inspace` 反代也会显示开发版本；按 `Ctrl+C` 会自动恢复 `instant-space-rust.service` 正式服务。
+
+长期后台开发可用：
+
+```bash
+npm run dev:start   # 后台启动热开发并接管 3001
+npm run dev:logs    # 查看增量构建日志
+npm run dev:stop    # 停止热开发并恢复正式服务
+```
+
 ```powershell
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings

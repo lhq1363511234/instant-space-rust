@@ -1,0 +1,63 @@
+{
+  "compressionlevel": -1,
+  "height": 34,
+  "infinite": false,
+  "layers": [
+    {
+      "id": 1,
+      "name": "spawn",
+      "objects": [
+        {"id": 1, "name": "gate", "point": true, "x": 960, "y": 930, "type": "spawn"}
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 2,
+      "name": "colliders",
+      "objects": [
+        {"id": 2, "name": "home", "x": 710, "y": 100, "width": 500, "height": 285, "type": "solid"},
+        {"id": 3, "name": "pond", "x": 95, "y": 655, "width": 475, "height": 250, "type": "solid"},
+        {"id": 4, "name": "east-wall", "x": 1670, "y": 170, "width": 70, "height": 690, "type": "solid"},
+        {"id": 5, "name": "west-wall", "x": 180, "y": 190, "width": 55, "height": 350, "type": "solid"}
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 3,
+      "name": "decorations",
+      "objects": [
+        {"id": 6, "name": "pine", "x": 250, "y": 180, "type": "tree"},
+        {"id": 7, "name": "pine", "x": 1510, "y": 245, "type": "tree"},
+        {"id": 8, "name": "osmanthus", "x": 1375, "y": 510, "type": "tree"},
+        {"id": 9, "name": "rock", "x": 460, "y": 395, "type": "rock"},
+        {"id": 10, "name": "rock", "x": 1560, "y": 725, "type": "rock"},
+        {"id": 11, "name": "lantern", "x": 790, "y": 500, "type": "lantern"},
+        {"id": 12, "name": "lantern", "x": 1130, "y": 500, "type": "lantern"}
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextlayerid": 4,
+  "nextobjectid": 13,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.11.2",
+  "tileheight": 32,
+  "tilesets": [],
+  "tilewidth": 32,
+  "type": "map",
+  "version": "1.10",
+  "width": 60
+}

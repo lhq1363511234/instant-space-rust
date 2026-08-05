@@ -1278,3 +1278,110 @@ Impeccable detector 对 `song-system.css` / `app.rs` 返回 `[]`。
 - 部署：WASM v92→v93；release 构建 11m54s、wasm 3m57s（`CARGO_BUILD_JOBS=3`）；服务重启后 `schema contract verified`；五表已建。
 - 验证：临时种数据渲染庭院（桌面 1440/手机 390 截图存 `output/playwright/yard-*.png`），验完已删测试数据（users 45 恢复）。
 - 待办：无阻塞；下一步可做云上家并入空间系统 / 宠物跟随足迹展示页。
+
+## 2026-08-03 — 首页本地图片、千里江山长卷与热门空间横向画廊
+
+- 首页图片统一使用 `/inspace/vendor/img/...`；原因是客户端 WASM 从其他页面返回首页时不会经过 Nginx `sub_filter`，旧 `/vendor/img/...` 会请求站点根路径并 404。`app/src/main.rs` 同时暴露 `/inspace/vendor`，本地与线上路径一致。
+- 热门地点图片已全部存入 `app/vendor/img/featured/`；《千里江山图》存入 `app/vendor/img/culture/thousand-li-rivers-mountains.webp`，来源与许可记录在对应 `ATTRIBUTIONS.md`，不再依赖运行时外链。
+- 首页 hero 右侧新增有细边框、两侧渐隐的《千里江山图》横卷；两份长卷首尾衔接，72 秒由左向右循环，`prefers-reduced-motion` 下静止。
+- 热门空间废弃呆板的桌面 3×2 等列网格，改为横向地点画廊：桌面可见约 2 张半、iPad 约 2 张半、手机约 1 张加下一张提示；4:3 图片、scroll snap、无文档横向溢出。
+- 线上 CSS cache-buster：`home-discovery.css?v=20260803-song-ui-v20`；本轮只有 CSS/静态资源变更，未重复构建 Rust/WASM。
+- 浏览器 QA：从 `/inspace/about` 客户端导航回 `/inspace` 后，5 档视口（1440×900、1024×768、768×1024、390×844、375×812）所有首页图片 `naturalWidth > 0`，0 console error、0 failed request、0 document overflow；长卷持续移动，reduced-motion 下 animation 为 none。证据：`output/playwright/home-v20-gallery/`。
+
+## 2026-08-03 — 云上家架构更正
+
+- 旧记录“云上家未并入空间系统”已过时：迁移 `20260803000100_cloud_home_spaces.sql` 已使每个云上家一对一关联私密 Space（`cloud_homes.space_id`），`category='cloud_home'`，并从公共地图、探索和热门空间硬性排除。
+
+## 2026-08-04 — 首页长卷去框、标题排版与底部对比度修复
+
+- 《千里江山图》容器已去除边框、背景和阴影，只保留图片本身的左右渐隐与横卷运动。
+- 首屏标题过窄的根因是旧 `.survey-hero` 双列网格仍在生效，标题实际仅 370px 宽；现强制 hero 为单列布局，桌面标题区 660px，字距从约 -4.16px 放松至约 -1.47px，字号下调一档。
+- 标题字体仍为自托管 `Noto Serif SC`（现代宋体/思源宋体体系），改用站内真实存在的 600 字重，避免以 500 字重合成导致笔画发硬。
+- 首页底部主理人招募区原本被旧 `.survey-colophon` 高优先级规则覆盖为透明背景，白字因此不可读；现用更高 specificity 恢复墨黑背景，并恢复桌面 72px、手机 20px 左右内边距。正文对墨黑背景对比度约 13.63:1。
+- 线上 CSS：`home-discovery.css?v=20260804-song-ui-v23`。浏览器验证 1440×900、1024×768、390×844、375×812：长卷 border=0、shadow=none，图片加载成功，无 console error、failed request 或横向溢出。证据：`output/playwright/home-v23-final/`。
+
+## 2026-08-04 — 首页底部主理人区减重
+
+- 用户认为墨黑整块底色过重；已改为浅青灰纸面 `#e8ece6`、墨色标题与深灰正文，只保留主按钮为墨黑重心。
+- 正文对比度约 8.34:1，次按钮约 9.09:1，主按钮约 15.94:1；桌面/iPad/手机无横向溢出、console error 或失败请求。
+- 线上 CSS：`home-discovery.css?v=20260804-song-ui-v24`；证据：`output/playwright/home-v24-light-host/`。
+
+
+## 2026-08-04 — Phase 9.3 主理人治理闭环（生产已部署）
+
+- 迁移 `20260804000200_host_governance.sql` 已上线，迁移总数 **30**；新增 `spaces.host_governance_state / host_recruitment_note`、有效任期唯一索引和不可变 `space_governance_events`。
+- 生产迁移前事务 dry-run 通过：active tenure 重复数 0、`spaces.host_user_id` 与 active primary 任期不一致数 0；启动日志确认 `migrations applied` 与 `schema contract verified`。
+- 生产基线：`hosted=1019`、`recruiting=1061`、active primary=1019；本轮临时 QA 数据已全部删除。
+- 主理人治理 UI 已挂入 `/inspace/my-spaces` 管理弹窗：共同主理、系统看护、结束任期、交接、退出、招募说明、历史任期和治理日志；普通成员区不再提供会误导权限的“主持人”选项。
+- 公共空间详情“主理人”页展示共同主理人与历任主理。Scene/Object/Portal/出生点管理权限只认 active `space_host_tenures`（兼容 creator/current host），不再只凭 `space_members.role='host'`。
+- 主理权交接和退出成功后前端返回“我的空间”，避免旧角色再次请求受限治理资源导致 500。
+- 完整公网验收：两名临时用户走通 `appoint_co_host → transfer_primary → release_to_recruiting`；DB 事件顺序一致；1440、1024×768、768×1024、390×844、375×812 无文档横向溢出，关键流程 0 console error / 0 业务请求失败。证据：`output/playwright/phase9-host-governance/`。
+- 已知既有风险：`SpaceSharePanel` 的二维码仍依赖 `api.qrserver.com`，375px 响应式烟测出现过一次外部请求失败；M16 后续应改成本地生成。
+- 构建：release v97（首次 10m51s；修正漏挂载后增量 11m03s），WASM 最终 **v98**（3m45s）。由于最终修复只改变 hydrate 成功后的跳转，Nginx 暂时精确改写 `instant_space_app_v97 → v98`；下一次正常 release 应让 SSR 直接输出 v98 并删除两条临时 sub_filter。
+- 最新数据库备份：`/tmp/instant_space_rust_20260803_223201.dump`（Alaska 本地日期；对应 UTC 2026-08-04）。
+
+## 2026-08-04 — Phase 9.4A 云上家 Phaser Runtime（已上线）
+
+- 已删除 `pages/lives.rs` 中旧 `CloudHomeYard`：不再使用 CSS 拼庭院、点击物件切右栏、内嵌猫狗 SVG 的伪游戏交互；`lives.css` 对应庭院样式同步删除。
+- 云上家门页现在只负责门禁、家庭成员记录和主人布置；进入庭院统一走 `/inspace/world/:space_id`。
+- 世界页改为按需加载 Phaser 3.90.0 Arcade Physics 生产 bundle（仅保留约 1.1MB vendor 文件与 MIT license，不保留 100MB+ npm 源包）。
+- 新运行时：点击地面移动、WASD/方向键移动、宠物跟随、靠近物件显示单一动作、Enter/按钮互动、Bottom Sheet 内容、Portal 链接、离线/错误/无 JS 文字回退、reduced-motion、低性能模式。
+- 云上家使用 `app/vendor/world/cloud-home-courtyard.json` 作为第一份 Tiled Object Layout；Scene/Object 业务内容仍来自 PostgreSQL。
+- 关键文件：
+  - `app/src/pages/world.rs`
+  - `app/src/world_runtime.js`
+  - `app/style/world-scene.css`
+  - `app/vendor/phaser/`
+  - `app/vendor/world/cloud-home-courtyard.json`
+- 生产 hydrate 版本升级为 `instant_space_app_v99`；SSR 二进制已直接输出 v99；Nginx 中两条 `v97 → v98` 临时改写已删除。
+- 浏览器证据：`output/playwright/phase9-phaser-home/`；1440×1000、1024×768、390×844 均无横向溢出、无 console error、无失败请求；生产 Phaser canvas 非空并进入 Idle。
+- 构建资源纪律：一次失败的 debug 链接产生约 14GB `target/debug`，已全部删除；最终 `target` 约 3.2GB。后续仍只用 `CARGO_BUILD_JOBS=3` 串行构建。
+- 尚未完成：真实多人位置同步、Tiled 可视化编辑/导入器、障碍碰撞/寻路、云上家访客口令与 Space 访问会话的统一验证。
+
+## 2026-08-04 — Space 全局弹窗工作区 + 世界场景桥接（v101 已上线）
+
+- 普通用户从首页热门空间/故事、探索目录、地图详情、攻略关联空间和“我的空间”打开 Space 时，不再离开当前页面；统一进入全局 `SpaceExperienceModalHost`。
+- 空间简介、主理人、故事、空间志、分享、讨论以及空间志阅读共用同一工作区切换；`/inspace/spaces/:id` 与 `/chat` 继续作为分享、刷新、SEO 和无 JS 回退。
+- 手机为 100svh 全屏 Sheet，桌面为最大 1180px/90svh 工作区；只有一个主滚动区，背景锁滚动，44px 关闭按钮，Esc 关闭、Tab 焦点循环、关闭后焦点回到触发入口，支持 reduced-motion。
+- 私密空间验证成功后原地刷新工作区，不再要求再点一次跳转链接；讨论面板继续复用原 WebSocket、求助、刻字和重新验证逻辑。
+- Phaser/庭院 Object Bottom Sheet 已接入弹窗桥：普通内容→空间目录，`stories`→故事，`notice`→讨论；Portal、登录和真正进入其他 Scene 仍保留导航。
+- 修复从精确路径 `/inspace` 打开弹窗讨论时 WebSocket 缺少 `/inspace` 前缀导致 404 的问题。
+- 新增：`app/src/components/space_experience_modal.rs`、`app/src/space_modal_runtime.js`、`app/style/space-modal.css`；核心复用组件在 `app/src/pages/space.rs`。
+- 生产资源版本：`instant_space_app_v101`，CSS `space-modal-v2`；`/health` 与 `/ready` 正常。
+- 浏览器证据：`output/playwright/space-modal-v101/`。首页和庭院触发后 URL 保持不变；Wall/Story/Discussion 映射均通过；桌面 1440×900、平板 1024×768、手机 390×844 无横向溢出、无 console error；Esc、焦点进入/归还均通过。
+
+## 2026-08-04 — Phase 9.5 第一批内容对象化闭环
+
+- 首页热门空间/故事启用登录 Gate：匿名用户在原页弹窗登录，成功后自动续接原 Space；私密空间仍复用 `PrivateVerify`。`SpaceExperienceModalHost` 必须由 App 根显式传入同一状态实例。
+- 首页卡片曾“点击没反应”的根因是 `home_hyperframes.js` 在 `pointerdown` 无条件 `setPointerCapture`；链接/按钮目标现不捕获 pointer。
+- 默认 Scene 采用幂等升级：每次访问补齐缺失对象并刷新真实内容绑定。内容映射为 Guide/推荐、故事、讨论、主理人、胶囊；Portal 只来自 `space_relations` 的 `child/portal` 关系。
+- 云阳县城（`20008c2c-b072-5069-8361-d9a92113edea`）已建立城市大厅 Scene，现有游客中心、今日城事、问路人、城中旧闻；城中旧闻绑定真实故事，不虚构公交站、宾馆或街道。
+- 外滩（`10000000-0000-0000-0000-000000000001`）的历史 Place Scene 已通过懒升级补齐为 5 个对象；“埋信处”绑定真实未开启胶囊，继续复用现场验证与双重口令逻辑。
+- `space_relations` 当前生产记录为 0。重庆其他现有空间均在重庆主城区，距云阳县城约 278 公里，不得冒充云阳县下级地点；没有核验关系就不显示 Portal。
+- 世界 Sheet 与 Space Modal 层级冲突通过 Modal `z-index: 2200` 修复；关闭按钮需 `stop_propagation()`，避免 Leptos 闭包卸载后继续冒泡。
+- 最终浏览器验收：登录续接通过；关闭无 console error；云阳县故事正文 422 字并含“阿栈/黄色出租车”；390×844 `scrollWidth=clientWidth=390`，纸色背景完全不透明，输入 46px、按钮 44px；临时 QA 用户已全部删除。证据在 `output/playwright/phase95-content-objects/`。
+- 当前源码资源版本为 WASM `v106`、Space Modal CSS `v5`。生产 SSR 在本轮 release 前仍依赖 Nginx 精确 `sub_filter` 将 v101 桥接到 v106，并桥接新版 pointer/Sheet 行为；下次正式 release 后必须核对 SSR 直接输出 v106，再删除这些临时规则。
+- 尚未完成：生成式 AI 导游、经过核验的真实 Portal 数据、主理人 Scene 编辑器与对象发布/回滚。Phase 9.5 只能称“第一批闭环”，不能称全部完成。
+
+## 2026-08-04 — 3001 热开发模式（dev-fast）
+
+- 过去每轮都跑 `cargo build --release + build-wasm.mjs`，单次 release 约 10 分钟；根因是项目此前没有 watcher/开发入口，不是业务代码每次都必须全量构建。
+- 新增 `npm run dev` 前台模式，以及后台模式：`npm run dev:start`、`npm run dev:logs`、`npm run dev:stop`。后台由 `/etc/systemd/system/instant-space-dev.service` 托管。
+- 热开发直接使用 `127.0.0.1:3001`；准备缓存期间正式 `instant-space-rust.service` 继续在线，开发产物构建成功后才接管端口。停止或首次构建失败时自动恢复正式服务。
+- `Cargo.toml` 新增 `dev-fast` profile：无多 GB 调试符号、保留增量、256 codegen units；服务端使用 Rust 工具链自带 LLD，不安装额外 linker。开发缓存与生产隔离在 `target/dev-fast`、`target/wasm32-unknown-unknown/dev-fast`、`target/site-dev`。
+- watcher 分类：`app/style`/`app/vendor` 只写版本标记并刷新；内联 JS、`app/src/server`、DB/auth 只增量构建服务端；Leptos 交互组件才同时构建 SSR 与 WASM。浏览器轮询 `/pkg/inspace-dev-version.txt` 自动刷新。
+- 实测：CSS 静态刷新约 1 秒；固定缓存后 WASM 检查 0.22 秒、服务端检查/链接 5.99 秒、完整后台重启与接管 17 秒。首次从零建立两套缓存仍较慢，这是一次性成本。
+- 失败教训：Cargo 默认 debug 产生约 14GB 产物并被 SIGKILL，已全部清理；`cargo-leptos 0.3.7` 因本机旧 GCC 与 `aws-lc-sys` 兼容检查失败，安装临时目录约 547MB 已删除，不再依赖它。
+- 开发模式当前保持运行：`instant-space-dev.service=active`、正式服务 inactive、`/health=ok`、`/ready=ready`。开发期间 `opctoai.com/inspace` 会显示开发版本。
+- 正式 v106 release 已直接包含首页 pointer 修复、世界 Sheet 桥与 Modal v5；Nginx 两处旧 `v101→v106`/交互 `sub_filter` 已删除，备份为 `/etc/nginx/conf.d/opctoai.com.conf.bak-before-dev-hot-20260804`。
+
+## 2026-08-04 — Phase 9.6 具体地点样板第一批闭环
+
+- 新增独立 `SpacePanel::Capsules` 和可复用 `SpaceCapsules(space_id, space_name)`。外滩世界对象“埋信处”从 World Sheet 打开后，保持世界页 URL 不变，在当前页 Space Modal 中直接进入 Capsules 面板。
+- 胶囊没有新建数据库表或第二套门禁，继续复用现有 `PresenceState`、`check_onsite_code`、`seal_capsule`、`open_capsule` 及 Argon2、位置、收件人和开放时间校验。
+- 埋信的硬规则是空间 Wi-Fi 口令加本机定位；启封的硬规则是指定收信人到场、完成空间现场验证、输入胶囊主人私下告知的胶囊口令，并满足开放时间。
+- Capsules 面板按“人在此地 / 空间口令 / 胶囊私语”三步展示。故事面板只保留约 90px 高的轻量胶囊入口，不再混入完整胶囊架，也没有给空间入口墙增加第七张卡。
+- 浏览器脚本为 `tests/browser/phase96-place-capsules.mjs`；1440×900、768×1024、390×844 全部通过。断言覆盖 URL 不跳转、三步锁、PresenceBar、故事轻入口、无内嵌胶囊架、无横向溢出、零控制台错误和零失败请求。报告与截图位于 `output/playwright/phase96-place-capsules/`。
+- 热刷新器曾在 `/inspace` 页面错误请求 `/inspace/pkg/inspace-dev-version.txt` 并持续 404；`app/src/app.rs` 已固定探针为 `/pkg/inspace-dev-version.txt`，当前 3001 控制台不再产生该 404。
+- `CARGO_BUILD_JOBS=3 cargo check --profile dev-fast -p instant-space-app --features ssr` 已通过，仅保留 `app/src/pages/guides.rs` 中 `upload_images` 未使用的历史警告。
+- 边界：这只是“具体地点样板第一批闭环”，不能称 Phase 9.6 全部完成。云上家、城市大厅、完整地点系统、生成式 AI 导游、真实 Portal 和主理人场景编辑治理仍待后续。

@@ -1,19 +1,28 @@
 use leptos::prelude::*;
 
 use crate::app_state::{refresh_spaces, use_app_refresh_state};
+use crate::components::space_experience_modal::OpenSpaceLink;
 use crate::components::space_form::OpenCreateSpaceButton;
 use crate::components::space_share::SpaceSharePanel;
 use crate::feedback::use_feedback;
 use crate::i18n::{localize_optional, t, use_i18n};
+use crate::pages::space::SpacePanel;
 use crate::server::auth::current_session;
 use crate::server::guides::{delete_guide, list_manageable_space_guides};
 use crate::server::spaces::{
-    apply_my_space_resident, archive_my_space_template, close_my_space, delete_my_space,
-    add_my_space_member, get_space_detail, list_my_space_members, list_my_spaces,
-    reactivate_my_space, regenerate_space_password, remove_my_space_member,
-    update_my_space, PasswordRotationResult, SpaceMarker,
+    add_my_space_member, apply_my_space_resident, archive_my_space_template, close_my_space,
+    delete_my_space, get_space_detail, list_my_space_members, list_my_spaces, reactivate_my_space,
+    regenerate_space_password, remove_my_space_member, update_my_space, PasswordRotationResult,
+    SpaceMarker,
+};
+use crate::server::world::{
+    appoint_space_host, get_my_space_governance, leave_space_host_role, remove_space_host,
+    set_space_system_care, transfer_space_host, update_space_recruitment_note,
 };
 use instant_domain::guides::GuideStatus;
+use instant_domain::world::{
+    HostGovernanceState, HostTenureRole, SpaceGovernanceEvent, SpaceHostIdentity,
+};
 
 #[component]
 pub fn HostRoutes() -> impl IntoView {
@@ -270,9 +279,9 @@ fn MySpaceCard(space: SpaceMarker) -> impl IntoView {
         .clone()
         .unwrap_or_else(|| "No expiry".to_string());
     let modal_space = space.clone();
-    let space_href = format!("/inspace/spaces/{}", space.id);
-    let chat_href = format!("/inspace/spaces/{}/chat", space.id);
+    let space_id = space.id.clone();
     let write_guide_href = format!("/inspace/guides/new?space_id={}", space.id);
+    let world_href = format!("/inspace/world/{}?via=link", space.id);
 
     view! {
         <article class="my-space-card">
@@ -290,9 +299,10 @@ fn MySpaceCard(space: SpaceMarker) -> impl IntoView {
                 {expires_at}
             </p>
             <div class="my-space-card-actions">
-                <a class="button button-secondary-light" href=space_href>{move || t(locale.get(), "打开空间", "Open Space")}</a>
+                <OpenSpaceLink space_id=space_id.clone() initial_panel=SpacePanel::Wall class="button button-secondary-light">{move || t(locale.get(), "打开空间", "Open Space")}</OpenSpaceLink>
                 <a class="button button-secondary-light" href=write_guide_href>{move || t(locale.get(), "写攻略", "Write guide")}</a>
-                <a class="button button-secondary-light" href=chat_href>{move || t(locale.get(), "讨论区", "Discussion")}</a>
+                <OpenSpaceLink space_id=space_id.clone() initial_panel=SpacePanel::Discussion class="button button-secondary-light">{move || t(locale.get(), "讨论区", "Discussion")}</OpenSpaceLink>
+                <a class="button button-secondary-light" href=world_href>{move || t(locale.get(), "进入场景", "Enter scene")}</a>
                 <button
                     type="button"
                     class="button button-primary manage-space-open-btn"
@@ -787,6 +797,7 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
                 compact=false
             />
 
+            <SpaceGovernancePanel space_id=related_space_id.clone() />
             <SpaceMembersPanel space_id=related_space_id.clone() />
 
             <RelatedSpaceGuides space_id=related_space_id />
@@ -838,6 +849,398 @@ fn ManageSpacePanel(space: SpaceMarker) -> impl IntoView {
     }
 }
 
+fn governance_role_label(locale: crate::i18n::Locale, role: HostTenureRole) -> &'static str {
+    match role {
+        HostTenureRole::Primary => t(locale, "主理人", "Primary host"),
+        HostTenureRole::CoHost => t(locale, "共同主理人", "Co-host"),
+        HostTenureRole::Steward => t(locale, "系统看护", "Steward"),
+    }
+}
+
+fn governance_state_label(locale: crate::i18n::Locale, state: HostGovernanceState) -> &'static str {
+    match state {
+        HostGovernanceState::Hosted => t(locale, "有人长期主理", "Hosted"),
+        HostGovernanceState::Recruiting => t(locale, "正在招募主理人", "Recruiting"),
+        HostGovernanceState::SystemCare => t(locale, "由系统临时看护", "System care"),
+    }
+}
+
+fn governance_date(value: impl ToString) -> String {
+    value.to_string().chars().take(10).collect()
+}
+
+fn governance_event_copy(locale: crate::i18n::Locale, event: &SpaceGovernanceEvent) -> String {
+    let from = event.from_name.as_deref().unwrap_or("—");
+    let to = event.to_name.as_deref().unwrap_or("—");
+    match event.action.as_str() {
+        "appoint_co_host" => format!(
+            "{} {to}",
+            t(locale, "共同主理人加入：", "Co-host appointed: ")
+        ),
+        "appoint_steward" => format!(
+            "{} {to}",
+            t(locale, "系统看护加入：", "Steward appointed: ")
+        ),
+        "remove_host" => format!(
+            "{} {from}",
+            t(locale, "结束协作任期：", "Supporting tenure ended: ")
+        ),
+        "leave_host" => format!("{} {from}", t(locale, "主动退出任期：", "Host left: ")),
+        "transfer_primary" => format!(
+            "{from} → {to} · {}",
+            t(locale, "完成主理权交接", "Primary stewardship transferred")
+        ),
+        "release_to_recruiting" => t(
+            locale,
+            "原主理人退出，空间重新招募",
+            "Primary host left; recruitment reopened",
+        )
+        .to_string(),
+        "place_in_system_care" => t(
+            locale,
+            "空间转为系统临时看护",
+            "Space moved into system care",
+        )
+        .to_string(),
+        "update_recruitment_note" => {
+            t(locale, "更新了主理人招募说明", "Recruitment note updated").to_string()
+        }
+        _ => event.action.clone(),
+    }
+}
+
+#[component]
+fn SpaceGovernancePanel(space_id: String) -> impl IntoView {
+    let locale = use_i18n().locale;
+    let feedback = use_feedback();
+    let refresh = RwSignal::new(0u32);
+    let resource_id = space_id.clone();
+    let governance = Resource::new(
+        move || (resource_id.clone(), refresh.get()),
+        |(space_id, _)| async move { get_my_space_governance(space_id).await },
+    );
+    let session = Resource::new(
+        || (),
+        |_| async move { current_session().await.ok().flatten() },
+    );
+
+    let invite_email = RwSignal::new(String::new());
+    let invite_note = RwSignal::new(String::new());
+    let invite_role = RwSignal::new("co_host".to_string());
+    let successor_email = RwSignal::new(String::new());
+    let handover_note = RwSignal::new(String::new());
+    let recruitment_note = RwSignal::new(String::new());
+    let leave_armed = RwSignal::new(false);
+    let system_care_armed = RwSignal::new(false);
+    let error = RwSignal::new(None::<String>);
+
+    let appoint_id = space_id.clone();
+    let appoint = Action::new(move |_: &()| {
+        let space_id = appoint_id.clone();
+        let email = invite_email.get();
+        let role = invite_role.get();
+        let note = invite_note.get();
+        async move {
+            appoint_space_host(
+                space_id,
+                email,
+                role,
+                (!note.trim().is_empty()).then_some(note),
+            )
+            .await
+        }
+    });
+
+    let remove_id = space_id.clone();
+    let remove = Action::new(move |user_id: &String| {
+        let space_id = remove_id.clone();
+        let user_id = user_id.clone();
+        async move { remove_space_host(space_id, user_id, None).await }
+    });
+
+    let transfer_id = space_id.clone();
+    let transfer = Action::new(move |_: &()| {
+        let space_id = transfer_id.clone();
+        let email = successor_email.get();
+        let note = handover_note.get();
+        async move {
+            transfer_space_host(space_id, email, (!note.trim().is_empty()).then_some(note)).await
+        }
+    });
+
+    let leave_id = space_id.clone();
+    let leave = Action::new(move |_: &()| {
+        let space_id = leave_id.clone();
+        async move { leave_space_host_role(space_id, None).await }
+    });
+
+    let care_id = space_id.clone();
+    let system_care = Action::new(move |_: &()| {
+        let space_id = care_id.clone();
+        async move { set_space_system_care(space_id, None).await }
+    });
+
+    let note_id = space_id.clone();
+    let save_note = Action::new(move |_: &()| {
+        let space_id = note_id.clone();
+        let note = recruitment_note.get();
+        async move {
+            update_space_recruitment_note(space_id, (!note.trim().is_empty()).then_some(note)).await
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = appoint.value().get() {
+            match result {
+                Ok(()) => {
+                    invite_email.set(String::new());
+                    invite_note.set(String::new());
+                    error.set(None);
+                    feedback.success(t(locale.get(), "协作任期已建立", "Host role appointed"));
+                    refresh.update(|value| *value += 1);
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+    Effect::new(move |_| {
+        if let Some(result) = remove.value().get() {
+            match result {
+                Ok(true) => {
+                    error.set(None);
+                    feedback.success(t(locale.get(), "协作任期已结束", "Host role ended"));
+                    refresh.update(|value| *value += 1);
+                }
+                Ok(false) => error.set(Some(
+                    t(
+                        locale.get(),
+                        "该任期已结束或不存在",
+                        "That tenure is no longer active",
+                    )
+                    .to_string(),
+                )),
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+    Effect::new(move |_| {
+        if let Some(result) = transfer.value().get() {
+            match result {
+                Ok(()) => {
+                    error.set(None);
+                    feedback.success(t(
+                        locale.get(),
+                        "主理权已完成交接",
+                        "Primary stewardship transferred",
+                    ));
+                    let _ = window().location().set_href("/inspace/my-spaces");
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+    Effect::new(move |_| {
+        if let Some(result) = leave.value().get() {
+            match result {
+                Ok(()) => {
+                    leave_armed.set(false);
+                    error.set(None);
+                    feedback.success(t(
+                        locale.get(),
+                        "你已退出这个空间的主理任期",
+                        "You left this host tenure",
+                    ));
+                    let _ = window().location().set_href("/inspace/my-spaces");
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+    Effect::new(move |_| {
+        if let Some(result) = system_care.value().get() {
+            match result {
+                Ok(()) => {
+                    system_care_armed.set(false);
+                    error.set(None);
+                    feedback.success(t(
+                        locale.get(),
+                        "空间已转为系统临时看护",
+                        "Space moved to system care",
+                    ));
+                    refresh.update(|value| *value += 1);
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+    Effect::new(move |_| {
+        if let Some(result) = save_note.value().get() {
+            match result {
+                Ok(()) => {
+                    error.set(None);
+                    feedback.success(t(locale.get(), "招募说明已保存", "Recruitment note saved"));
+                    refresh.update(|value| *value += 1);
+                }
+                Err(err) => error.set(Some(err.to_string())),
+            }
+        }
+    });
+
+    view! {
+        <section class="space-governance-panel" aria-label=move || t(locale.get(), "主理人治理", "Host governance")>
+            <div class="card-head-inline space-governance-head">
+                <div>
+                    <p class="survey-kicker">{move || t(locale.get(), "空间不会随主理人离开而消失", "A Space outlives every host")}</p>
+                    <h3>{move || t(locale.get(), "主理人治理", "Host governance")}</h3>
+                    <p>{move || t(locale.get(), "管理长期主理、共同主理、交接与任期记录。场景、物件、传送门和出生点只向有效任期开放。", "Manage primary and supporting hosts, handovers and tenure history. Scene objects, portals and spawn points require an active tenure.")}</p>
+                </div>
+            </div>
+            {move || error.get().map(|value| view! { <p class="error" role="alert">{value}</p> })}
+            <Suspense fallback=move || view! { <p class="directory-loading">{move || t(locale.get(), "正在读取任期…", "Loading governance…")}</p> }>
+                {move || Suspend::new(async move {
+                    match governance.await {
+                        Ok(snapshot) => {
+                            recruitment_note.set(snapshot.recruitment_note.clone().unwrap_or_default());
+                            let can_govern = snapshot.can_manage_governance;
+                            let current_role = snapshot.current_user_role;
+                            let state = snapshot.state;
+                            let active = snapshot.active_hosts.clone();
+                            let history = snapshot.past_hosts.clone();
+                            let events = snapshot.events.clone();
+                            let is_admin = session.await.is_some_and(|user| user.role.is_admin());
+                            view! {
+                                <div class="space-governance-summary">
+                                    <span class="space-governance-state">{governance_state_label(locale.get_untracked(), state)}</span>
+                                    <span>{format!("{} {}", t(locale.get_untracked(), "当前有效任期", "Active tenures"), active.len())}</span>
+                                    <span>{format!("{} {}", t(locale.get_untracked(), "历史任期", "Past tenures"), history.len())}</span>
+                                </div>
+                                <ul class="space-governance-hosts">
+                                    <For
+                                        each=move || active.clone()
+                                        key=|host| host.tenure_id
+                                        children=move |host: SpaceHostIdentity| {
+                                            let remove_target = StoredValue::new(host.user_id.to_string());
+                                            let removable = can_govern && host.role != HostTenureRole::Primary;
+                                            view! {
+                                                <li>
+                                                    <div>
+                                                        <strong>{host.display_name}</strong>
+                                                        <span>{governance_role_label(locale.get(), host.role)}</span>
+                                                        {host.email.map(|email| view! { <small>{email}</small> })}
+                                                    </div>
+                                                    <time>{format!("{} {}", t(locale.get(), "始于", "Since"), governance_date(host.started_at))}</time>
+                                                    <Show when=move || removable>
+                                                        <button class="button button-secondary-light" type="button" on:click=move |_| { remove.dispatch(remove_target.get_value()); }>
+                                                            {move || t(locale.get(), "结束任期", "End tenure")}
+                                                        </button>
+                                                    </Show>
+                                                </li>
+                                            }
+                                        }
+                                    />
+                                </ul>
+                                <Show when=move || can_govern>
+                                    <div class="space-governance-actions">
+                                        <form on:submit=move |ev| { ev.prevent_default(); appoint.dispatch(()); }>
+                                            <div>
+                                                <h4>{move || t(locale.get(), "邀请共同主理人", "Invite a co-host")}</h4>
+                                                <p>{move || t(locale.get(), "共同主理人可维护简介、内容与场景；只有主理人能转交主理权。", "Co-hosts can maintain content and scenes; only the primary host can transfer stewardship.")}</p>
+                                            </div>
+                                            <input type="email" required=true placeholder=move || t(locale.get(), "对方的注册邮箱", "Their account email") prop:value=move || invite_email.get() on:input=move |ev| invite_email.set(event_target_value(&ev)) />
+                                            <Show when=move || is_admin>
+                                                <select prop:value=move || invite_role.get() on:change=move |ev| invite_role.set(event_target_value(&ev))>
+                                                    <option value="co_host">{move || t(locale.get(), "共同主理人", "Co-host")}</option>
+                                                    <option value="steward">{move || t(locale.get(), "系统看护", "Steward")}</option>
+                                                </select>
+                                            </Show>
+                                            <input placeholder=move || t(locale.get(), "任期说明（可选）", "Tenure note (optional)") prop:value=move || invite_note.get() on:input=move |ev| invite_note.set(event_target_value(&ev)) />
+                                            <button class="button button-primary" type="submit" disabled=move || appoint.pending().get()>{move || t(locale.get(), "建立任期", "Appoint")}</button>
+                                        </form>
+                                        <form on:submit=move |ev| { ev.prevent_default(); transfer.dispatch(()); }>
+                                            <div>
+                                                <h4>{move || t(locale.get(), "转交主理权", "Transfer stewardship")}</h4>
+                                                <p>{move || t(locale.get(), "交接完成后，你的主理任期结束，但空间、故事与历史都会保留。", "Your primary tenure ends after handover, while the Space and all its history remain.")}</p>
+                                            </div>
+                                            <input type="email" required=true placeholder=move || t(locale.get(), "继任者注册邮箱", "Successor account email") prop:value=move || successor_email.get() on:input=move |ev| successor_email.set(event_target_value(&ev)) />
+                                            <input placeholder=move || t(locale.get(), "交接寄语（可选）", "Handover note (optional)") prop:value=move || handover_note.get() on:input=move |ev| handover_note.set(event_target_value(&ev)) />
+                                            <button class="button button-secondary" type="submit" disabled=move || transfer.pending().get()>{move || t(locale.get(), "确认交接", "Transfer")}</button>
+                                        </form>
+                                        <form on:submit=move |ev| { ev.prevent_default(); save_note.dispatch(()); }>
+                                            <div>
+                                                <h4>{move || t(locale.get(), "主理人招募说明", "Host recruitment note")}</h4>
+                                                <p>{move || t(locale.get(), "无主时会公开显示，告诉熟悉这里的人需要承担什么。", "Shown while vacant so applicants understand what care this Space needs.")}</p>
+                                            </div>
+                                            <textarea rows="3" prop:value=move || recruitment_note.get() on:input=move |ev| recruitment_note.set(event_target_value(&ev))></textarea>
+                                            <button class="button button-secondary-light" type="submit" disabled=move || save_note.pending().get()>{move || t(locale.get(), "保存说明", "Save note")}</button>
+                                        </form>
+                                    </div>
+                                </Show>
+                                <div class="space-governance-danger">
+                                    <Show when=move || current_role.is_some()>
+                                        <button class="button button-secondary-light" type="button" on:click=move |_| {
+                                            if leave_armed.get() { leave.dispatch(()); } else { leave_armed.set(true); }
+                                        }>
+                                            {move || if leave_armed.get() { t(locale.get(), "再次点击确认退出", "Click again to leave") } else { t(locale.get(), "退出我的主理任期", "Leave my host role") }}
+                                        </button>
+                                    </Show>
+                                    <Show when=move || is_admin && state != HostGovernanceState::SystemCare>
+                                        <button class="button button-danger" type="button" on:click=move |_| {
+                                            if system_care_armed.get() { system_care.dispatch(()); } else { system_care_armed.set(true); }
+                                        }>
+                                            {move || if system_care_armed.get() { t(locale.get(), "再次点击转为系统看护", "Click again for system care") } else { t(locale.get(), "转为系统临时看护", "Move to system care") }}
+                                        </button>
+                                    </Show>
+                                </div>
+                                <details class="space-governance-history">
+                                    <summary>{move || t(locale.get(), "查看历史主理人与治理记录", "View past hosts and governance log")}</summary>
+                                    <div class="space-governance-history-grid">
+                                        <section>
+                                            <h4>{move || t(locale.get(), "历史任期", "Past tenures")}</h4>
+                                            <ul>
+                                                <For
+                                                    each=move || history.clone()
+                                                    key=|host| host.tenure_id
+                                                    children=move |host: SpaceHostIdentity| view! {
+                                                        <li>
+                                                            <strong>{host.display_name}</strong>
+                                                            <span>{governance_role_label(locale.get(), host.role)}</span>
+                                                            <small>{format!("{} — {}", governance_date(host.started_at), host.ended_at.map(governance_date).unwrap_or_else(|| "—".to_string()))}</small>
+                                                        </li>
+                                                    }
+                                                />
+                                            </ul>
+                                        </section>
+                                        <section>
+                                            <h4>{move || t(locale.get(), "治理记录", "Governance log")}</h4>
+                                            <ul>
+                                                <For
+                                                    each=move || events.clone()
+                                                    key=|event| event.id
+                                                    children=move |event: SpaceGovernanceEvent| {
+                                                        let copy = governance_event_copy(locale.get(), &event);
+                                                        view! {
+                                                            <li>
+                                                                <strong>{copy}</strong>
+                                                                <span>{event.actor_name.unwrap_or_else(|| t(locale.get(), "系统", "System").to_string())}</span>
+                                                                <small>{governance_date(event.created_at)}</small>
+                                                            </li>
+                                                        }
+                                                    }
+                                                />
+                                            </ul>
+                                        </section>
+                                    </div>
+                                </details>
+                            }.into_any()
+                        }
+                        Err(err) => view! { <p class="error">{err.to_string()}</p> }.into_any(),
+                    }
+                })}
+            </Suspense>
+        </section>
+    }
+}
+
 #[component]
 fn SpaceMembersPanel(space_id: String) -> impl IntoView {
     let locale = use_i18n().locale;
@@ -852,11 +1255,7 @@ fn SpaceMembersPanel(space_id: String) -> impl IntoView {
 
     let members = Resource::new(
         move || (members_id.clone(), refresh.get()),
-        |(space_id, _)| async move {
-            list_my_space_members(space_id)
-                .await
-                .unwrap_or_default()
-        },
+        |(space_id, _)| async move { list_my_space_members(space_id).await.unwrap_or_default() },
     );
 
     let add_member = Action::new(move |_: &()| {
@@ -911,8 +1310,8 @@ fn SpaceMembersPanel(space_id: String) -> impl IntoView {
                     <p>
                         {move || t(
                             locale.get(),
-                            "按邮箱邀请成员：普通成员可参与空间，主持人可协助管理。",
-                            "Invite by email: members participate, hosts help manage."
+                            "按邮箱邀请普通成员。主理人与共同主理人请在上方「主理人治理」中建立正式任期。",
+                            "Invite regular members here. Create primary and co-host tenures in Host governance above."
                         )}
                     </p>
                 </div>
@@ -927,13 +1326,7 @@ fn SpaceMembersPanel(space_id: String) -> impl IntoView {
                     prop:value=move || member_email.get()
                     on:input=move |ev| member_email.set(event_target_value(&ev))
                 />
-                <select
-                    prop:value=move || member_role.get()
-                    on:change=move |ev| member_role.set(event_target_value(&ev))
-                >
-                    <option value="member">{move || t(locale.get(), "成员", "Member")}</option>
-                    <option value="host">{move || t(locale.get(), "主持人", "Host")}</option>
-                </select>
+                <input type="hidden" value="member" />
                 <button class="button button-primary" type="button" on:click=move |_| { add_member.dispatch(()); }>
                     {move || t(locale.get(), "添加成员", "Add member")}
                 </button>

@@ -10,6 +10,8 @@ pub mod auth;
 pub mod guides;
 pub mod home;
 pub mod host;
+pub mod lives;
 pub mod space;
+pub mod world;
 
 pub mod explore;

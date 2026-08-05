@@ -42,3 +42,11 @@ js-sys = "0.3"
 web-sys = "0.3"
 wasm-bindgen-futures = "0.4"
 gloo-timers = { version = "0.3", features = ["futures"] }
+
+# Fast local iteration without the multi-gigabyte debug symbols produced by
+# Cargo's default dev profile. Release builds remain unchanged.
+[profile.dev-fast]
+inherits = "dev"
+debug = 0
+incremental = true
+codegen-units = 256
